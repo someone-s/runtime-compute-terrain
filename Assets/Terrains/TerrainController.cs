@@ -1,10 +1,8 @@
 using UnityEngine;
-using UnityEngine.PlayerLoop;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using System.Runtime.InteropServices;
-using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(MeshFilter))]
 public class TerrainController : MonoBehaviour
@@ -40,7 +38,8 @@ public class TerrainController : MonoBehaviour
         computeShader.SetInt(Shader.PropertyToID("normalOffset"), mesh.GetVertexAttributeOffset(VertexAttribute.Normal));
 
         computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
-        computeShader.SetInt(Shader.PropertyToID("section"), Mathf.CeilToInt(((float)meshSize) / 32f));
+        computeShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize + 1 + 2)) / 32f));
+        computeShader.SetInt(Shader.PropertyToID("normalSection"), Mathf.CeilToInt(((float)(meshSize + 1)) / 32f));
 
         operationBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
@@ -126,26 +125,40 @@ public class TerrainController : MonoBehaviour
 
         private static Mesh CreateMesh()
         {
-            NativeArray<float3> vertices = new NativeArray<float3>((meshSize + 1) * (meshSize + 1), Allocator.Temp);
-            NativeArray<float3> normals = new NativeArray<float3>((meshSize + 1) * (meshSize + 1), Allocator.Temp);
-            for (int y = 0; y <= meshSize; y++)
-                for (int x = 0; x <= meshSize; x++)
+            NativeArray<float3> vertices = new NativeArray<float3>((meshSize + 1 + 2) * (meshSize + 1 + 2), Allocator.Temp);
+            NativeArray<float3> normals = new NativeArray<float3>((meshSize + 1 + 2) * (meshSize + 1 + 2), Allocator.Temp);
+            for (int y = 0; y < meshSize + 1 + 2; y++)
+                for (int x = 0; x < meshSize + 1 + 2; x++)
                 {
-                    vertices[y * (meshSize + 1) + x] = new float3(((float)x) / meshSize, 0, ((float)y) / meshSize);
-                    normals[y * (meshSize + 1) + x] = new float3(0f, 1f, 0f);
+                    vertices[y * (meshSize + 1 + 2) + x] = new float3((x - 1) / (float)meshSize, 0, (y - 1) / (float)meshSize);
+                    normals[y * (meshSize + 1 + 2) + x] = new float3(0f, 1f, 0f);
                 }
+
+            // NativeArray<int> indices = new NativeArray<int>(6 * (meshSize + 2) * (meshSize + 2), Allocator.Temp);
+            // for (int y = 0; y < meshSize + 2; y++)
+            //     for (int x = 0; x < meshSize + 2; x++)
+            //     {
+            //         indices[(y * (meshSize + 2) + x) * 6 + 0] = (y + 0 + 0) * (meshSize + 1 + 2) + (x + 0 + 0);
+            //         indices[(y * (meshSize + 2) + x) * 6 + 1] = (y + 0 + 1) * (meshSize + 1 + 2) + (x + 0 + 1);
+            //         indices[(y * (meshSize + 2) + x) * 6 + 2] = (y + 0 + 0) * (meshSize + 1 + 2) + (x + 0 + 1);
+            //         indices[(y * (meshSize + 2) + x) * 6 + 3] = (y + 0 + 1) * (meshSize + 1 + 2) + (x + 0 + 1);
+            //         indices[(y * (meshSize + 2) + x) * 6 + 4] = (y + 0 + 0) * (meshSize + 1 + 2) + (x + 0 + 0);
+            //         indices[(y * (meshSize + 2) + x) * 6 + 5] = (y + 0 + 1) * (meshSize + 1 + 2) + (x + 0 + 0);
+            //     }
+            
 
             NativeArray<int> indices = new NativeArray<int>(6 * meshSize * meshSize, Allocator.Temp);
             for (int y = 0; y < meshSize; y++)
                 for (int x = 0; x < meshSize; x++)
                 {
-                    indices[(y * meshSize + x) * 6 + 0] = (y + 0) * (meshSize + 1) + (x + 0);
-                    indices[(y * meshSize + x) * 6 + 1] = (y + 1) * (meshSize + 1) + (x + 1);
-                    indices[(y * meshSize + x) * 6 + 2] = (y + 0) * (meshSize + 1) + (x + 1);
-                    indices[(y * meshSize + x) * 6 + 3] = (y + 1) * (meshSize + 1) + (x + 1);
-                    indices[(y * meshSize + x) * 6 + 4] = (y + 0) * (meshSize + 1) + (x + 0);
-                    indices[(y * meshSize + x) * 6 + 5] = (y + 1) * (meshSize + 1) + (x + 0);
+                    indices[(y * meshSize + x) * 6 + 0] = (y + 1 + 0) * (meshSize + 1 + 2) + (x + 1 + 0);
+                    indices[(y * meshSize + x) * 6 + 1] = (y + 1 + 1) * (meshSize + 1 + 2) + (x + 1 + 1);
+                    indices[(y * meshSize + x) * 6 + 2] = (y + 1 + 0) * (meshSize + 1 + 2) + (x + 1 + 1);
+                    indices[(y * meshSize + x) * 6 + 3] = (y + 1 + 1) * (meshSize + 1 + 2) + (x + 1 + 1);
+                    indices[(y * meshSize + x) * 6 + 4] = (y + 1 + 0) * (meshSize + 1 + 2) + (x + 1 + 0);
+                    indices[(y * meshSize + x) * 6 + 5] = (y + 1 + 1) * (meshSize + 1 + 2) + (x + 1 + 0);
                 }
+
 
             Mesh mesh = new Mesh();
             mesh.indexFormat = IndexFormat.UInt32;
@@ -153,7 +166,7 @@ public class TerrainController : MonoBehaviour
             mesh.SetVertices(vertices);
             mesh.SetIndices(indices, MeshTopology.Triangles, 0);
             mesh.SetNormals(normals);
-            mesh.bounds = new Bounds(new Vector3(0.5f, 0f, 0.5f), new Vector3(1f, 200f, 1f));
+            mesh.bounds = new Bounds(new Vector3(0.5f, 0f, 0.5f), new Vector3(1f + 1f / meshSize, 200f, 1f + 1f / meshSize));
 
             vertices.Dispose();
             normals.Dispose();

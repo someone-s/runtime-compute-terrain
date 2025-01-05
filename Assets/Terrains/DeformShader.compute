@@ -6,8 +6,9 @@ int stride;
 int positionOffset;
 int normalOffset;
 
-int size; // i.e. 1000
-int section; // if size is 1000, section is 32 (1000 / 32)
+uint size; // i.e. 1000
+uint meshSection; // if size is 1000, meshSection is 32 ceil((1000 + 1 + 2) / 32)
+uint normalSection; // if size is 1000, normalSection is 32 ceil(1000 + 1 / 32)
 
 struct Operation {
     float2 position; // normalized
@@ -19,33 +20,35 @@ struct Operation {
 StructuredBuffer<Operation> operations;
 int count; // operation count
 
-uint CalculateVertexIndex(int2 base, int x, int y) {
-    return ((base.y + y) * (size + 1) + (base.x + x)) * stride + positionOffset;
+uint CalculateTrueVertexIndex(int x, int y) {
+    return (y * (size + 1 + 2) + x) * stride + positionOffset;
 }
 
-uint CalculateNormalIndex(int2 base, int x, int y) {
-    return ((base.y + y) * (size + 1) + (base.x + x)) * stride + normalOffset;
+uint CalculatePaddedVertexIndex(int x, int y) {
+    return ((y + 1) * (size + 1 + 2) + (x + 1)) * stride + positionOffset;
+}
+
+uint CalculatePaddedNormalIndex(int x, int y) {
+    return ((y + 1) * (size + 1 + 2) + (x + 1)) * stride + normalOffset;
 }
 
 // this oeprate per vertex
 [numthreads(32, 32, 1)]
 void ModifyMesh(uint3 id : SV_DispatchThreadID) {
 
-    int2 base = int2(id.xy) * section;
-
-    for (int x = 0; x < section; x++) {
+    for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection; x++) {
 
         // ignore out of bounds
-        if (base.x + x > size + 1)
+        if (x >= size + 1 + 2)
             continue;
 
-        for (int y = 0; y < section; y++) {
+        for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection; y++) {
 
             // ignore out of bounds
-            if (base.y + y > size + 1)
+            if (y >= size + 1 + 2)
                 continue;
 
-            uint index = CalculateVertexIndex(base, x, y);
+            uint index = CalculateTrueVertexIndex(x, y);
             float3 vertex = asfloat(vertices.Load3(index));
 
             float2 localPos = vertex.xz;
@@ -77,29 +80,23 @@ void ModifyMesh(uint3 id : SV_DispatchThreadID) {
 [numthreads(32, 32, 1)]
 void RecalculateNormal(uint3 id : SV_DispatchThreadID) {
     
-    int2 base = int2(id.xy) * section;
-
-    for (int x = 0; x < section; x++) {
+    for (uint x = id.x * normalSection; x < (id.x + 1) * normalSection; x++) {
 
         // ignore edge and out of bounds
-        if (base.x + x < 1)
-            continue;
-        if (base.x + x > size)
+        if (x > size)
             continue;
 
-        for (int y = 0; y < section; y++) {
+        for (uint y = id.y * normalSection; y < (id.y + 1) * normalSection; y++) {
 
             // ignore edge and out of bounds
-            if (base.y + y < 1)
-                continue;
-            if (base.y + y > size)
+            if (y > size)
                 continue;
 
-            float3 selfPt   = asfloat(vertices.Load3(CalculateVertexIndex(base, x,      y)));
-            float3 leftDir  = normalize(selfPt - asfloat(vertices.Load3(CalculateVertexIndex(base, x - 1,  y))));
-            float3 upDir    = normalize(selfPt - asfloat(vertices.Load3(CalculateVertexIndex(base, x,      y + 1))));
-            float3 downDir  = normalize(selfPt - asfloat(vertices.Load3(CalculateVertexIndex(base, x,      y - 1))));
-            float3 rightDir = normalize(selfPt - asfloat(vertices.Load3(CalculateVertexIndex(base, x + 1,  y))));
+            float3 selfPt   = asfloat(vertices.Load3(CalculatePaddedVertexIndex(x, y)));
+            float3 leftDir  = normalize(selfPt - asfloat(vertices.Load3(CalculatePaddedVertexIndex(x - 1,  y))));
+            float3 upDir    = normalize(selfPt - asfloat(vertices.Load3(CalculatePaddedVertexIndex(x,      y + 1))));
+            float3 downDir  = normalize(selfPt - asfloat(vertices.Load3(CalculatePaddedVertexIndex(x,      y - 1))));
+            float3 rightDir = normalize(selfPt - asfloat(vertices.Load3(CalculatePaddedVertexIndex(x + 1,  y))));
 
             float3 luNorm = cross(leftDir, upDir);
             float3 ldNorm = cross(downDir, leftDir);
@@ -112,7 +109,7 @@ void RecalculateNormal(uint3 id : SV_DispatchThreadID) {
                 rdNorm * 0.25 + 
                 ruNorm * 0.25);
 
-            vertices.Store3(CalculateNormalIndex(base, x, y), asuint(avgNorm));
+            vertices.Store3(CalculatePaddedNormalIndex(x, y), asuint(avgNorm));
         }
     }
 }
@@ -121,15 +118,15 @@ void RecalculateNormal(uint3 id : SV_DispatchThreadID) {
 [numthreads(32, 32, 1)]
 void Intersect(uint3 id : SV_DispatchThreadID) {
 
-    int2 base = int2(id.xy) * section;
+    int2 base = int2(id.xy) * meshSection;
 
-    for (int x = 0; x < section; x++) {
+    for (uint x = 0; x < meshSection; x++) {
 
         // ignore out of bounds
         if (base.x + x > size)
             continue;
 
-        for (int y = 0; y < section; y++) {
+        for (uint y = 0; y < meshSection; y++) {
 
             // ignore out of bounds
             if (base.y + y > size)
