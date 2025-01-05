@@ -1,0 +1,141 @@
+#pragma kernel ModifyMesh
+#pragma kernel RecalculateNormal
+
+RWByteAddressBuffer vertices;
+int stride;
+int positionOffset;
+int normalOffset;
+
+int size; // i.e. 1000
+int section; // if size is 1000, section is 32 (1000 / 32)
+
+struct Operation {
+    float2 position; // normalized
+    float radius; // normalized
+    float parameter; // arbitary
+    uint type;
+};
+
+StructuredBuffer<Operation> operations;
+int count; // operation count
+
+uint CalculateVertexIndex(int2 base, int x, int y) {
+    return ((base.y + y) * (size + 1) + (base.x + x)) * stride + positionOffset;
+}
+
+uint CalculateNormalIndex(int2 base, int x, int y) {
+    return ((base.y + y) * (size + 1) + (base.x + x)) * stride + normalOffset;
+}
+
+// this oeprate per vertex
+[numthreads(32, 32, 1)]
+void ModifyMesh(uint3 id : SV_DispatchThreadID) {
+
+    int2 base = int2(id.xy) * section;
+
+    for (int x = 0; x < section; x++) {
+
+        // ignore out of bounds
+        if (base.x + x > size + 1)
+            continue;
+
+        for (int y = 0; y < section; y++) {
+
+            // ignore out of bounds
+            if (base.y + y > size + 1)
+                continue;
+
+            uint index = CalculateVertexIndex(base, x, y);
+            float3 vertex = asfloat(vertices.Load3(index));
+
+            float2 localPos = vertex.xz;
+            for (int o = 0; o < count; o++) {
+                Operation operation = operations[o];
+                float distToCent = distance(operation.position, localPos);
+                
+                if (distToCent <= operation.radius) {
+                    float proportion = 1.0 - distToCent / operation.radius;
+                    
+                    if (operation.type == 1) {
+                        vertex.y += operation.parameter * proportion;
+                    }
+                    else if (operation.type == 2) {
+                        vertex.y -= operation.parameter * proportion;
+                    }
+                    else if (operation.type == 3) {
+                        vertex.y = (1.0 - proportion) * vertex.y + proportion * operation.parameter;
+                    }
+                }   
+            }
+            
+            vertices.Store3(index, asuint(vertex));
+        }
+    }
+}
+
+// this operate per inner vertex
+[numthreads(32, 32, 1)]
+void RecalculateNormal(uint3 id : SV_DispatchThreadID) {
+    
+    int2 base = int2(id.xy) * section;
+
+    for (int x = 0; x < section; x++) {
+
+        // ignore edge and out of bounds
+        if (base.x + x < 1)
+            continue;
+        if (base.x + x > size)
+            continue;
+
+        for (int y = 0; y < section; y++) {
+
+            // ignore edge and out of bounds
+            if (base.y + y < 1)
+                continue;
+            if (base.y + y > size)
+                continue;
+
+            float3 selfPt   = asfloat(vertices.Load3(CalculateVertexIndex(base, x,      y)));
+            float3 leftDir  = normalize(selfPt - asfloat(vertices.Load3(CalculateVertexIndex(base, x - 1,  y))));
+            float3 upDir    = normalize(selfPt - asfloat(vertices.Load3(CalculateVertexIndex(base, x,      y + 1))));
+            float3 downDir  = normalize(selfPt - asfloat(vertices.Load3(CalculateVertexIndex(base, x,      y - 1))));
+            float3 rightDir = normalize(selfPt - asfloat(vertices.Load3(CalculateVertexIndex(base, x + 1,  y))));
+
+            float3 luNorm = cross(leftDir, upDir);
+            float3 ldNorm = cross(downDir, leftDir);
+            float3 rdNorm = cross(rightDir, downDir);
+            float3 ruNorm = cross(upDir, rightDir);
+
+            float3 avgNorm = normalize(
+                luNorm * 0.25 + 
+                ldNorm * 0.25 + 
+                rdNorm * 0.25 + 
+                ruNorm * 0.25);
+
+            vertices.Store3(CalculateNormalIndex(base, x, y), asuint(avgNorm));
+        }
+    }
+}
+
+// this opearte per square
+[numthreads(32, 32, 1)]
+void Intersect(uint3 id : SV_DispatchThreadID) {
+
+    int2 base = int2(id.xy) * section;
+
+    for (int x = 0; x < section; x++) {
+
+        // ignore out of bounds
+        if (base.x + x > size)
+            continue;
+
+        for (int y = 0; y < section; y++) {
+
+            // ignore out of bounds
+            if (base.y + y > size)
+                continue;
+
+            
+        }
+    }
+}
