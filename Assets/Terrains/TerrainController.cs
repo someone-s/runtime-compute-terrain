@@ -18,6 +18,8 @@ public class TerrainController : MonoBehaviour
     private int index = 0;
     private NativeArray<Operation> operationWriter;
 
+    private ComputeBuffer intersectBuffer;
+    private IntersectResult[] intersectOutput = new IntersectResult[1];
 
     private void Start()
     {
@@ -30,19 +32,25 @@ public class TerrainController : MonoBehaviour
 
         int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
         int recalculateNormalKernelIndex = computeShader.FindKernel("RecalculateNormal");
+        int findIntersectKernelIndex = computeShader.FindKernel("FindIntersect");
 
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("vertices"), mesh.GetVertexBuffer(0));
         computeShader.SetBuffer(recalculateNormalKernelIndex, Shader.PropertyToID("vertices"), mesh.GetVertexBuffer(0));
+        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("vertices"), mesh.GetVertexBuffer(0));
         computeShader.SetInt(Shader.PropertyToID("stride"), mesh.GetVertexBufferStride(0));
         computeShader.SetInt(Shader.PropertyToID("positionOffset"), mesh.GetVertexAttributeOffset(VertexAttribute.Position));
         computeShader.SetInt(Shader.PropertyToID("normalOffset"), mesh.GetVertexAttributeOffset(VertexAttribute.Normal));
 
         computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
         computeShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize + 1 + 2)) / 32f));
-        computeShader.SetInt(Shader.PropertyToID("normalSection"), Mathf.CeilToInt(((float)(meshSize + 1)) / 32f));
-
         operationBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
+
+        computeShader.SetInt(Shader.PropertyToID("normalSection"), Mathf.CeilToInt(((float)(meshSize + 1)) / 32f));
+
+        computeShader.SetInt(Shader.PropertyToID("intersectSection"), Mathf.CeilToInt(((float)meshSize) / 32f));
+        intersectBuffer = new ComputeBuffer(1, sizeof(float) * 3 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("intersectResult"), intersectBuffer);
     }
 
     public void Modify(Vector2 normalPosition, float normalRadius, float operationParameter, OperationType operationType)
@@ -64,6 +72,14 @@ public class TerrainController : MonoBehaviour
             type = (uint)operationType
         };
         index++;
+    }
+
+    public Vector3? GetIntersect(Vector3 origin, Vector3 direction) {
+        computeShader.SetVector(Shader.PropertyToID("origin"), origin);
+        computeShader.SetVector(Shader.PropertyToID("direction"), direction);
+        computeShader.Dispatch(computeShader.FindKernel("FindIntersect"), 32, 32, 1);
+        intersectBuffer.GetData(intersectOutput);
+        return intersectOutput[0].hit == 1 ? intersectOutput[0].position : null;
     }
 
     private void LateUpdate()
@@ -90,7 +106,6 @@ public class TerrainController : MonoBehaviour
             }
             tick = true;
         }
-
     }
 
     public enum OperationType
@@ -107,6 +122,13 @@ public class TerrainController : MonoBehaviour
         public float radius { get; set; } // normalized
         public float parameter { get; set; } // arbitary space
         public uint type { get; set; }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IntersectResult
+    {
+        public Vector3 position { get; set; }
+        public uint hit { get; set; }
     }
 
     private static class MeshGenerator
@@ -133,20 +155,7 @@ public class TerrainController : MonoBehaviour
                     vertices[y * (meshSize + 1 + 2) + x] = new float3((x - 1) / (float)meshSize, 0, (y - 1) / (float)meshSize);
                     normals[y * (meshSize + 1 + 2) + x] = new float3(0f, 1f, 0f);
                 }
-
-            // NativeArray<int> indices = new NativeArray<int>(6 * (meshSize + 2) * (meshSize + 2), Allocator.Temp);
-            // for (int y = 0; y < meshSize + 2; y++)
-            //     for (int x = 0; x < meshSize + 2; x++)
-            //     {
-            //         indices[(y * (meshSize + 2) + x) * 6 + 0] = (y + 0 + 0) * (meshSize + 1 + 2) + (x + 0 + 0);
-            //         indices[(y * (meshSize + 2) + x) * 6 + 1] = (y + 0 + 1) * (meshSize + 1 + 2) + (x + 0 + 1);
-            //         indices[(y * (meshSize + 2) + x) * 6 + 2] = (y + 0 + 0) * (meshSize + 1 + 2) + (x + 0 + 1);
-            //         indices[(y * (meshSize + 2) + x) * 6 + 3] = (y + 0 + 1) * (meshSize + 1 + 2) + (x + 0 + 1);
-            //         indices[(y * (meshSize + 2) + x) * 6 + 4] = (y + 0 + 0) * (meshSize + 1 + 2) + (x + 0 + 0);
-            //         indices[(y * (meshSize + 2) + x) * 6 + 5] = (y + 0 + 1) * (meshSize + 1 + 2) + (x + 0 + 0);
-            //     }
             
-
             NativeArray<int> indices = new NativeArray<int>(6 * meshSize * meshSize, Allocator.Temp);
             for (int y = 0; y < meshSize; y++)
                 for (int x = 0; x < meshSize; x++)
