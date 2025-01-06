@@ -44,7 +44,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 683507b61936a9634a793a6313258bae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chunkPrefab: {fileID: 5037301470321108824, guid: e2888f1cfa331b522b6434bd8c95e16f, type: 3}
+  testPlayer: {fileID: 0}
+  testDisplay: {fileID: 0}
   action:
     m_Name: Action
     m_Type: 0
@@ -54,3 +55,13 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
+  action2:
+    m_Name: Action 2
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: e3a44210-261d-4700-ad79-0e1b0e0ccbf3
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+  chunkPrefab: {fileID: 5037301470321108824, guid: e2888f1cfa331b522b6434bd8c95e16f, type: 3}

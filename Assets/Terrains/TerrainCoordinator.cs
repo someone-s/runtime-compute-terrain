@@ -4,8 +4,12 @@ using UnityEngine.InputSystem;
 
 public class TerrainCoordinator : MonoBehaviour
 {
-    [SerializeField] private GameObject chunkPrefab;
+    public Transform testPlayer;
+    public Transform testDisplay;
     public InputAction action;
+
+
+    [SerializeField] private GameObject chunkPrefab;
 
     private static int extent = 2;
     private static float area = 50f;
@@ -32,6 +36,8 @@ public class TerrainCoordinator : MonoBehaviour
         action.Enable();
     }
 
+    private void LateUpdate() => Cast();
+
     private void Test()
     {
         controllers[(0, 0)].Modify(new Vector2(0f, 0f), 0.5f, 10f, TerrainController.OperationType.Add);
@@ -43,5 +49,26 @@ public class TerrainCoordinator : MonoBehaviour
         controllers[(0, 1)].Modify(new Vector2(1f, 0f), 0.5f, 10f, TerrainController.OperationType.Add);
         controllers[(0, 0)].Modify(new Vector2(1f, 1f), 0.5f, 10f, TerrainController.OperationType.Add);
         controllers[(1, 0)].Modify(new Vector2(0f, 1f), 0.5f, 10f, TerrainController.OperationType.Add);
+    }
+
+    private void Cast()
+    {
+        Vector3 translatedPosition = testPlayer.position;
+        translatedPosition.x /= area;
+        translatedPosition.z /= area;
+
+        Vector3 translatedDirection = testPlayer.rotation * Vector3.forward;
+        translatedDirection.x /= area;
+        translatedDirection.z /= area;
+        
+        Vector3? result = controllers[(0, 0)].GetIntersect(translatedPosition, Vector3.Normalize(translatedDirection));
+
+        if (result != null) {
+            Debug.Log($"{result.Value}");
+            Vector3 intersectPoint = result.Value;
+            intersectPoint.x *= area;
+            intersectPoint.z *= area;
+            testDisplay.position = intersectPoint;
+        }
     }
 }
