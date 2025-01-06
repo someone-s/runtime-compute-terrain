@@ -138,37 +138,6 @@ struct IntersectResult {
 RWStructuredBuffer<IntersectResult> intersectResult;
 groupshared int minT;
 
-// // See Moller-Trumbore intersetion on Wikipedia
-// float4 RayTriangleIntersect(float3 vertexA, float3 vertexB, float3 vertexC) {
-//     float3 edge1 = vertexB - vertexA;
-//     float3 edge2 = vertexC - vertexA;
-//     float3 rayCrossE2 = cross(direction, edge2);
-//     float det = dot(edge1, rayCrossE2);
-
-//     if (det > -epsilon && det < epsilon)
-//         return float4(0.0, 0.0, 0.0, 0.0);
-
-//     float invDet = 1.0 / det;
-//     float3 s = origin - vertexA;
-//     float u = invDet * dot(s, rayCrossE2);
-
-//     if ((u < 0.0 && abs(u) > epsilon) || (u > 1 && abs(u - 1) > epsilon))
-//         return float4(0.0, 0.0, 0.0, 0.0);
-
-//     float3 sCrossE1 = cross(s, edge1);
-//     float v = invDet * dot(direction, sCrossE1);
-
-//     if ((v < 0.0 && abs(v) > epsilon) || (u + v > 1.0 && abs(u + v - 1.0) > epsilon))
-//         return float4(0.0, 0.0, 0.0, 0.0);
-
-//     float t = invDet * dot(edge2, sCrossE1);
-
-//     if (t > epsilon)
-//         return float4(origin + direction * t, 1.0);
-//     else
-//         return float4(0.0, 0.0, 0.0, 0.0);
-// }
-
 // See Moller-Trumbore intersetion on Wikipedia
 float4 RayTriangleIntersect(float3 edge1, float3 edge2, float3 s) {
 
@@ -197,9 +166,7 @@ float4 RayTriangleIntersect(float3 edge1, float3 edge2, float3 s) {
                 if (t > EPSILON)
                     output = float4(origin + direction * t, t);
             }
-        
         }
-    
     }
 
     return output;

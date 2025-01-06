@@ -12,10 +12,9 @@ public class TerrainController : MonoBehaviour
     private static int meshSize = 250;
     [SerializeField] private ComputeShader computeShader;
 
+
     private void Start()
     {
-        mode = UnityEngine.Random.Range(0, 2);
-
         MeshFilter filter = GetComponent<MeshFilter>();
         Mesh mesh = MeshGenerator.GetMesh();
         filter.sharedMesh = mesh;
@@ -37,6 +36,7 @@ public class TerrainController : MonoBehaviour
         computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
         computeShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize + 1 + 2)) / 32f));
         operationBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        operationWriter = new NativeArray<Operation>(bufferCount, Allocator.Persistent);
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
 
         computeShader.SetInt(Shader.PropertyToID("normalSection"), Mathf.CeilToInt(((float)(meshSize + 1)) / 32f));
@@ -48,6 +48,7 @@ public class TerrainController : MonoBehaviour
 
     private void OnDestroy() {
         operationBuffer.Dispose();
+        operationWriter.Dispose();
         intersectBuffer.Dispose();
     }
 
@@ -88,9 +89,6 @@ public class TerrainController : MonoBehaviour
     {
         enabled = true;
 
-        if (index == 0)
-            operationWriter = operationBuffer.BeginWrite<Operation>(0, 50);
-
         if (index >= bufferCount)
         {
             Debug.LogWarning($"Operation ignored, exceeded max count: {bufferCount}");
@@ -109,7 +107,14 @@ public class TerrainController : MonoBehaviour
 
     private void ExecuteModify()
     {
+        NativeArray<Operation> operationDestination = operationBuffer.BeginWrite<Operation>(0, index);
+
+        NativeSlice<Operation> destinationRange = new NativeSlice<Operation>(operationDestination, 0, index);
+        NativeSlice<Operation> writerRange = new NativeSlice<Operation>(operationWriter, 0, index);
+        destinationRange.CopyFrom(writerRange);
+
         operationBuffer.EndWrite<Operation>(index);
+
         computeShader.SetInt(Shader.PropertyToID("count"), index);
         index = 0;
 
@@ -173,13 +178,22 @@ public class TerrainController : MonoBehaviour
 #endregion
 
 #region Work Section
-    private int mode;
     private bool needRecalculateNormal = false;
     private bool needFindIntersect = false;
 
+    private static int synchronizedMode = 0;
+    private static int updateInstance = 0;
+    private static void UpdateMode() {
+        if (updateInstance != Time.frameCount) {
+            synchronizedMode += 1;
+            synchronizedMode %= 2;
+            updateInstance = Time.frameCount;
+        }
+    }
+
     private void LateUpdate()
     {
-        switch (mode)
+        switch (synchronizedMode)
         {
             case 0:
                 if (index > 0)
@@ -195,18 +209,16 @@ public class TerrainController : MonoBehaviour
                     needRecalculateNormal = false;
                 }
                 break;
-            case 2:
-                break;
         }
+
+        UpdateMode();
+
 
         if (needFindIntersect)
         {
             ExecuteIntersect();
             needFindIntersect = false;
         }
-
-        mode += 1;
-        mode %= 3;
 
         if (!(index > 0 || needRecalculateNormal || needFindIntersect))
             enabled = false;
