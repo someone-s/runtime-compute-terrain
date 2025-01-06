@@ -8,7 +8,6 @@ public class TerrainCoordinator : MonoBehaviour
     public Transform testPlayer;
     public Transform testDisplay;
     public InputAction action;
-    private bool active = false;
 
     [SerializeField] private GameObject chunkPrefab;
 
@@ -41,7 +40,8 @@ public class TerrainCoordinator : MonoBehaviour
         return controller;
     }
 
-    private void LateUpdate()
+    private int count = 0;
+    private void Update()
     {
 
         Vector3 scaledPosition = testPlayer.position;
@@ -55,7 +55,7 @@ public class TerrainCoordinator : MonoBehaviour
 
         UpdateVisual(centerX, centerZ);
 
-        if (action.IsPressed())
+        if (action.IsPressed()) 
             Test();
     }
 
@@ -133,9 +133,11 @@ public class TerrainCoordinator : MonoBehaviour
         int centerX = Mathf.FloorToInt(point.x);
         int centerZ = Mathf.FloorToInt(point.z);
 
+        float delta = Time.deltaTime;
+
         for (int x = centerX - 1; x <= centerX + 1; x++)
             for (int z = centerZ - 1; z <= centerZ + 1; z++)
-                controllers[(x, z)].QueueModify(new Vector2(point.x - x, point.z - z), 0.5f, Time.deltaTime, TerrainController.OperationType.Add);
+                controllers[(x, z)].QueueModify(new Vector2(point.x - x, point.z - z), 0.5f, delta, TerrainController.OperationType.Add);
 
     }
 
