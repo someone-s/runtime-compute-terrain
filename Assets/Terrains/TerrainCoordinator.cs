@@ -7,6 +7,8 @@ public class TerrainCoordinator : MonoBehaviour
 {
     public Transform testPlayer;
     public Transform testDisplay;
+    public InputAction action;
+    private bool active = false;
 
     [SerializeField] private GameObject chunkPrefab;
 
@@ -18,6 +20,11 @@ public class TerrainCoordinator : MonoBehaviour
 
     private Dictionary<(int x, int z), TerrainController> controllers = new();
 
+    private void Start() {
+        //action.started += (_) => active = true;
+        //action.performed += (_) => active = false;
+        action.Enable();
+    }
     private TerrainController Generate(int x, int z)
     {
         GameObject chunkInstance = Instantiate(chunkPrefab);
@@ -47,6 +54,9 @@ public class TerrainCoordinator : MonoBehaviour
         UpdateCast(scaledPosition, centerX, centerZ);
 
         UpdateVisual(centerX, centerZ);
+
+        if (action.IsPressed())
+            Test();
     }
 
     private void UpdateCast(Vector3 scaledPosition, int centerX, int centerZ)
@@ -116,15 +126,16 @@ public class TerrainCoordinator : MonoBehaviour
 
     private void Test()
     {
-        controllers[(0, 0)].QueueModify(new Vector2(0f, 0f), 0.5f, 10f, TerrainController.OperationType.Add);
-        controllers[(-1, 0)].QueueModify(new Vector2(1f, 0f), 0.5f, 10f, TerrainController.OperationType.Add);
-        controllers[(-1, -1)].QueueModify(new Vector2(1f, 1f), 0.5f, 10f, TerrainController.OperationType.Add);
-        controllers[(0, -1)].QueueModify(new Vector2(0f, 1f), 0.5f, 10f, TerrainController.OperationType.Add);
+        Vector3 point = testDisplay.position;
+        point.x /= area;
+        point.z /= area;
 
-        controllers[(1, 1)].QueueModify(new Vector2(0f, 0f), 0.5f, 10f, TerrainController.OperationType.Add);
-        controllers[(0, 1)].QueueModify(new Vector2(1f, 0f), 0.5f, 10f, TerrainController.OperationType.Add);
-        controllers[(0, 0)].QueueModify(new Vector2(1f, 1f), 0.5f, 10f, TerrainController.OperationType.Add);
-        controllers[(1, 0)].QueueModify(new Vector2(0f, 1f), 0.5f, 10f, TerrainController.OperationType.Add);
+        int centerX = Mathf.FloorToInt(point.x);
+        int centerZ = Mathf.FloorToInt(point.z);
+
+        for (int x = centerX - 1; x <= centerX + 1; x++)
+            for (int z = centerZ - 1; z <= centerZ + 1; z++)
+                controllers[(x, z)].QueueModify(new Vector2(point.x - x, point.z - z), 0.5f, Time.deltaTime, TerrainController.OperationType.Add);
 
     }
 
