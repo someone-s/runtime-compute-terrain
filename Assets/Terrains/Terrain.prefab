@@ -10,6 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 2728536552217882223}
   - component: {fileID: 8046755119473681707}
+  - component: {fileID: 2246402343811926042}
+  - component: {fileID: 5947181190290359038}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -46,22 +48,66 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   testPlayer: {fileID: 0}
   testDisplay: {fileID: 0}
-  action:
-    m_Name: Action
+  actionA:
+    m_Name: Action A
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 72df76ee-5a94-48bd-956b-0779bf82a7b9
+    m_Id: 34f399f9-6c68-4435-b0f2-af6380a7d5cb
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
-  action2:
-    m_Name: Action 2
+  actionB:
+    m_Name: Action B
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: e3a44210-261d-4700-ad79-0e1b0e0ccbf3
+    m_Id: 2298850a-bae3-40b1-b2b4-6d9449439cec
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+  actionC:
+    m_Name: Action C
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 9445d605-8832-494c-b62c-78e1d0da6f6c
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+  actionD:
+    m_Name: Action D
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: cbfd845a-b628-4370-a2ba-c2c1d6a73cf1
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
   chunkPrefab: {fileID: 5037301470321108824, guid: e2888f1cfa331b522b6434bd8c95e16f, type: 3}
+--- !u!114 &2246402343811926042
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9031885650118237956}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8b16ce0d410dc122a5de20037d8c536, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeShader: {fileID: 7200000, guid: d93d64336a0404f298e280cb249d93a5, type: 3}
+--- !u!114 &5947181190290359038
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9031885650118237956}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01dbf2940b281115fba461a719babda3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeShader: {fileID: 7200000, guid: fd44cb64355f940c28312ed128fcbcd4, type: 3}

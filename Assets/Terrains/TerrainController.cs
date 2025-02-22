@@ -2,57 +2,27 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
-using System.Runtime.InteropServices;
-using UnityEngine.Events;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class TerrainController : MonoBehaviour
 {
     // General state
     private static int meshSize = 250;
-    [SerializeField] private ComputeShader computeShader;
 
+    public GraphicsBuffer graphicsBuffer { get; private set; }
+    public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
+    public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
+    public static int VertexNormalAttributeOffset => MeshGenerator.GetVertexNormalAttributeOffset();
 
     private void Start()
     {
         MeshFilter filter = GetComponent<MeshFilter>();
         Mesh mesh = MeshGenerator.GetMesh();
         filter.sharedMesh = mesh;
-
-
-        computeShader = Instantiate(computeShader);
-
-        int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
-        int recalculateNormalKernelIndex = computeShader.FindKernel("RecalculateNormal");
-        int findIntersectKernelIndex = computeShader.FindKernel("FindIntersect");
-
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("vertices"), mesh.GetVertexBuffer(0));
-        computeShader.SetBuffer(recalculateNormalKernelIndex, Shader.PropertyToID("vertices"), mesh.GetVertexBuffer(0));
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("vertices"), mesh.GetVertexBuffer(0));
-        computeShader.SetInt(Shader.PropertyToID("stride"), mesh.GetVertexBufferStride(0));
-        computeShader.SetInt(Shader.PropertyToID("positionOffset"), mesh.GetVertexAttributeOffset(VertexAttribute.Position));
-        computeShader.SetInt(Shader.PropertyToID("normalOffset"), mesh.GetVertexAttributeOffset(VertexAttribute.Normal));
-
-        computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
-        computeShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize + 1 + 2)) / 32f));
-        operationBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        operationWriter = new NativeArray<Operation>(bufferCount, Allocator.Persistent);
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
-
-        computeShader.SetInt(Shader.PropertyToID("normalSection"), Mathf.CeilToInt(((float)(meshSize + 1)) / 32f));
-
-        computeShader.SetInt(Shader.PropertyToID("intersectSection"), Mathf.CeilToInt(((float)meshSize) / 32f));
-        intersectBuffer = new ComputeBuffer(1, sizeof(float) * 3 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("intersectResult"), intersectBuffer);
+        graphicsBuffer = mesh.GetVertexBuffer(0);
     }
 
-    private void OnDestroy() {
-        operationBuffer.Dispose();
-        operationWriter.Dispose();
-        intersectBuffer.Dispose();
-    }
-
-#region Visual Section
+    #region Visual Section
     private MeshRenderer visualRenderer;
 
     public void SetVisible(bool visualState)
@@ -61,205 +31,65 @@ public class TerrainController : MonoBehaviour
             visualRenderer = GetComponent<MeshRenderer>();
         visualRenderer.enabled = visualState;
     }
-#endregion
+    #endregion
 
-#region Modify Section
-    private static int bufferCount = 50;
-    private ComputeBuffer operationBuffer;
-    private int index = 0;
-    private NativeArray<Operation> operationWriter;
-
-    public enum OperationType
-    {
-        Add = 1,
-        Subtract = 2,
-        Level = 3
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Operation
-    {
-        public Vector2 position { get; set; } // niormalized
-        public float radius { get; set; } // normalized
-        public float parameter { get; set; } // arbitary space
-        public uint type { get; set; }
-    }
-
-    public void QueueModify(Vector2 normalPosition, float normalRadius, float operationParameter, OperationType operationType)
-    {
-        enabled = true;
-
-        if (index >= bufferCount)
-        {
-            Debug.LogWarning($"Operation ignored, exceeded max count: {bufferCount}");
-            return;
-        }
-
-        operationWriter[index] = new Operation
-        {
-            position = normalPosition,
-            radius = normalRadius,
-            parameter = operationParameter,
-            type = (uint)operationType
-        };
-        index++;
-    }
-
-    private void ExecuteModify()
-    {
-        NativeArray<Operation> operationDestination = operationBuffer.BeginWrite<Operation>(0, index);
-
-        NativeSlice<Operation> destinationRange = new NativeSlice<Operation>(operationDestination, 0, index);
-        NativeSlice<Operation> writerRange = new NativeSlice<Operation>(operationWriter, 0, index);
-        destinationRange.CopyFrom(writerRange);
-
-        operationBuffer.EndWrite<Operation>(index);
-
-        computeShader.SetInt(Shader.PropertyToID("count"), index);
-        index = 0;
-
-        computeShader.Dispatch(computeShader.FindKernel("ModifyMesh"), 32, 32, 1);
-    }
-
-    private void ExecuteNormal()
-    {
-        computeShader.Dispatch(computeShader.FindKernel("RecalculateNormal"), 32, 32, 1);
-    }
-#endregion
-
-#region Intersect Section
-    private Vector3 rayOrigin, rayDirection;
-    private int x, z;
-    private UnityAction<Vector3> intersectCallback;
-    private ComputeBuffer intersectBuffer;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct IntersectResult
-    {
-        public Vector3 position { get; set; }
-        public uint hit { get; set; }
-    }
-
-    public void QueueIntersect(Vector3 origin, Vector3 direction)
-    {
-        enabled = true;
-
-        rayOrigin = origin;
-        rayDirection = direction;
-        needFindIntersect = true;
-    }
-
-    private void ExecuteIntersect()
-    {
-        computeShader.SetVector(Shader.PropertyToID("origin"), rayOrigin);
-        computeShader.SetVector(Shader.PropertyToID("direction"), rayDirection);
-        computeShader.Dispatch(computeShader.FindKernel("FindIntersect"), 32, 32, 1);
-        AsyncGPUReadback.Request(intersectBuffer, (request) =>
-        {
-            NativeArray<IntersectResult> result = request.GetData<IntersectResult>();
-            if (result[0].hit == 1)
-            {
-                Vector3 globalPosition = result[0].position;
-                globalPosition.x += x;
-                globalPosition.z += z;
-                intersectCallback.Invoke(globalPosition);
-            }
-            result.Dispose();
-        });
-    }
-
-    public void SetCallbackIndex(int normalX, int normalZ, UnityAction<Vector3> callback)
-    {
-        x = normalX;
-        z = normalZ;
-        intersectCallback = callback;
-    }
-
-#endregion
-
-#region Work Section
-    private bool needRecalculateNormal = false;
-    private bool needFindIntersect = false;
-
-    private static int synchronizedMode = 0;
-    private static int updateInstance = 0;
-    private static void UpdateMode() {
-        if (updateInstance != Time.frameCount) {
-            synchronizedMode += 1;
-            synchronizedMode %= 2;
-            updateInstance = Time.frameCount;
-        }
-    }
-
-    private void LateUpdate()
-    {
-        switch (synchronizedMode)
-        {
-            case 0:
-                if (index > 0)
-                {
-                    ExecuteModify();
-                    needRecalculateNormal = true;
-                }
-                break;
-            case 1:
-                if (needRecalculateNormal)
-                {
-                    ExecuteNormal();
-                    needRecalculateNormal = false;
-                }
-                break;
-        }
-
-        UpdateMode();
-
-
-        if (needFindIntersect)
-        {
-            ExecuteIntersect();
-            needFindIntersect = false;
-        }
-
-        if (!(index > 0 || needRecalculateNormal || needFindIntersect))
-            enabled = false;
-    }
-#endregion
-    
     private static class MeshGenerator
     {
         private static Mesh prototype = null;
+        private static int vertexBufferStride;
+        private static int vertexPositionAttributeOffset;
+        private static int vertexNormalAttributeOffset;
+
+        public static int GetVertexBufferStride() {
+            if (prototype == null)
+                CreateMesh();
+
+            return vertexBufferStride;
+        }
+
+        public static int GetVertexPositionAttributeOffset() {
+            if (prototype == null)
+                CreateMesh();
+
+            return vertexPositionAttributeOffset;
+        }
+
+        public static int GetVertexNormalAttributeOffset() {
+            if (prototype == null)
+                CreateMesh();
+
+            return vertexNormalAttributeOffset;
+        }
 
         public static Mesh GetMesh()
         {
             if (prototype == null)
-            {
-                prototype = CreateMesh();
-            }
+                CreateMesh();
 
             return Instantiate(prototype);
         }
 
-        private static Mesh CreateMesh()
+        private static void CreateMesh()
         {
             NativeArray<float3> vertices = new NativeArray<float3>((meshSize + 1 + 2) * (meshSize + 1 + 2), Allocator.Temp);
             NativeArray<float3> normals = new NativeArray<float3>((meshSize + 1 + 2) * (meshSize + 1 + 2), Allocator.Temp);
-            for (int z = 0; z < meshSize + 1 + 2; z++)
-                for (int x = 0; x < meshSize + 1 + 2; x++)
+            for (int z = 0; z < meshSize + 1; z++)
+                for (int x = 0; x < meshSize + 1; x++)
                 {
-                    vertices[z * (meshSize + 1 + 2) + x] = new float3((x - 1) / (float)meshSize, 0, (z - 1) / (float)meshSize);
-                    normals[z * (meshSize + 1 + 2) + x] = new float3(0f, 1f, 0f);
+                    vertices[z * (meshSize + 1) + x] = new float3(x / (float)meshSize, 0, z / (float)meshSize);
+                    normals[z * (meshSize + 1) + x] = new float3(0f, 1f, 0f);
                 }
 
             NativeArray<int> indices = new NativeArray<int>(6 * meshSize * meshSize, Allocator.Temp);
             for (int z = 0; z < meshSize; z++)
                 for (int x = 0; x < meshSize; x++)
                 {
-                    indices[(z * meshSize + x) * 6 + 0] = (z + 1 + 0) * (meshSize + 1 + 2) + (x + 1 + 0);
-                    indices[(z * meshSize + x) * 6 + 1] = (z + 1 + 1) * (meshSize + 1 + 2) + (x + 1 + 1);
-                    indices[(z * meshSize + x) * 6 + 2] = (z + 1 + 0) * (meshSize + 1 + 2) + (x + 1 + 1);
-                    indices[(z * meshSize + x) * 6 + 3] = (z + 1 + 1) * (meshSize + 1 + 2) + (x + 1 + 1);
-                    indices[(z * meshSize + x) * 6 + 4] = (z + 1 + 0) * (meshSize + 1 + 2) + (x + 1 + 0);
-                    indices[(z * meshSize + x) * 6 + 5] = (z + 1 + 1) * (meshSize + 1 + 2) + (x + 1 + 0);
+                    indices[(z * meshSize + x) * 6 + 0] = (z + 0) * (meshSize + 1) + (x + 0);
+                    indices[(z * meshSize + x) * 6 + 1] = (z + 1) * (meshSize + 1) + (x + 1);
+                    indices[(z * meshSize + x) * 6 + 2] = (z + 0) * (meshSize + 1) + (x + 1);
+                    indices[(z * meshSize + x) * 6 + 3] = (z + 1) * (meshSize + 1) + (x + 1);
+                    indices[(z * meshSize + x) * 6 + 4] = (z + 0) * (meshSize + 1) + (x + 0);
+                    indices[(z * meshSize + x) * 6 + 5] = (z + 1) * (meshSize + 1) + (x + 0);
                 }
 
 
@@ -275,7 +105,10 @@ public class TerrainController : MonoBehaviour
             normals.Dispose();
             indices.Dispose();
 
-            return mesh;
+            prototype = mesh;
+            vertexBufferStride = mesh.GetVertexBufferStride(0);
+            vertexPositionAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Position);
+            vertexNormalAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Normal);
         }
 
     }
