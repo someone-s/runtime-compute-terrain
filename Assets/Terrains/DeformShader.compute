@@ -1,10 +1,12 @@
 #pragma kernel ModifyMesh
-#pragma kernel RecalculateNormal
-#pragma kernel FindIntersect
 
 #define EPSILON (0.00000001)
+#define DIVIDE9 (0.11111111)
 
-RWByteAddressBuffer vertices;
+RWByteAddressBuffer verticesTL;
+RWByteAddressBuffer verticesTR;
+RWByteAddressBuffer verticesBL;
+RWByteAddressBuffer verticesBR;
 int stride;
 int positionOffset;
 int normalOffset;
@@ -12,16 +14,76 @@ int normalOffset;
 
 uint size; // i.e. 1000
 
-uint CalculateTrueVertexIndex(int x, int y) {
-    return (y * (size + 1 + 2) + x) * stride + positionOffset;
+
+uint CalculateVertexIndex(uint x, uint y) {
+    return (y * (size + 1) + x) * stride + positionOffset;
 }
 
-uint CalculatePaddedVertexIndex(int x, int y) {
-    return ((y + 1) * (size + 1 + 2) + (x + 1)) * stride + positionOffset;
+float3 LoadVertex(uint x, uint y) {
+    if (x > size && y > size) {
+        float3 value = asfloat(verticesTR.Load3(CalculateVertexIndex(x - size, y - size)));
+        value.x += 1.0;
+        value.z += 1.0;
+        return value;
+    }
+    else if (x > size) {
+        float3 value = asfloat(verticesBR.Load3(CalculateVertexIndex(x - size, y)));
+        value.x += 1.0;
+        return value;
+    }
+    else if (y > size) {
+        float3 value = asfloat(verticesTL.Load3(CalculateVertexIndex(x, y - size)));
+        value.z += 1.0;
+        return value;
+    }
+    else {
+        float3 value = asfloat(verticesBL.Load3(CalculateVertexIndex(x, y)));
+        return value;
+    }
 }
 
-uint CalculatePaddedNormalIndex(int x, int y) {
-    return ((y + 1) * (size + 1 + 2) + (x + 1)) * stride + normalOffset;
+void StoreVertex(uint x, uint y, float3 value) {
+    if (x >= size && y >= size) {
+        float3 valueCopy = value;
+        valueCopy.x -= 1.0;
+        valueCopy.z -= 1.0;
+        verticesTR.Store3(CalculateVertexIndex(x - size, y - size), asuint(valueCopy));
+    }
+
+    if (x >= size && y <= size) {
+        float3 valueCopy = value;
+        valueCopy.x -= 1.0;
+        verticesBR.Store3(CalculateVertexIndex(x - size, y), asuint(valueCopy));
+    }
+
+    if (x <= size && y >= size) {
+        float3 valueCopy = value;
+        valueCopy.z -= 1.0;
+        verticesTL.Store3(CalculateVertexIndex(x, y - size), asuint(valueCopy));
+    }
+
+    if (x <= size && y <= size) {
+        float3 valueCopy = value;
+        verticesBL.Store3(CalculateVertexIndex(x, y), asuint(valueCopy));
+    }
+}
+
+uint CalculateNormalIndex(uint x, uint y) {
+    return (y * (size + 1) + x) * stride + normalOffset;
+}
+
+void StoreNormal(uint x, uint y, float3 value) {
+    if (x >= size && y >= size)
+        verticesTR.Store3(CalculateNormalIndex(x - size, y - size), asuint(value));
+
+    if (x >= size && y <= size)
+        verticesBR.Store3(CalculateNormalIndex(x - size, y), asuint(value));
+
+    if (x <= size && y >= size)
+        verticesTL.Store3(CalculateNormalIndex(x, y - size), asuint(value));
+
+    if (x <= size && y <= size)
+        verticesBL.Store3(CalculateNormalIndex(x, y), asuint(value));
 }
 
 // Modify Mesh Section
@@ -35,30 +97,24 @@ struct Operation {
 StructuredBuffer<Operation> operations;
 int count; // operation count
 
-uint meshSection; // if size is 1000, meshSection is 32 ceil((1000 + 1 + 2) / 32)
+uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
 
 // this oeprate per vertex
 [numthreads(32, 32, 1)]
 void ModifyMesh(uint3 id : SV_DispatchThreadID) {
+    
+    // Execute Operations
+    for (int o = 0; o < count; o++) {
+        Operation operation = operations[o];
 
-    for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection; x++) {
+        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
 
-        // ignore out of bounds
-        if (x >= size + 1 + 2)
-            continue;
+            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
 
-        for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection; y++) {
+                float3 vertex = LoadVertex(x, y);
 
-            // ignore out of bounds
-            if (y >= size + 1 + 2)
-                continue;
+                float2 localPos = vertex.xz;
 
-            uint index = CalculateTrueVertexIndex(x, y);
-            float3 vertex = asfloat(vertices.Load3(index));
-
-            float2 localPos = vertex.xz;
-            for (int o = 0; o < count; o++) {
-                Operation operation = operations[o];
                 float distToCent = distance(operation.position, localPos);
                 
                 if (distToCent <= operation.radius) {
@@ -73,39 +129,36 @@ void ModifyMesh(uint3 id : SV_DispatchThreadID) {
                     else if (operation.type == 3) {
                         vertex.y = (1.0 - proportion) * vertex.y + proportion * operation.parameter;
                     }
+                    else if (operation.type == 4) {
+                        float average = 0.0;
+                        for (int dx = -1; dx <= 1; dx++) 
+                            for (int dy = -1; dy <= 1; dy++) 
+                                average += LoadVertex(x + dx, y + dy).y * DIVIDE9;
+
+                        vertex.y = (1.0 - proportion) * vertex.y + proportion * average;
+                    }
                 }   
-            }
             
-            vertices.Store3(index, asuint(vertex));
+                StoreVertex(x, y, vertex);
+            }
         }
+
+        GroupMemoryBarrierWithGroupSync();
     }
-}
 
-// Recalculate Normal Section
-
-uint normalSection; // if size is 1000, normalSection is 32 ceil(1000 + 1 / 32)
-
-// this operate per inner vertex
-[numthreads(32, 32, 1)]
-void RecalculateNormal(uint3 id : SV_DispatchThreadID) {
     
-    for (uint x = id.x * normalSection; x < (id.x + 1) * normalSection; x++) {
+    // Recalculate Normal
+    for (uint x = id.x * meshSection > 0 ? id.x * meshSection : 1; x < (id.x + 1) * meshSection && x < (size * 2); x++) {
 
-        // ignore edge and out of bounds
-        if (x > size)
-            continue;
+        for (uint y = id.y * meshSection ? id.y * meshSection : 1; y <  (id.y + 1) * meshSection && y < (size * 2); y++) {
 
-        for (uint y = id.y * normalSection; y < (id.y + 1) * normalSection; y++) {
+            float3 vertex = LoadVertex(x, y);
 
-            // ignore edge and out of bounds
-            if (y > size)
-                continue;
-
-            float3 selfPt   = asfloat(vertices.Load3(CalculatePaddedVertexIndex(x, y)));
-            float3 leftDir  = normalize(selfPt - asfloat(vertices.Load3(CalculatePaddedVertexIndex(x - 1,  y))));
-            float3 upDir    = normalize(selfPt - asfloat(vertices.Load3(CalculatePaddedVertexIndex(x,      y + 1))));
-            float3 downDir  = normalize(selfPt - asfloat(vertices.Load3(CalculatePaddedVertexIndex(x,      y - 1))));
-            float3 rightDir = normalize(selfPt - asfloat(vertices.Load3(CalculatePaddedVertexIndex(x + 1,  y))));
+            float3 selfPt   = LoadVertex(x, y);
+            float3 leftDir  = normalize(selfPt - LoadVertex(x - 1,  y));
+            float3 upDir    = normalize(selfPt - LoadVertex(x,      y + 1));
+            float3 downDir  = normalize(selfPt - LoadVertex(x,      y - 1));
+            float3 rightDir = normalize(selfPt - LoadVertex(x + 1,  y));
 
             float3 luNorm = cross(leftDir, upDir);
             float3 ldNorm = cross(downDir, leftDir);
@@ -117,129 +170,8 @@ void RecalculateNormal(uint3 id : SV_DispatchThreadID) {
                 ldNorm * 0.25 + 
                 rdNorm * 0.25 + 
                 ruNorm * 0.25);
-
-            vertices.Store3(CalculatePaddedNormalIndex(x, y), asuint(avgNorm));
-        }
-    }
-}
-
-// Calculate Intersect Section
-
-uint intersectSection; // if size is 1000, normalSection is 32 ceil(1000 / 32)
-
-float3 origin;
-float3 direction;
-
-struct IntersectResult {
-    float3 position;
-    uint hit;
-};
-
-RWStructuredBuffer<IntersectResult> intersectResult;
-groupshared int minT;
-
-// See Moller-Trumbore intersetion on Wikipedia
-float4 RayTriangleIntersect(float3 edge1, float3 edge2, float3 s) {
-
-    float4 output = float4(0.0, 0.0, 0.0, -1.0);
-
-    float3 rayCrossE2 = cross(direction, edge2);
-    float det = dot(edge1, rayCrossE2);
-
-    // Not parrallel
-    if (!(det > -EPSILON && det < EPSILON)) {
-
-        float invDet = 1.0 / det;
-        float u = invDet * dot(s, rayCrossE2);
-    
         
-        if (!((u < 0.0 && abs(u) > EPSILON) || (u > 1 && abs(u - 1) > EPSILON))) {
-
-            float3 sCrossE1 = cross(s, edge1);
-            float v = invDet * dot(direction, sCrossE1);
-        
-            if (!((v < 0.0 && abs(v) > EPSILON) || (u + v > 1.0 && abs(u + v - 1.0) > EPSILON))) {
-
-                float t = invDet * dot(edge2, sCrossE1);
-                
-                // Positive intersection only
-                if (t > EPSILON)
-                    output = float4(origin + direction * t, t);
-            }
+            StoreNormal(x, y, avgNorm);
         }
-    }
-
-    return output;
-}
-
-float4 RayQuadIntersect(float3 vertex0, float3 vertex1, float3 vertex2, float3 vertex3) {
-    float3 edgeA = vertex1 - vertex0;
-    float3 edgeB = vertex3 - vertex0;
-    float3 edgeC = vertex2 - vertex0;
-    float3 s = origin - vertex0;
-    float4 test = RayTriangleIntersect(edgeB, edgeA, s);
-    return test.w >= 0.0 ? test : RayTriangleIntersect(edgeC, edgeB, s);
-}
-
-// this opearte per square
-[numthreads(32, 32, 1)]
-void FindIntersect(uint3 id : SV_DispatchThreadID, uint gid : SV_GroupIndex) {
-
-    if (gid == 0)
-        minT = asint(0x7fffffff);
-
-    // Sync all to when group thread 0 has init the min value
-    GroupMemoryBarrierWithGroupSync();
-
-    float3 localBest;
-    int localMinT = asint(0x7fffffff);
-
-    for (uint x = id.x * intersectSection; x < (id.x + 1) * intersectSection; x++) {
-
-        // ignore edge and out of bounds
-        if (x > size - 1)
-            continue;
-
-        for (uint y = id.y * intersectSection; y < (id.y + 1) * intersectSection; y++) {
-
-            // ignore edge and out of bounds
-            if (y > size - 1)
-                continue;
-
-            float3 vertex0  = asfloat(vertices.Load3(CalculatePaddedVertexIndex(x,      y)));
-            float3 vertex1  = asfloat(vertices.Load3(CalculatePaddedVertexIndex(x + 1,  y)));
-            float3 vertex2  = asfloat(vertices.Load3(CalculatePaddedVertexIndex(x,      y + 1)));
-            float3 vertex3  = asfloat(vertices.Load3(CalculatePaddedVertexIndex(x + 1,  y + 1)));
-
-            // RayTriangleIntersect(vertex0, vertex3, vertex1);
-            // RayTriangleIntersect(vertex0, vertex2, vertex3);
-            float4 result = RayQuadIntersect(vertex0, vertex1, vertex2, vertex3);
-            if (result.w < 0.0)
-                continue;
-            
-            // See jeremyong.com f32-interlocked-min-max part 2
-            // asint bit cast only works when float >= 0.0
-            int newT = asint(result.w);
-            if (newT < localMinT) {
-                localMinT = newT;
-                localBest = result.xyz;
-                InterlockedMin(minT, localMinT);
-            }
-        }
-    }
-
-    // Sync all to when all group competed with their min T value
-    GroupMemoryBarrierWithGroupSync();
-    
-    // If no intersect at all, all threads sets result to same no hit value
-    if (minT == asint(0x7fffffff)) {
-        intersectResult[0].position = float3(0.0, 0.0, 0.0);
-        intersectResult[0].hit = 0;
-    }
-    // Else only the threads with exact matching t assign result value
-    // Fine if multiple threads hit since result will be the same
-    else if (minT == localMinT) {
-        intersectResult[0].position = localBest;
-        intersectResult[0].hit = 1;
     }
 }
