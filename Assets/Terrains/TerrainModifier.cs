@@ -16,8 +16,8 @@ public class TerrainModifier : MonoBehaviour
     [SerializeField] private ComputeShader computeShader;
     private TerrainCoordinator coordinator;
 
+    #region Configuration Region
     private (int x, int y)? currentRegion = null;
-
 
     private void Start()
     {
@@ -29,6 +29,7 @@ public class TerrainModifier : MonoBehaviour
 
         computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
         computeShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
+        
         operationBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
 
@@ -38,7 +39,6 @@ public class TerrainModifier : MonoBehaviour
     {
         operationBuffer.Dispose();
     }
-
 
 
     private void SetModifyArea() {
@@ -61,6 +61,7 @@ public class TerrainModifier : MonoBehaviour
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTR"), meshTR);
 
     }
+    #endregion
 
     #region Modify Section
     private ComputeBuffer operationBuffer;
@@ -86,8 +87,6 @@ public class TerrainModifier : MonoBehaviour
 
     public void QueueModify((int x, int y) region, Vector2 normalPosition, float normalRadius, float operationParameter, OperationType operationType)
     {
-        enabled = true;
-
         operationQueue.Enqueue((
             region,
             new Operation
@@ -98,6 +97,9 @@ public class TerrainModifier : MonoBehaviour
                 type = (uint)operationType
             }
         ));
+
+        enabled = true;
+
     }
 
     private void ExecuteModify()
@@ -137,10 +139,6 @@ public class TerrainModifier : MonoBehaviour
 
         computeShader.Dispatch(computeShader.FindKernel("ModifyMesh"), 32, 32, 1);
     }
-    #endregion
-
-
-    #region Work Section
 
     private void LateUpdate()
     {

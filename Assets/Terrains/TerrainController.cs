@@ -2,10 +2,17 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using UnityEngine.Assertions;
+using System.IO;
+using System;
+using System.IO.Compression;
+using System.Threading.Tasks;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class TerrainController : MonoBehaviour
 {
+    private const string application = "TerrainTest";
+
     // General state
     private static int meshSize = 250;
 
@@ -20,6 +27,49 @@ public class TerrainController : MonoBehaviour
         Mesh mesh = MeshGenerator.GetMesh();
         filter.sharedMesh = mesh;
         graphicsBuffer = mesh.GetVertexBuffer(0);
+    }
+
+    public void Save(string save, string name)
+    {
+        int size = VertexBufferStride * (meshSize + 1) * (meshSize + 1);
+        NativeArray<byte> output = new NativeArray<byte>(size, Allocator.Persistent);
+
+        AsyncGPUReadback.RequestIntoNativeArray(ref output, graphicsBuffer, (AsyncGPUReadbackRequest request) => {
+            Assert.IsFalse(request.hasError, "Error in TerrainController readback");
+
+            string directory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    application, save);
+            Directory.CreateDirectory(directory);
+            string path = Path.Combine(directory, name);
+
+            using (FileStream stream = new FileStream(path, FileMode.Create, FileAccess.Write))
+               using (GZipStream compressor = new GZipStream(stream, CompressionMode.Compress))
+                   compressor.Write(output);
+
+            output.Dispose();
+        });
+
+    }
+
+    public void Load(string save, string name) 
+    {
+        string directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                application,
+                save);
+        string path = Path.Combine(directory, name);
+        if (!File.Exists(path))
+            return;
+
+        int size = VertexBufferStride * (meshSize + 1) * (meshSize + 1);
+        NativeArray<byte> input = new NativeArray<byte>(size, Allocator.Persistent);
+
+        using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
+            using (GZipStream compressor = new GZipStream(stream, CompressionMode.Decompress))
+                compressor.Read(input);
+
+        graphicsBuffer.SetData(input);
     }
 
     #region Visual Section
@@ -40,21 +90,24 @@ public class TerrainController : MonoBehaviour
         private static int vertexPositionAttributeOffset;
         private static int vertexNormalAttributeOffset;
 
-        public static int GetVertexBufferStride() {
+        public static int GetVertexBufferStride()
+        {
             if (prototype == null)
                 CreateMesh();
 
             return vertexBufferStride;
         }
 
-        public static int GetVertexPositionAttributeOffset() {
+        public static int GetVertexPositionAttributeOffset()
+        {
             if (prototype == null)
                 CreateMesh();
 
             return vertexPositionAttributeOffset;
         }
 
-        public static int GetVertexNormalAttributeOffset() {
+        public static int GetVertexNormalAttributeOffset()
+        {
             if (prototype == null)
                 CreateMesh();
 
@@ -71,8 +124,8 @@ public class TerrainController : MonoBehaviour
 
         private static void CreateMesh()
         {
-            NativeArray<float3> vertices = new NativeArray<float3>((meshSize + 1 + 2) * (meshSize + 1 + 2), Allocator.Temp);
-            NativeArray<float3> normals = new NativeArray<float3>((meshSize + 1 + 2) * (meshSize + 1 + 2), Allocator.Temp);
+            NativeArray<float3> vertices = new NativeArray<float3>((meshSize + 1) * (meshSize + 1), Allocator.Temp);
+            NativeArray<float3> normals = new NativeArray<float3>((meshSize + 1) * (meshSize + 1), Allocator.Temp);
             for (int z = 0; z < meshSize + 1; z++)
                 for (int x = 0; x < meshSize + 1; x++)
                 {
