@@ -42,7 +42,7 @@ public class TerrainCoordinator : MonoBehaviour
         return controller;
     }
 
-    public void CastRay(Vector3 position, Quaternion rotation, Action<Vector3?> callback)
+    public void CastRay(Vector3 position, Vector3 direction, Action<Vector3?> callback)
     {
 
         Vector3 scaledPosition = position;
@@ -53,7 +53,7 @@ public class TerrainCoordinator : MonoBehaviour
         int centerX = Mathf.RoundToInt(scaledPosition.x) - 1;
         int centerZ = Mathf.RoundToInt(scaledPosition.z) - 1;
 
-        Vector3 scaledDirection = rotation * Vector3.forward;
+        Vector3 scaledDirection = direction;
         scaledDirection.x /= area;
         scaledDirection.z /= area;
 
