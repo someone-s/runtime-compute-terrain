@@ -44,19 +44,25 @@ float3 LoadVertex(uint x, uint y) {
 
 uint intersectSection; // if size is 1000, normalSection is 126 ceil(1000 * 2 / 32)
 
-float3 origin;
-float3 direction;
+struct Request {
+    float3 origin;
+    float3 direction;
+    uint id;
+};
+StructuredBuffer<Request> requests;
+int count; // request count
 
-struct IntersectResult {
+struct Result {
     float3 position;
     uint hit;
+    uint id;
 };
 
-RWStructuredBuffer<IntersectResult> intersectResult;
+RWStructuredBuffer<Result> results;
 groupshared int minT;
 
 // See Moller-Trumbore intersetion on Wikipedia
-float4 RayTriangleIntersect(float3 edge1, float3 edge2, float3 s) {
+float4 RayTriangleIntersect(float3 origin, float3 direction, float3 edge1, float3 edge2, float3 s) {
 
     float4 output = float4(0.0, 0.0, 0.0, -1.0);
 
@@ -89,66 +95,72 @@ float4 RayTriangleIntersect(float3 edge1, float3 edge2, float3 s) {
     return output;
 }
 
-float4 RayQuadIntersect(float3 vertex0, float3 vertex1, float3 vertex2, float3 vertex3) {
+float4 RayQuadIntersect(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float3 vertex3) {
     float3 edgeA = vertex1 - vertex0;
     float3 edgeB = vertex3 - vertex0;
     float3 edgeC = vertex2 - vertex0;
     float3 s = origin - vertex0;
-    float4 test = RayTriangleIntersect(edgeB, edgeA, s);
-    return test.w >= 0.0 ? test : RayTriangleIntersect(edgeC, edgeB, s);
+    float4 test = RayTriangleIntersect(origin, direction, edgeB, edgeA, s);
+    return test.w >= 0.0 ? test : RayTriangleIntersect(origin, direction, edgeC, edgeB, s);
 }
 
 // this opearte per square
 [numthreads(32, 32, 1)]
 void FindIntersect(uint3 id : SV_DispatchThreadID, uint gid : SV_GroupIndex) {
 
-    if (gid == 0)
-        minT = asint(0x7fffffff);
+    for (int r = 0; r < count; r++) {
+        Request request = requests[r];
 
-    // Sync all to when group thread 0 has init the min value
-    GroupMemoryBarrierWithGroupSync();
+        if (gid == 0)
+            minT = asint(0x7fffffff);
 
-    float3 localBest;
-    int localMinT = asint(0x7fffffff);
+        // Sync all to when group thread 0 has init the min value
+        GroupMemoryBarrierWithGroupSync();
 
-    for (uint x = id.x * intersectSection; x < (id.x + 1) * intersectSection && x < (size * 2) - 1; x++) {
+        float3 localBest;
+        int localMinT = asint(0x7fffffff);
 
-        for (uint y = id.y * intersectSection; y <  (id.y + 1) * intersectSection && y < (size * 2) - 1; y++) {
+        for (uint x = id.x * intersectSection; x < (id.x + 1) * intersectSection && x < (size * 2) - 1; x++) {
 
-            float3 vertex0  = LoadVertex(x,      y);
-            float3 vertex1  = LoadVertex(x + 1,  y);
-            float3 vertex2  = LoadVertex(x,      y + 1);
-            float3 vertex3  = LoadVertex(x + 1,  y + 1);
+            for (uint y = id.y * intersectSection; y <  (id.y + 1) * intersectSection && y < (size * 2) - 1; y++) {
 
-            // RayTriangleIntersect(vertex0, vertex3, vertex1);
-            // RayTriangleIntersect(vertex0, vertex2, vertex3);
-            float4 result = RayQuadIntersect(vertex0, vertex1, vertex2, vertex3);
-            if (result.w < 0.0)
-                continue;
-            
-            // See jeremyong.com f32-interlocked-min-max part 2
-            // asint bit cast only works when float >= 0.0
-            int newT = asint(result.w);
-            if (newT < localMinT) {
-                localMinT = newT;
-                localBest = result.xyz;
-                InterlockedMin(minT, localMinT);
+                float3 vertex0  = LoadVertex(x,      y);
+                float3 vertex1  = LoadVertex(x + 1,  y);
+                float3 vertex2  = LoadVertex(x,      y + 1);
+                float3 vertex3  = LoadVertex(x + 1,  y + 1);
+
+                // RayTriangleIntersect(vertex0, vertex3, vertex1);
+                // RayTriangleIntersect(vertex0, vertex2, vertex3);
+                float4 result = RayQuadIntersect(request.origin, request.direction, vertex0, vertex1, vertex2, vertex3);
+                if (result.w < 0.0)
+                    continue;
+                
+                // See jeremyong.com f32-interlocked-min-max part 2
+                // asint bit cast only works when float >= 0.0
+                int newT = asint(result.w);
+                if (newT < localMinT) {
+                    localMinT = newT;
+                    localBest = result.xyz;
+                    InterlockedMin(minT, localMinT);
+                }
             }
         }
-    }
 
-    // Sync all to when all group competed with their min T value
-    GroupMemoryBarrierWithGroupSync();
-    
-    // If no intersect at all, all threads sets result to same no hit value
-    if (minT == asint(0x7fffffff)) {
-        intersectResult[0].position = float3(0.0, 0.0, 0.0);
-        intersectResult[0].hit = 0;
-    }
-    // Else only the threads with exact matching t assign result value
-    // Fine if multiple threads hit since result will be the same
-    else if (minT == localMinT) {
-        intersectResult[0].position = localBest;
-        intersectResult[0].hit = 1;
+        // Sync all to when all group competed with their min T value
+        GroupMemoryBarrierWithGroupSync();
+        
+        // If no intersect at all, all threads sets result to same no hit value
+        if (minT == asint(0x7fffffff)) {
+            results[r].position = float3(0.0, 0.0, 0.0);
+            results[r].hit = 0;
+        }
+        // Else only the threads with exact matching t assign result value
+        // Fine if multiple threads hit since result will be the same
+        else if (minT == localMinT) {
+            results[r].position = localBest;
+            results[r].hit = 1;
+        }
+
+        results[r].id = request.id;
     }
 }

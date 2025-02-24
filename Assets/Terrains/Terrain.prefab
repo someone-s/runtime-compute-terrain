@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 8046755119473681707}
   - component: {fileID: 2246402343811926042}
   - component: {fileID: 5947181190290359038}
+  - component: {fileID: 7047757095585420289}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -46,44 +47,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 683507b61936a9634a793a6313258bae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  testPlayer: {fileID: 0}
-  testDisplay: {fileID: 0}
-  actionA:
-    m_Name: Action A
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 34f399f9-6c68-4435-b0f2-af6380a7d5cb
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-  actionB:
-    m_Name: Action B
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 2298850a-bae3-40b1-b2b4-6d9449439cec
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-  actionC:
-    m_Name: Action C
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 9445d605-8832-494c-b62c-78e1d0da6f6c
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-  actionD:
-    m_Name: Action D
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: cbfd845a-b628-4370-a2ba-c2c1d6a73cf1
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
   chunkPrefab: {fileID: 5037301470321108824, guid: e2888f1cfa331b522b6434bd8c95e16f, type: 3}
 --- !u!114 &2246402343811926042
 MonoBehaviour:
@@ -111,3 +74,120 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: fd44cb64355f940c28312ed128fcbcd4, type: 3}
+--- !u!114 &7047757095585420289
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9031885650118237956}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a21a11eba987de5cdacecbd2d6348980, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  testPlayer: {fileID: 0}
+  testDisplay: {fileID: 0}
+  actionA:
+    m_Name: Action A
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 63a989ad-480a-443b-abef-6ff659c81c5f
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 228f8fc6-be0d-451a-bbdd-a64b3963fab9
+      m_Path: <Keyboard>/g
+      m_Interactions: Hold
+      m_Processors: 
+      m_Groups: 
+      m_Action: Action A
+      m_Flags: 0
+    m_Flags: 0
+  actionB:
+    m_Name: Action B
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 5e1ce3d1-8c2d-48f3-a77b-00296db94b0c
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: f387a4c7-81c4-4050-aa20-2edb5d824a10
+      m_Path: <Keyboard>/h
+      m_Interactions: Hold
+      m_Processors: 
+      m_Groups: 
+      m_Action: Action B
+      m_Flags: 0
+    m_Flags: 0
+  actionC:
+    m_Name: Action C
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: d388e189-e40d-4fab-92d4-b08e02fe4942
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: c11a4285-7566-40c4-9c1c-3e649f7530bc
+      m_Path: <Keyboard>/j
+      m_Interactions: Hold
+      m_Processors: 
+      m_Groups: 
+      m_Action: Action C
+      m_Flags: 0
+    m_Flags: 0
+  actionD:
+    m_Name: Action D
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: e4aad381-c542-4401-84b3-dd6aecb2b856
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 1054087b-fa40-4ffe-838f-03e7f5583bbe
+      m_Path: <Keyboard>/k
+      m_Interactions: Hold
+      m_Processors: 
+      m_Groups: 
+      m_Action: Action D
+      m_Flags: 0
+    m_Flags: 0
+  actionE:
+    m_Name: Action E
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 785cd572-3354-46a0-98fe-de0952c85afd
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: b9dafbdd-1fcb-4508-a083-b01b4b7168b9
+      m_Path: <Keyboard>/l
+      m_Interactions: Press
+      m_Processors: 
+      m_Groups: 
+      m_Action: Action E
+      m_Flags: 0
+    m_Flags: 0
+  actionF:
+    m_Name: Action F
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 753a9099-7f14-4f2c-bfd0-84da66a5842b
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 4c5143e5-22ef-4792-9e99-be3d6df59aae
+      m_Path: <Keyboard>/semicolon
+      m_Interactions: Press
+      m_Processors: 
+      m_Groups: 
+      m_Action: Action F
+      m_Flags: 0
+    m_Flags: 0
+  coordinator: {fileID: 0}
