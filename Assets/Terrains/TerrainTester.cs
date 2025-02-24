@@ -1,3 +1,4 @@
+using Unity.IntegerTime;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -34,17 +35,15 @@ public class TerrainTester : MonoBehaviour {
         };
     }
 
-    private Vector3 trail = Vector3.zero;
+    private Vector3 target = Vector3.zero;
 
     private void Update()
     {
-        Vector3 direction = testDisplay.position - trail;
-
-        coordinator.CastRay(testPlayer.position, testPlayer.rotation, (Vector3? result) => {
+        Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+        coordinator.CastRay(testPlayer.position, ray.direction, (Vector3? result) => {
             if (result is null)
                 return;
-            trail = testDisplay.position;
-            testDisplay.position = result.Value;
+            target = result.Value;
         });
 
         coordinator.UpdateVisual(testPlayer.position);
@@ -58,5 +57,11 @@ public class TerrainTester : MonoBehaviour {
         if (actionD.IsPressed())
             coordinator.ModifySmooth(testDisplay.position, 10f);
         
+    }
+
+    private void LateUpdate()
+    {
+        float distance = Vector3.Distance(testDisplay.position, target);
+        testDisplay.position = Vector3.MoveTowards(testDisplay.position, target, distance * distance / 4f);
     }
 }
