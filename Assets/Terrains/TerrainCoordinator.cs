@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -132,19 +133,39 @@ public class TerrainCoordinator : MonoBehaviour
         renderedChunks = temp;
     }
 
-    public void Save()
+    public void Save(string saveName)
     {
+        // Create directory
+        TerrainFiler.CreateSavePath(saveName);
+
+        // Remove files not to be overwritten
+        foreach (((int x, int z) grid, string path) entry in TerrainFiler.GetAllTerrain(saveName))
+            if (!controllers.ContainsKey(entry.grid))
+                File.Delete(entry.path);
+
+        // Write new files
         foreach (KeyValuePair<(int x, int z), TerrainController> entry in controllers)
-        {
-            entry.Value.Save("game 1", $"{entry.Key.x}_{entry.Key.z}");
-        }
+            entry.Value.Save(TerrainFiler.GetTerrainPath(saveName, entry.Key));
+
     }
 
-    public void Load()
+    public void Load(string saveName)
     {
+        // Get all files found
+        ((int x, int z) grid, string path)[] entries = TerrainFiler.GetAllTerrain(saveName);
+
+        // Reset all out of bound terrain
         foreach (KeyValuePair<(int x, int z), TerrainController> entry in controllers)
-        {
-            entry.Value.Load("game 1", $"{entry.Key.x}_{entry.Key.z}");
+            if (!TerrainFiler.SavePathExist(saveName, entry.Key))
+                entry.Value.Reset();
+
+        // Load files
+        foreach (((int x, int z) grid, string path) entry in entries)
+        {           
+            if (!controllers.TryGetValue(entry.grid, out TerrainController controller))
+                controller = Generate(entry.grid.x, entry.grid.z);
+
+            controller.Load(entry.path);  
         }
     }
 

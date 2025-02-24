@@ -1,10 +1,7 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using Unity.Collections;
 using System.Runtime.InteropServices;
-using UnityEngine.Events;
-using UnityEngine.Rendering;
 
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainModifier : MonoBehaviour
@@ -17,7 +14,7 @@ public class TerrainModifier : MonoBehaviour
     private TerrainCoordinator coordinator;
 
     #region Configuration Region
-    private (int x, int y)? currentRegion = null;
+    private (int x, int z)? currentRegion = null;
 
     private void Start()
     {
@@ -51,13 +48,13 @@ public class TerrainModifier : MonoBehaviour
         GraphicsBuffer meshBL = coordinator.controllers[currentRegion.Value].graphicsBuffer;
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesBL"), meshBL);
         
-        GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.y)].graphicsBuffer;
+        GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)].graphicsBuffer;
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesBR"), meshBR);
 
-        GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.y + 1)].graphicsBuffer;
+        GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)].graphicsBuffer;
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTL"), meshTL);
 
-        GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.y + 1)].graphicsBuffer;
+        GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)].graphicsBuffer;
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTR"), meshTR);
 
     }
