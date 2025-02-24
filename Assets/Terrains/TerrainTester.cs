@@ -12,8 +12,9 @@ public class TerrainTester : MonoBehaviour {
     public InputAction actionD;
     public InputAction actionE;
     public InputAction actionF;
+    public string saveName = "save 2";
 
-    [SerializeField] private TerrainCoordinator coordinator;
+    private TerrainCoordinator coordinator;
 
     private void Start()
     {
@@ -25,11 +26,11 @@ public class TerrainTester : MonoBehaviour {
         actionD.Enable();
         actionE.Enable();
         actionE.performed += (_) => {
-            coordinator.Save();
+            coordinator.Save(saveName);
         };
         actionF.Enable();
         actionF.performed += (_) => {
-            coordinator.Load();
+            coordinator.Load(saveName);
         };
     }
 

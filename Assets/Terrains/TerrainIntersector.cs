@@ -16,7 +16,7 @@ public class TerrainIntersector : MonoBehaviour {
     private TerrainCoordinator coordinator;
 
     #region Configuration Region
-    private (int x, int y)? currentRegion = null;
+    private (int x, int z)? currentRegion = null;
 
     private void Start()
     {
@@ -51,13 +51,13 @@ public class TerrainIntersector : MonoBehaviour {
         GraphicsBuffer meshBL = coordinator.controllers[currentRegion.Value].graphicsBuffer;
         computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesBL"), meshBL);
 
-        GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.y)].graphicsBuffer;
+        GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)].graphicsBuffer;
         computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesBR"), meshBR);
 
-        GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.y + 1)].graphicsBuffer;
+        GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)].graphicsBuffer;
         computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesTL"), meshTL);
 
-        GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.y + 1)].graphicsBuffer;
+        GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)].graphicsBuffer;
         computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesTR"), meshTR);
 
     }
@@ -174,7 +174,7 @@ public class TerrainIntersector : MonoBehaviour {
                 {
                     Vector3 globalPosition = result.position;
                     globalPosition.x += currentRegion.Value.x;
-                    globalPosition.z += currentRegion.Value.y;
+                    globalPosition.z += currentRegion.Value.z;
                     callback(globalPosition);
                 }
                 else

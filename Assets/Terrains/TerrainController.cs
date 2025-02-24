@@ -6,42 +6,43 @@ using UnityEngine.Assertions;
 using System.IO;
 using System;
 using System.IO.Compression;
-using System.Threading.Tasks;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class TerrainController : MonoBehaviour
 {
-    private const string application = "TerrainTest";
 
     // General state
     private static int meshSize = 250;
 
+    private Mesh mesh;
     public GraphicsBuffer graphicsBuffer { get; private set; }
     public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
     public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
     public static int VertexNormalAttributeOffset => MeshGenerator.GetVertexNormalAttributeOffset();
 
-    private void Start()
+    private bool setupComplete = false;
+    private void Setup()
     {
+        if (setupComplete) return;
+
         MeshFilter filter = GetComponent<MeshFilter>();
-        Mesh mesh = MeshGenerator.GetMesh();
+        mesh = MeshGenerator.GetMesh();
+        mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination;
         filter.sharedMesh = mesh;
         graphicsBuffer = mesh.GetVertexBuffer(0);
+
+        setupComplete = true;
     }
 
-    public void Save(string save, string name)
+    private void Start() => Setup();
+
+    public void Save(string path)
     {
         int size = VertexBufferStride * (meshSize + 1) * (meshSize + 1);
         NativeArray<byte> output = new NativeArray<byte>(size, Allocator.Persistent);
 
         AsyncGPUReadback.RequestIntoNativeArray(ref output, graphicsBuffer, (AsyncGPUReadbackRequest request) => {
             Assert.IsFalse(request.hasError, "Error in TerrainController readback");
-
-            string directory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    application, save);
-            Directory.CreateDirectory(directory);
-            string path = Path.Combine(directory, name);
 
             using (FileStream stream = new FileStream(path, FileMode.Create, FileAccess.Write))
                using (GZipStream compressor = new GZipStream(stream, CompressionMode.Compress))
@@ -52,15 +53,9 @@ public class TerrainController : MonoBehaviour
 
     }
 
-    public void Load(string save, string name) 
+    public void Load(string path) 
     {
-        string directory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                application,
-                save);
-        string path = Path.Combine(directory, name);
-        if (!File.Exists(path))
-            return;
+        Setup();
 
         int size = VertexBufferStride * (meshSize + 1) * (meshSize + 1);
         NativeArray<byte> input = new NativeArray<byte>(size, Allocator.Persistent);
@@ -68,8 +63,17 @@ public class TerrainController : MonoBehaviour
         using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             using (GZipStream compressor = new GZipStream(stream, CompressionMode.Decompress))
                 compressor.Read(input);
-
+                
         graphicsBuffer.SetData(input);
+
+        input.Dispose();
+    }
+
+    public void Reset()
+    {
+        Setup();
+
+        Graphics.CopyBuffer(MeshGenerator.GetReference(), graphicsBuffer);
     }
 
     #region Visual Section
@@ -86,6 +90,7 @@ public class TerrainController : MonoBehaviour
     private static class MeshGenerator
     {
         private static Mesh prototype = null;
+        private static GraphicsBuffer referece = null;
         private static int vertexBufferStride;
         private static int vertexPositionAttributeOffset;
         private static int vertexNormalAttributeOffset;
@@ -122,6 +127,14 @@ public class TerrainController : MonoBehaviour
             return Instantiate(prototype);
         }
 
+        public static GraphicsBuffer GetReference()
+        {
+            if (prototype == null)
+                CreateMesh();
+
+            return referece;
+        }
+
         private static void CreateMesh()
         {
             NativeArray<float3> vertices = new NativeArray<float3>((meshSize + 1) * (meshSize + 1), Allocator.Temp);
@@ -148,7 +161,7 @@ public class TerrainController : MonoBehaviour
 
             Mesh mesh = new Mesh();
             mesh.indexFormat = IndexFormat.UInt32;
-            mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw;
+            mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopySource;
             mesh.SetVertices(vertices);
             mesh.SetIndices(indices, MeshTopology.Triangles, 0);
             mesh.SetNormals(normals);
@@ -159,6 +172,7 @@ public class TerrainController : MonoBehaviour
             indices.Dispose();
 
             prototype = mesh;
+            referece = mesh.GetVertexBuffer(0);
             vertexBufferStride = mesh.GetVertexBufferStride(0);
             vertexPositionAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Position);
             vertexNormalAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Normal);
