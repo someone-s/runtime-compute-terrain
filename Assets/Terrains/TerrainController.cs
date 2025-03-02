@@ -20,6 +20,7 @@ public class TerrainController : MonoBehaviour
     public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
     public static int VertexNormalAttributeOffset => MeshGenerator.GetVertexNormalAttributeOffset();
 
+    #region Config Section
     private bool setupComplete = false;
     private void Setup()
     {
@@ -36,6 +37,15 @@ public class TerrainController : MonoBehaviour
 
     private void Start() => Setup();
 
+    public void Reset()
+    {
+        Setup();
+
+        Graphics.CopyBuffer(MeshGenerator.GetReference(), graphicsBuffer);
+    }
+    #endregion
+
+    #region IO Section
     public void Save(string path)
     {
         int size = VertexBufferStride * (meshSize + 1) * (meshSize + 1);
@@ -68,13 +78,7 @@ public class TerrainController : MonoBehaviour
 
         input.Dispose();
     }
-
-    public void Reset()
-    {
-        Setup();
-
-        Graphics.CopyBuffer(MeshGenerator.GetReference(), graphicsBuffer);
-    }
+    #endregion
 
     #region Visual Section
     private MeshRenderer visualRenderer;
