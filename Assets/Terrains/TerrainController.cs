@@ -14,7 +14,6 @@ public class TerrainController : MonoBehaviour
     // General state
     private static int meshSize = 250;
 
-    private Mesh mesh;
     public GraphicsBuffer graphicsBuffer { get; private set; }
     public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
     public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
@@ -27,7 +26,7 @@ public class TerrainController : MonoBehaviour
         if (setupComplete) return;
 
         MeshFilter filter = GetComponent<MeshFilter>();
-        mesh = MeshGenerator.GetMesh();
+        Mesh mesh = MeshGenerator.GetMesh();
         mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination;
         filter.sharedMesh = mesh;
         graphicsBuffer = mesh.GetVertexBuffer(0);
@@ -94,7 +93,7 @@ public class TerrainController : MonoBehaviour
     private static class MeshGenerator
     {
         private static Mesh prototype = null;
-        private static GraphicsBuffer referece = null;
+        private static GraphicsBuffer reference = null;
         private static int vertexBufferStride;
         private static int vertexPositionAttributeOffset;
         private static int vertexNormalAttributeOffset;
@@ -136,7 +135,7 @@ public class TerrainController : MonoBehaviour
             if (prototype == null)
                 CreateMesh();
 
-            return referece;
+            return reference;
         }
 
         private static void CreateMesh()
@@ -176,7 +175,7 @@ public class TerrainController : MonoBehaviour
             indices.Dispose();
 
             prototype = mesh;
-            referece = mesh.GetVertexBuffer(0);
+            reference = mesh.GetVertexBuffer(0);
             vertexBufferStride = mesh.GetVertexBufferStride(0);
             vertexPositionAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Position);
             vertexNormalAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Normal);
