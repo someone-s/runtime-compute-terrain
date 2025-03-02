@@ -1,175 +1,56 @@
-#pragma kernel ModifyMesh
+#pragma kernel UpdateTrack
 
 #define EPSILON (0.00000001)
 #define DIVIDE9 (0.11111111)
 
-ByteAddressBuffer sourceVertices;
-ByteAddressBuffer sourceNormals;
-RWByteAddressBuffer destVertices;
-RWByteAddressBuffer destNormals;
+#define MAX_SLICE_SIZE 1024
 
-int sectionCount;
+ByteAddressBuffer sourceVertices;
+RWByteAddressBuffer destVertices;
+
+uint sliceSize; // Number of points per slice
+uint sliceCount; // Number of slices
+uint slicePerThread; // if sliceCount is 80, slicePerThread is 2 ceil(80 / 64)
+
 int stride;
 int positionOffset;
 int normalOffset;
 
-uint CalculateVertexIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + positionOffset;
+float3 Rotate(float3 source, float4 rotation) {
+    return 2.0 * dot(rotation.xyz, source) * rotation.xyz
+         + (rotation.w * rotation.w - dot(rotation.xyz, rotation.xyz)) * source
+         + 2.0 * rotation.w * cross(rotation.xyz, source);
 }
 
-float3 LoadVertex(uint x, uint y) {
-    if (x > size && y > size) {
-        float3 value = asfloat(verticesTR.Load3(CalculateVertexIndex(x - size, y - size)));
-        value.x += 1.0;
-        value.z += 1.0;
-        return value;
-    }
-    else if (x > size) {
-        float3 value = asfloat(verticesBR.Load3(CalculateVertexIndex(x - size, y)));
-        value.x += 1.0;
-        return value;
-    }
-    else if (y > size) {
-        float3 value = asfloat(verticesTL.Load3(CalculateVertexIndex(x, y - size)));
-        value.z += 1.0;
-        return value;
-    }
-    else {
-        float3 value = asfloat(verticesBL.Load3(CalculateVertexIndex(x, y)));
-        return value;
-    }
-}
-
-void StoreVertex(uint x, uint y, float3 value) {
-    if (x >= size && y >= size) {
-        float3 valueCopy = value;
-        valueCopy.x -= 1.0;
-        valueCopy.z -= 1.0;
-        verticesTR.Store3(CalculateVertexIndex(x - size, y - size), asuint(valueCopy));
-    }
-
-    if (x >= size && y <= size) {
-        float3 valueCopy = value;
-        valueCopy.x -= 1.0;
-        verticesBR.Store3(CalculateVertexIndex(x - size, y), asuint(valueCopy));
-    }
-
-    if (x <= size && y >= size) {
-        float3 valueCopy = value;
-        valueCopy.z -= 1.0;
-        verticesTL.Store3(CalculateVertexIndex(x, y - size), asuint(valueCopy));
-    }
-
-    if (x <= size && y <= size) {
-        float3 valueCopy = value;
-        verticesBL.Store3(CalculateVertexIndex(x, y), asuint(valueCopy));
-    }
-}
-
-uint CalculateNormalIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + normalOffset;
-}
-
-void StoreNormal(uint x, uint y, float3 value) {
-    if (x >= size && y >= size)
-        verticesTR.Store3(CalculateNormalIndex(x - size, y - size), asuint(value));
-
-    if (x >= size && y <= size)
-        verticesBR.Store3(CalculateNormalIndex(x - size, y), asuint(value));
-
-    if (x <= size && y >= size)
-        verticesTL.Store3(CalculateNormalIndex(x, y - size), asuint(value));
-
-    if (x <= size && y <= size)
-        verticesBL.Store3(CalculateNormalIndex(x, y), asuint(value));
-}
-
-// Modify Mesh Section
-struct Operation {
-    float2 position; // normalized
-    float radius; // normalized
-    float parameter; // arbitary
-    uint type;
+struct Point {
+    float3 position;
+    float4 rotation;
 };
 
-StructuredBuffer<Operation> operations;
-int count; // operation count
+StructuredBuffer<Point> points;
+uint pointCount;
 
-uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
+// this oeprate per section
+[numthreads(MAX_SLICE_SIZE, 1, 1)]
+void UpdateTrack(uint3 id : SV_DispatchThreadID) {
 
-// this oeprate per vertex
-[numthreads(1024, 1, 1)]
-void ModifyMesh(uint3 id : SV_DispatchThreadID) {
-    
-    // Execute Operations
-    for (int o = 0; o < count; o++) {
-        Operation operation = operations[o];
+    uint sliceIndex = id.x;
 
-        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+    float3 position = points[min(sliceIndex, pointCount - 1)].position;
+    float4 rotation = points[min(sliceIndex, pointCount - 1)].rotation;
+ 
+    for (uint i = 0; i < sliceSize; i++) {
+        uint locationStart = (sliceIndex * sliceSize + i) * stride;
 
-            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+        uint posLocation     = locationStart + positionOffset;
+        float3 sourcePos     = asfloat(sourceVertices.Load3(posLocation));
+        float3 rotatedPos    = Rotate(sourcePos, rotation);
+        float3 translatedPos = rotatedPos + position;
+        destVertices.Store3(posLocation, asuint(translatedPos));
 
-                float3 vertex = LoadVertex(x, y);
-
-                float2 localPos = vertex.xz;
-
-                float distToCent = distance(operation.position, localPos);
-                
-                if (distToCent <= operation.radius) {
-                    float proportion = 1.0 - distToCent / operation.radius;
-                    
-                    if (operation.type == 1) {
-                        vertex.y += operation.parameter * proportion;
-                    }
-                    else if (operation.type == 2) {
-                        vertex.y -= operation.parameter * proportion;
-                    }
-                    else if (operation.type == 3) {
-                        vertex.y = (1.0 - proportion) * vertex.y + proportion * operation.parameter;
-                    }
-                    else if (operation.type == 4) {
-                        float average = 0.0;
-                        for (int dx = -1; dx <= 1; dx++) 
-                            for (int dy = -1; dy <= 1; dy++) 
-                                average += LoadVertex(x + dx, y + dy).y * DIVIDE9;
-
-                        vertex.y = (1.0 - proportion) * vertex.y + proportion * average;
-                    }
-                }   
-            
-                StoreVertex(x, y, vertex);
-            }
-        }
-
-        GroupMemoryBarrierWithGroupSync();
-    }
-
-    
-    // Recalculate Normal
-    for (uint x = id.x * meshSection > 0 ? id.x * meshSection : 1; x < (id.x + 1) * meshSection && x < (size * 2); x++) {
-
-        for (uint y = id.y * meshSection ? id.y * meshSection : 1; y <  (id.y + 1) * meshSection && y < (size * 2); y++) {
-
-            float3 vertex = LoadVertex(x, y);
-
-            float3 selfPt   = LoadVertex(x, y);
-            float3 leftDir  = normalize(selfPt - LoadVertex(x - 1,  y));
-            float3 upDir    = normalize(selfPt - LoadVertex(x,      y + 1));
-            float3 downDir  = normalize(selfPt - LoadVertex(x,      y - 1));
-            float3 rightDir = normalize(selfPt - LoadVertex(x + 1,  y));
-
-            float3 luNorm = cross(leftDir, upDir);
-            float3 ldNorm = cross(downDir, leftDir);
-            float3 rdNorm = cross(rightDir, downDir);
-            float3 ruNorm = cross(upDir, rightDir);
-
-            float3 avgNorm = normalize(
-                luNorm * 0.25 + 
-                ldNorm * 0.25 + 
-                rdNorm * 0.25 + 
-                ruNorm * 0.25);
-        
-            StoreNormal(x, y, avgNorm);
-        }
+        uint normLocation  = locationStart + normalOffset;
+        float3 sourceNorm  = asfloat(sourceVertices.Load3(normLocation));
+        float3 rotatedNorm = Rotate(sourceNorm, rotation);
+        destVertices.Store3(normLocation, asuint(rotatedNorm));
     }
 }

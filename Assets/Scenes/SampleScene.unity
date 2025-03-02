@@ -625,6 +625,7 @@ GameObject:
   - component: {fileID: 1047455049}
   - component: {fileID: 1047455048}
   - component: {fileID: 1047455047}
+  - component: {fileID: 1047455050}
   m_Layer: 0
   m_Name: Spline
   m_TagString: Untagged
@@ -644,95 +645,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 163bb393451d9bf218f2acb396fd1300, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  computeShader: {fileID: 7200000, guid: 3a9e056805ee0fcbbb7b73f192dcaf6b, type: 3}
   a: {fileID: 726176229}
   b: {fileID: 160254231}
-  curve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0.3440594
-      inSlope: 0.000061201645
-      outSlope: 0.000061201645
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 1
-    - serializedVersion: 3
-      time: 45
-      value: 2.758091
-      inSlope: 0.021357296
-      outSlope: 0.021357296
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 90
-      value: 2.266216
-      inSlope: -0.018373445
-      outSlope: -0.018373445
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 135
-      value: 1.104481
-      inSlope: -0.017840002
-      outSlope: -0.017840002
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 180
-      value: 0.6606158
-      inSlope: -0.007067918
-      outSlope: -0.007067918
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 225
-      value: 0.4683684
-      inSlope: -0.0032283035
-      outSlope: -0.0032283035
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 270
-      value: 0.3700685
-      inSlope: -0.0013002945
-      outSlope: -0.0013002945
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 315
-      value: 0.3513419
-      inSlope: -0.0002889898
-      outSlope: -0.0002889898
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0.33333334
-    - serializedVersion: 3
-      time: 360
-      value: 0.3440594
-      inSlope: -0.00016183323
-      outSlope: -0.00016183323
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.33333334
-      outWeight: 0
-    m_PreInfinity: 1
-    m_PostInfinity: 2
-    m_RotationOrder: 4
 --- !u!114 &1047455048
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -776,6 +691,14 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1047455050
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1047455046}
+  m_Mesh: {fileID: 0}
 --- !u!1 &1200509106
 GameObject:
   m_ObjectHideFlags: 0
