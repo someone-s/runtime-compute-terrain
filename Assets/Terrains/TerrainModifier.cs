@@ -9,7 +9,7 @@ public class TerrainModifier : MonoBehaviour
 
     // General state
     private static int bufferCount = 50;
-    private static int meshSize = 250;
+    private static int meshSize => TerrainController.meshSize;
     [SerializeField] private ComputeShader computeShader;
     private TerrainCoordinator coordinator;
 

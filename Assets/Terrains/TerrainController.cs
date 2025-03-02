@@ -12,7 +12,7 @@ public class TerrainController : MonoBehaviour
 {
 
     // General state
-    private static int meshSize = 250;
+    public static int meshSize { get; private set; } = 125;
 
     public GraphicsBuffer graphicsBuffer { get; private set; }
     public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
