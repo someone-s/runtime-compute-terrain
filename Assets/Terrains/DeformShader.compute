@@ -1,4 +1,4 @@
-#pragma kernel UpdateTrack
+#pragma kernel ModifyMesh
 
 #define EPSILON (0.00000001)
 #define DIVIDE9 (0.11111111)
