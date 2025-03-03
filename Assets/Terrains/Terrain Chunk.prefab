@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 137d95ea28815cdc08e78ecc74ed5cfc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  computeShader: {fileID: 7200000, guid: d93d64336a0404f298e280cb249d93a5, type: 3}
+  configShader: {fileID: 7200000, guid: 659ed02d6e0ec9ae8b4db25784e21224, type: 3}
 --- !u!33 &3182353517884534904
 MeshFilter:
   m_ObjectHideFlags: 0

@@ -1,6 +1,6 @@
 #pragma kernel FindIntersect
 
-#define EPSILON (0.0000000001)
+#define EPSILON 0.0000000001
 
 RWByteAddressBuffer verticesTL;
 RWByteAddressBuffer verticesTR;

@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 
 
 [RequireComponent(typeof(TerrainModifier), typeof(TerrainIntersector))]
@@ -146,6 +148,8 @@ public class TerrainCoordinator : MonoBehaviour
         // Write new files
         foreach (KeyValuePair<(int x, int z), TerrainController> entry in controllers)
             entry.Value.Save(TerrainFiler.GetTerrainPath(saveName, entry.Key));
+
+        AsyncGPUReadback.WaitAllRequests();
 
     }
 
