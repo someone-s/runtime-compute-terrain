@@ -1,24 +1,70 @@
+#pragma kernel RecalculateNormal
+#pragma kernel ApplyModifiers
 #pragma kernel ModifyMesh
 
-#define EPSILON (0.00000001)
-#define DIVIDE9 (0.11111111)
+#define EPSILON 0.00000001
+#define DIVIDE9 0.11111111
+#define FLOAT_SIZE_IN_BYTES 4
+
+struct Modify {
+    float mandate;
+    float minimum;
+    float maximum;
+    uint mask;
+};
 
 RWByteAddressBuffer verticesTL;
+RWStructuredBuffer<float> baseTL;
+StructuredBuffer<Modify> modifyTL;
+
 RWByteAddressBuffer verticesTR;
+RWStructuredBuffer<float> baseTR;
+StructuredBuffer<Modify> modifyTR;
+
 RWByteAddressBuffer verticesBL;
+RWStructuredBuffer<float> baseBL;
+StructuredBuffer<Modify> modifyBL;
+
 RWByteAddressBuffer verticesBR;
+RWStructuredBuffer<float> baseBR;
+StructuredBuffer<Modify> modifyBR;
+
 int stride;
 int positionOffset;
 int normalOffset;
 
-
 uint size; // i.e. 1000
 
+uint CalculateBaseIndex(uint x, uint y) {
+    return y * (size + 1) + x;
+}
+float LoadBase(uint x, uint y) {
+    if (x > size && y > size)
+        return baseTR[CalculateBaseIndex(x - size, y - size)];
+    else if (x > size) 
+        return baseBR[CalculateBaseIndex(x - size, y        )];
+    else if (y > size) 
+        return baseTL[CalculateBaseIndex(x,        y - size)];
+    else 
+        return baseBL[CalculateBaseIndex(x,        y       )];
+}
+void StoreBase(uint x, uint y, float value) {
+    if (x >= size && y >= size)
+        baseTR[CalculateBaseIndex(x - size, y - size)] = value;
+
+    if (x >= size && y <= size)
+        baseBR[CalculateBaseIndex(x - size, y       )] = value;
+
+    if (x <= size && y >= size) 
+        baseTL[CalculateBaseIndex(x,        y - size)] = value;
+
+    if (x <= size && y <= size)
+        baseBL[CalculateBaseIndex(x,        y       )] = value;
+}
 
 uint CalculateVertexIndex(uint x, uint y) {
     return (y * (size + 1) + x) * stride + positionOffset;
 }
-
 float3 LoadVertex(uint x, uint y) {
     if (x > size && y > size) {
         float3 value = asfloat(verticesTR.Load3(CalculateVertexIndex(x - size, y - size)));
@@ -41,7 +87,6 @@ float3 LoadVertex(uint x, uint y) {
         return value;
     }
 }
-
 void StoreVertex(uint x, uint y, float3 value) {
     if (x >= size && y >= size) {
         float3 valueCopy = value;
@@ -67,11 +112,23 @@ void StoreVertex(uint x, uint y, float3 value) {
         verticesBL.Store3(CalculateVertexIndex(x, y), asuint(valueCopy));
     }
 }
+void StoreVertexY(uint x, uint y, float value) {
+    if (x >= size && y >= size) 
+        verticesTR.Store(CalculateVertexIndex(x - size, y - size) + FLOAT_SIZE_IN_BYTES, asuint(value));
+
+    if (x >= size && y <= size) 
+        verticesBR.Store(CalculateVertexIndex(x - size, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
+
+    if (x <= size && y >= size) 
+        verticesTL.Store(CalculateVertexIndex(x, y - size) + FLOAT_SIZE_IN_BYTES, asuint(value));
+
+    if (x <= size && y <= size) 
+        verticesBL.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
+}
 
 uint CalculateNormalIndex(uint x, uint y) {
     return (y * (size + 1) + x) * stride + normalOffset;
 }
-
 void StoreNormal(uint x, uint y, float3 value) {
     if (x >= size && y >= size)
         verticesTR.Store3(CalculateNormalIndex(x - size, y - size), asuint(value));
@@ -84,6 +141,20 @@ void StoreNormal(uint x, uint y, float3 value) {
 
     if (x <= size && y <= size)
         verticesBL.Store3(CalculateNormalIndex(x, y), asuint(value));
+}
+
+uint CalculateModifyIndex(uint x, uint y) {
+    return y * (size + 1) + x;
+}
+Modify LoadModify(uint x, uint y) {
+    if (x > size && y > size)
+        return modifyTR[CalculateModifyIndex(x - size, y - size)];
+    else if (x > size) 
+        return modifyBR[CalculateModifyIndex(x - size, y        )];
+    else if (y > size) 
+        return modifyTL[CalculateModifyIndex(x,        y - size)];
+    else 
+        return modifyBL[CalculateModifyIndex(x,        y       )];
 }
 
 // Modify Mesh Section
@@ -99,9 +170,69 @@ int count; // operation count
 
 uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
 
-// this oeprate per vertex
-[numthreads(32, 32, 1)]
-void ModifyMesh(uint3 id : SV_DispatchThreadID) {
+void RecalculateNormalImpl(uint3 id) {
+
+    // Recalculate Normal
+    {
+        for (uint x = id.x * meshSection > 0 ? id.x * meshSection : 1; x < (id.x + 1) * meshSection && x < (size * 2); x++) {
+    
+            for (uint y = id.y * meshSection ? id.y * meshSection : 1; y <  (id.y + 1) * meshSection && y < (size * 2); y++) {
+    
+                float3 vertex = LoadVertex(x, y);
+    
+                float3 selfPt   = LoadVertex(x, y);
+                float3 leftDir  = normalize(selfPt - LoadVertex(x - 1,  y));
+                float3 upDir    = normalize(selfPt - LoadVertex(x,      y + 1));
+                float3 downDir  = normalize(selfPt - LoadVertex(x,      y - 1));
+                float3 rightDir = normalize(selfPt - LoadVertex(x + 1,  y));
+    
+                float3 luNorm = cross(leftDir, upDir);
+                float3 ldNorm = cross(downDir, leftDir);
+                float3 rdNorm = cross(rightDir, downDir);
+                float3 ruNorm = cross(upDir, rightDir);
+    
+                float3 avgNorm = normalize(
+                    luNorm * 0.25 + 
+                    ldNorm * 0.25 + 
+                    rdNorm * 0.25 + 
+                    ruNorm * 0.25);
+            
+                StoreNormal(x, y, avgNorm);
+            }
+        }
+    }
+
+}
+
+void ApplyModifiersImpl(uint3 id) {
+
+    // Apply Modifiers
+    {
+        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+    
+            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+    
+                float3 vertex = LoadVertex(x, y);
+                float base = LoadBase(x, y);
+                Modify modify = LoadModify(x, y);
+                
+                if (modify.mask & 4 && base > modify.maximum)
+                    base = modify.maximum;
+                
+                if (modify.mask & 2 && base < modify.minimum)
+                    base = modify.minimum;
+    
+                if (modify.mask & 1)
+                    base = modify.mandate;
+            
+                StoreVertexY(x, y, base);
+            }
+        }
+    }
+
+}
+
+void ModifyMeshImpl(uint3 id) {
     
     // Execute Operations
     for (int o = 0; o < count; o++) {
@@ -112,8 +243,9 @@ void ModifyMesh(uint3 id : SV_DispatchThreadID) {
             for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
 
                 float3 vertex = LoadVertex(x, y);
-
                 float2 localPos = vertex.xz;
+
+                float base = LoadBase(x, y);
 
                 float distToCent = distance(operation.position, localPos);
                 
@@ -121,13 +253,13 @@ void ModifyMesh(uint3 id : SV_DispatchThreadID) {
                     float proportion = 1.0 - distToCent / operation.radius;
                     
                     if (operation.type == 1) {
-                        vertex.y += operation.parameter * proportion;
+                        base += operation.parameter * proportion;
                     }
                     else if (operation.type == 2) {
-                        vertex.y -= operation.parameter * proportion;
+                        base -= operation.parameter * proportion;
                     }
                     else if (operation.type == 3) {
-                        vertex.y = (1.0 - proportion) * vertex.y + proportion * operation.parameter;
+                        base = (1.0 - proportion) * base + proportion * operation.parameter;
                     }
                     else if (operation.type == 4) {
                         float average = 0.0;
@@ -135,43 +267,31 @@ void ModifyMesh(uint3 id : SV_DispatchThreadID) {
                             for (int dy = -1; dy <= 1; dy++) 
                                 average += LoadVertex(x + dx, y + dy).y * DIVIDE9;
 
-                        vertex.y = (1.0 - proportion) * vertex.y + proportion * average;
+                        base = (1.0 - proportion) * base + proportion * average;
                     }
-                }   
-            
-                StoreVertex(x, y, vertex);
+                }
+                
+                StoreVertexY(x, y, base);
+                StoreBase(x, y, base);
             }
         }
 
         GroupMemoryBarrierWithGroupSync();
     }
 
-    
-    // Recalculate Normal
-    for (uint x = id.x * meshSection > 0 ? id.x * meshSection : 1; x < (id.x + 1) * meshSection && x < (size * 2); x++) {
+    //ApplyModifiersImpl(id);
 
-        for (uint y = id.y * meshSection ? id.y * meshSection : 1; y <  (id.y + 1) * meshSection && y < (size * 2); y++) {
-
-            float3 vertex = LoadVertex(x, y);
-
-            float3 selfPt   = LoadVertex(x, y);
-            float3 leftDir  = normalize(selfPt - LoadVertex(x - 1,  y));
-            float3 upDir    = normalize(selfPt - LoadVertex(x,      y + 1));
-            float3 downDir  = normalize(selfPt - LoadVertex(x,      y - 1));
-            float3 rightDir = normalize(selfPt - LoadVertex(x + 1,  y));
-
-            float3 luNorm = cross(leftDir, upDir);
-            float3 ldNorm = cross(downDir, leftDir);
-            float3 rdNorm = cross(rightDir, downDir);
-            float3 ruNorm = cross(upDir, rightDir);
-
-            float3 avgNorm = normalize(
-                luNorm * 0.25 + 
-                ldNorm * 0.25 + 
-                rdNorm * 0.25 + 
-                ruNorm * 0.25);
-        
-            StoreNormal(x, y, avgNorm);
-        }
-    }
+    RecalculateNormalImpl(id);
 }
+
+// this oeprate per vertex except vertices on the edge of the combined area
+[numthreads(32, 32, 1)]
+void RecalculateNormal(uint3 id: SV_DispatchThreadID) { RecalculateNormalImpl(id); }
+
+// this oeprate per vertex
+[numthreads(32, 32, 1)]
+void ApplyModifiers(uint3 id: SV_DispatchThreadID) { ApplyModifiersImpl(id); }
+
+// this oeprate per vertex
+[numthreads(32, 32, 1)]
+void ModifyMesh(uint3 id : SV_DispatchThreadID) { ModifyMeshImpl(id); }

@@ -45,17 +45,25 @@ public class TerrainModifier : MonoBehaviour
         computeShader.SetInt(Shader.PropertyToID("positionOffset"), TerrainController.VertexPositionAttributeOffset);
         computeShader.SetInt(Shader.PropertyToID("normalOffset"), TerrainController.VertexNormalAttributeOffset);
 
-        GraphicsBuffer meshBL = coordinator.controllers[currentRegion.Value].graphicsBuffer;
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesBL"), meshBL);
+        TerrainController controllerBL = coordinator.controllers[currentRegion.Value];
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesBL"), controllerBL.graphicsBuffer);
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("baseBL"),     controllerBL.baseBuffer    );
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("modifyBL"),   controllerBL.modifyBuffer  );
         
-        GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)].graphicsBuffer;
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesBR"), meshBR);
+        TerrainController controllerBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)];
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesBR"), controllerBR.graphicsBuffer);
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("baseBR"),     controllerBR.baseBuffer    );
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("modifyBR"),   controllerBR.modifyBuffer  );
 
-        GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)].graphicsBuffer;
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTL"), meshTL);
+        TerrainController controllerTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)];
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTL"), controllerTL.graphicsBuffer);
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("baseTL"),     controllerTL.baseBuffer    );
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("modifyTL"),   controllerTL.modifyBuffer  );
 
-        GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)].graphicsBuffer;
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTR"), meshTR);
+        TerrainController controllerTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)];
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTR"), controllerTR.graphicsBuffer);
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("baseTR"),     controllerTR.baseBuffer    );
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("modifyTR"),   controllerTR.modifyBuffer  );
 
     }
     #endregion
@@ -145,5 +153,8 @@ public class TerrainModifier : MonoBehaviour
         if (operationQueue.Count == 0)
             enabled = false;
     }
+    #endregion
+
+    #region Offset Section
     #endregion
 }

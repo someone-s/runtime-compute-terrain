@@ -1,0 +1,108 @@
+#pragma kernel ResetBuffers
+#pragma kernel RestoreBuffers
+#pragma kernel ExportBuffers
+
+#define FLOAT_SIZE_IN_BYTES 4
+
+struct Modify {
+    float mandate;
+    float minimum;
+    float maximum;
+    uint mask;
+};
+
+RWStructuredBuffer<float> base;
+RWStructuredBuffer<Modify> modify;
+
+uint size; // i.e. 1000
+uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
+
+uint CalculateBaseIndex(uint x, uint y) {
+    return y * (size + 1) + x;
+}
+
+// this oeprate per vertex
+[numthreads(32, 32, 1)]
+void ResetBuffers(uint3 id : SV_DispatchThreadID) {
+    
+    // Apply Modifiers
+    {
+        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+    
+            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+    
+                uint index = CalculateBaseIndex(x, y);
+                base[index] = 0.0;
+                modify[index].mandate = 0.0;
+                modify[index].minimum = 0.0;
+                modify[index].maximum = 0.0;
+                modify[index].mask = 0;
+            }
+        }
+    }
+}
+
+
+RWByteAddressBuffer vertices;
+int stride;
+int positionOffset;
+int normalOffset;
+
+struct Export {
+    float height;
+    float3 normal;
+};
+RWStructuredBuffer<Export> exports;
+
+uint CalculateVertexIndex(uint x, uint y) {
+    return (y * (size + 1) + x) * stride + positionOffset;
+}
+void StoreVertexY(uint x, uint y, float value) {
+    vertices.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
+}
+
+uint CalculateNormalIndex(uint x, uint y) {
+    return (y * (size + 1) + x) * stride + normalOffset;
+}
+float3 LoadNormal(uint x, uint y) {
+    return asfloat(vertices.Load3(CalculateNormalIndex(x, y)));
+}
+void StoreNormal(uint x, uint y, float3 value) {
+        vertices.Store3(CalculateNormalIndex(x, y), asuint(value));
+}
+
+// this oeprate per vertex
+[numthreads(32, 32, 1)]
+void RestoreBuffers(uint3 id : SV_DispatchThreadID) {
+    
+    // Apply Modifiers
+    {
+        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+    
+            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+                
+                uint index = CalculateBaseIndex(x, y);
+                StoreVertexY(x, y, exports[index].height);
+                base[index] = exports[index].height;
+                StoreNormal(x, y, exports[index].normal);
+            }
+        }
+    }
+}
+
+[numthreads(32, 32, 1)]
+void ExportBuffers(uint3 id : SV_DispatchThreadID) {
+    
+    // Apply Modifiers
+    {
+        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+    
+            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+                
+                uint index = CalculateBaseIndex(x, y);
+                exports[index].height = base[index];
+                exports[index].normal = LoadNormal(x, y);
+            }
+        }
+    }
+}
