@@ -158,17 +158,28 @@ public class TerrainModifier : MonoBehaviour
 
     [SerializeField] private Transform cameraRig;
     [SerializeField] private Camera mandateCamera;
-    [SerializeField] private RenderTexture mandateTexture;
+    private RenderTexture mandateTexture;
     [SerializeField] private Camera minimumCamera;
-    [SerializeField] private RenderTexture minimumTexture;
+    private RenderTexture minimumTexture;
     [SerializeField] private Camera maximumCamera;
-    [SerializeField] private RenderTexture maximumTexture;
+    private RenderTexture maximumTexture;
 
 
     private Queue<(int x, int z)> projectQueue = new Queue<(int x, int y)>(bufferCount);
 
     private void SetupProject() 
     {
+        RenderTextureDescriptor descriptor = new RenderTextureDescriptor(
+            width: TerrainController.meshSize * 2 + 1,
+            height: TerrainController.meshSize * 2 + 1,
+            colorFormat: UnityEngine.Experimental.Rendering.GraphicsFormat.None,
+            depthStencilFormat: UnityEngine.Experimental.Rendering.GraphicsFormat.D32_SFloat
+        );
+
+        mandateTexture = new RenderTexture(descriptor);
+        minimumTexture = new RenderTexture(descriptor);
+        maximumTexture = new RenderTexture(descriptor);
+
         int applyModifiersKernelIndex = computeShader.FindKernel("ApplyModifiers");
 
         computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("mandateRT"), mandateTexture);
@@ -184,18 +195,21 @@ public class TerrainModifier : MonoBehaviour
         mandateCamera.farClipPlane = depth;
         mandateCamera.transform.localPosition = new Vector3(0f, start, 0f);
         mandateCamera.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        mandateCamera.targetTexture = mandateTexture;
         
         minimumCamera.orthographicSize = area + (area / TerrainController.meshSize * 0.5f);
         minimumCamera.nearClipPlane = 0f;
         minimumCamera.farClipPlane = depth;
         minimumCamera.transform.localPosition = new Vector3(0f, start, 0f);
         minimumCamera.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        minimumCamera.targetTexture = minimumTexture;
 
         maximumCamera.orthographicSize = area + (area / TerrainController.meshSize * 0.5f);
         maximumCamera.nearClipPlane = 0f;
         maximumCamera.farClipPlane = depth;
         maximumCamera.transform.localPosition = new Vector3(0f, -start, 0f);
         maximumCamera.transform.localRotation = Quaternion.Euler(270f, 0f, 0f);
+        maximumCamera.targetTexture = maximumTexture;
     }
 
     public void QueueProject((int x, int z) region)

@@ -108,7 +108,7 @@ Camera:
     serializedVersion: 2
     m_Bits: 256
   m_RenderingPath: -1
-  m_TargetTexture: {fileID: 8400000, guid: 044a6fd57c6922134b8e90437c8da519, type: 2}
+  m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 1
   m_TargetEye: 3
   m_HDR: 1
@@ -236,7 +236,7 @@ Camera:
     serializedVersion: 2
     m_Bits: 128
   m_RenderingPath: -1
-  m_TargetTexture: {fileID: 8400000, guid: 9d05c10117b73d4faac962ffd472a54f, type: 2}
+  m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 1
   m_TargetEye: 3
   m_HDR: 1
@@ -364,7 +364,7 @@ Camera:
     serializedVersion: 2
     m_Bits: 512
   m_RenderingPath: -1
-  m_TargetTexture: {fileID: 8400000, guid: 6f7d2c4ca57fbf92d984b62a8c2f59a6, type: 2}
+  m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 1
   m_TargetEye: 3
   m_HDR: 1
@@ -485,11 +485,8 @@ MonoBehaviour:
   ignore: 0.05
   cameraRig: {fileID: 1842733856479701710}
   mandateCamera: {fileID: 8251791456215992828}
-  mandateTexture: {fileID: 8400000, guid: 9d05c10117b73d4faac962ffd472a54f, type: 2}
   minimumCamera: {fileID: 3726834299262461037}
-  minimumTexture: {fileID: 8400000, guid: 044a6fd57c6922134b8e90437c8da519, type: 2}
   maximumCamera: {fileID: 2472529606903144129}
-  maximumTexture: {fileID: 8400000, guid: 6f7d2c4ca57fbf92d984b62a8c2f59a6, type: 2}
 --- !u!114 &5947181190290359038
 MonoBehaviour:
   m_ObjectHideFlags: 0

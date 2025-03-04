@@ -6,6 +6,7 @@
 #define MAXIMUM_BIT 4
 #define EPSILON 0.00000001
 #define DIVIDE9 0.11111111
+#define DIVIDE25 0.04
 #define FLOAT_SIZE_IN_BYTES 4
 
 struct Modify {
@@ -220,6 +221,27 @@ void ApplyNormals(uint3 id) {
 
 }
 
+
+void ApplySmooth(uint3 id) {
+
+    // Recalculate Normal
+    {
+        for (uint x = id.x * meshSection > 0 ? id.x * meshSection : 1; x < (id.x + 1) * meshSection && x < (size * 2); x++) {
+    
+            for (uint y = id.y * meshSection ? id.y * meshSection : 1; y <  (id.y + 1) * meshSection && y < (size * 2); y++) {
+    
+                float total = 0.0;
+                for (int dx = -1; dx <= 1; dx++) 
+                    for (int dy = -1; dy <= 1; dy++) 
+                        total += LoadVertex(x + dx, y + dy).y;
+
+                StoreVertexY(x, y, total * DIVIDE9);
+            }
+        }
+    }
+
+}
+
 void ApplyConstraints(uint3 id) {
 
     // Apply Modifiers
@@ -290,12 +312,12 @@ void ApplyOperations(uint3 id) {
                         base = (1.0 - proportion) * base + proportion * operation.parameter;
                     }
                     else if (operation.type == 4) {
-                        float average = 0.0;
+                        float total = 0.0;
                         for (int dx = -1; dx <= 1; dx++) 
                             for (int dy = -1; dy <= 1; dy++) 
-                                average += LoadVertex(x + dx, y + dy).y * DIVIDE9;
+                                total += LoadVertex(x + dx, y + dy).y;
 
-                        base = (1.0 - proportion) * base + proportion * average;
+                        base = (1.0 - proportion) * base + proportion * total * DIVIDE9;
                     }
                 }
                 
