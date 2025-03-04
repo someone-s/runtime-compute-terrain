@@ -1,12 +1,15 @@
-#pragma kernel RecalculateNormal
-#pragma kernel ApplyModifiers
-#pragma kernel ModifyMesh
+#pragma kernel ApplyModifiers DEFINE_APPLY
+#pragma kernel ModifyMesh DEFINE_OPERATION
 
+#define MANDATE_BIT 1
+#define MINIMUM_BIT 2
+#define MAXIMUM_BIT 4
 #define EPSILON 0.00000001
 #define DIVIDE9 0.11111111
 #define FLOAT_SIZE_IN_BYTES 4
 
 struct Modify {
+    float terrain;
     float mandate;
     float minimum;
     float maximum;
@@ -14,53 +17,23 @@ struct Modify {
 };
 
 RWByteAddressBuffer verticesTL;
-RWStructuredBuffer<float> baseTL;
-StructuredBuffer<Modify> modifyTL;
+RWStructuredBuffer<Modify> modifyTL;
 
 RWByteAddressBuffer verticesTR;
-RWStructuredBuffer<float> baseTR;
-StructuredBuffer<Modify> modifyTR;
+RWStructuredBuffer<Modify> modifyTR;
 
 RWByteAddressBuffer verticesBL;
-RWStructuredBuffer<float> baseBL;
-StructuredBuffer<Modify> modifyBL;
+RWStructuredBuffer<Modify> modifyBL;
 
 RWByteAddressBuffer verticesBR;
-RWStructuredBuffer<float> baseBR;
-StructuredBuffer<Modify> modifyBR;
+RWStructuredBuffer<Modify> modifyBR;
 
 int stride;
 int positionOffset;
 int normalOffset;
 
 uint size; // i.e. 1000
-
-uint CalculateBaseIndex(uint x, uint y) {
-    return y * (size + 1) + x;
-}
-float LoadBase(uint x, uint y) {
-    if (x > size && y > size)
-        return baseTR[CalculateBaseIndex(x - size, y - size)];
-    else if (x > size) 
-        return baseBR[CalculateBaseIndex(x - size, y        )];
-    else if (y > size) 
-        return baseTL[CalculateBaseIndex(x,        y - size)];
-    else 
-        return baseBL[CalculateBaseIndex(x,        y       )];
-}
-void StoreBase(uint x, uint y, float value) {
-    if (x >= size && y >= size)
-        baseTR[CalculateBaseIndex(x - size, y - size)] = value;
-
-    if (x >= size && y <= size)
-        baseBR[CalculateBaseIndex(x - size, y       )] = value;
-
-    if (x <= size && y >= size) 
-        baseTL[CalculateBaseIndex(x,        y - size)] = value;
-
-    if (x <= size && y <= size)
-        baseBL[CalculateBaseIndex(x,        y       )] = value;
-}
+uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
 
 uint CalculateVertexIndex(uint x, uint y) {
     return (y * (size + 1) + x) * stride + positionOffset;
@@ -150,27 +123,70 @@ Modify LoadModify(uint x, uint y) {
     if (x > size && y > size)
         return modifyTR[CalculateModifyIndex(x - size, y - size)];
     else if (x > size) 
-        return modifyBR[CalculateModifyIndex(x - size, y        )];
+        return modifyBR[CalculateModifyIndex(x - size, y       )];
     else if (y > size) 
         return modifyTL[CalculateModifyIndex(x,        y - size)];
     else 
         return modifyBL[CalculateModifyIndex(x,        y       )];
 }
+void StoreModify(uint x, uint y, float mandate, float minimum, float maximum, uint mask) {
 
-// Modify Mesh Section
-struct Operation {
-    float2 position; // normalized
-    float radius; // normalized
-    float parameter; // arbitary
-    uint type;
-};
+    if (x >= size && y >= size) {
+        uint index = CalculateModifyIndex(x - size, y - size);
+        modifyTR[index].mandate = mandate;
+        modifyTR[index].minimum = minimum;
+        modifyTR[index].maximum = maximum;
+        modifyTR[index].mask = mask;
+    }
 
-StructuredBuffer<Operation> operations;
-int count; // operation count
+    if (x >= size && y <= size) {
+        uint index = CalculateModifyIndex(x - size, y);
+        modifyBR[index].mandate = mandate;
+        modifyBR[index].minimum = minimum;
+        modifyBR[index].maximum = maximum;
+        modifyBR[index].mask = mask;
+    }
 
-uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
+    if (x <= size && y >= size) {
+        uint index = CalculateModifyIndex(x, y - size);
+        modifyTL[index].mandate = mandate;
+        modifyTL[index].minimum = minimum;
+        modifyTL[index].maximum = maximum;
+        modifyTL[index].mask = mask;
+    }
 
-void RecalculateNormalImpl(uint3 id) {
+    if (x <= size && y <= size) {
+        uint index = CalculateModifyIndex(x, y);
+        modifyBL[index].mandate = mandate;
+        modifyBL[index].minimum = minimum;
+        modifyBL[index].maximum = maximum;
+        modifyBL[index].mask = mask;
+    }
+}
+void StoreBase(uint x, uint y, float value) {
+    if (x >= size && y >= size) {
+        uint index = CalculateModifyIndex(x - size, y - size);
+        modifyTR[index].terrain = value;
+    }
+
+    if (x >= size && y <= size) {
+        uint index = CalculateModifyIndex(x - size, y);
+        modifyBR[index].terrain = value;
+    }
+
+    if (x <= size && y >= size) {
+        uint index = CalculateModifyIndex(x, y - size);
+        modifyTL[index].terrain = value;
+    }
+
+    if (x <= size && y <= size) {
+        uint index = CalculateModifyIndex(x, y);
+        modifyBL[index].terrain = value;
+    }
+}
+
+
+void ApplyNormals(uint3 id) {
 
     // Recalculate Normal
     {
@@ -204,7 +220,7 @@ void RecalculateNormalImpl(uint3 id) {
 
 }
 
-void ApplyModifiersImpl(uint3 id) {
+void ApplyConstraints(uint3 id) {
 
     // Apply Modifiers
     {
@@ -213,16 +229,16 @@ void ApplyModifiersImpl(uint3 id) {
             for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
     
                 float3 vertex = LoadVertex(x, y);
-                float base = LoadBase(x, y);
                 Modify modify = LoadModify(x, y);
+                float base = modify.terrain;
                 
-                if (modify.mask & 4 && base > modify.maximum)
+                if (modify.mask & MAXIMUM_BIT && base > modify.maximum)
                     base = modify.maximum;
                 
-                if (modify.mask & 2 && base < modify.minimum)
+                if (modify.mask & MINIMUM_BIT && base < modify.minimum)
                     base = modify.minimum;
     
-                if (modify.mask & 1)
+                if (modify.mask & MANDATE_BIT)
                     base = modify.mandate;
             
                 StoreVertexY(x, y, base);
@@ -232,7 +248,19 @@ void ApplyModifiersImpl(uint3 id) {
 
 }
 
-void ModifyMeshImpl(uint3 id) {
+#ifdef DEFINE_OPERATION
+// Modify Mesh Section
+struct Operation {
+    float2 position; // normalized
+    float radius; // normalized
+    float parameter; // arbitary
+    uint type;
+};
+
+StructuredBuffer<Operation> operations;
+int count; // operation count
+
+void ApplyOperations(uint3 id) {
     
     // Execute Operations
     for (int o = 0; o < count; o++) {
@@ -245,7 +273,7 @@ void ModifyMeshImpl(uint3 id) {
                 float3 vertex = LoadVertex(x, y);
                 float2 localPos = vertex.xz;
 
-                float base = LoadBase(x, y);
+                float base = LoadModify(x, y).terrain;
 
                 float distToCent = distance(operation.position, localPos);
                 
@@ -278,20 +306,85 @@ void ModifyMeshImpl(uint3 id) {
 
         GroupMemoryBarrierWithGroupSync();
     }
-
-    ApplyModifiersImpl(id);
-
-    RecalculateNormalImpl(id);
 }
 
-// this oeprate per vertex except vertices on the edge of the combined area
+// this oeprate per vertex
 [numthreads(32, 32, 1)]
-void RecalculateNormal(uint3 id: SV_DispatchThreadID) { RecalculateNormalImpl(id); }
+void ModifyMesh(uint3 id : SV_DispatchThreadID) { 
+
+    ApplyOperations(id);
+
+    ApplyConstraints(id);
+
+    ApplyNormals(id);
+}
+#endif
+
+#ifdef DEFINE_APPLY
+Texture2D<float4> mandateRT; // 0-1, top down
+Texture2D<float4> minimumRT; // 0-1, bottom up
+Texture2D<float4> maximumRT; // 0-1, top down
+float start; // +ve offset from 0.0, if bottom up, take the negative
+float depth; // height of the depth texture space
+float ignore; // 0-1, range greater to treat as nothing rendered
+
+uint CalculateRTIndex(uint x, uint y) {
+    return y * (size * 2 + 1) + x;
+}
+
+void ApplyRenderTexture(uint3 id) {
+    
+    // Apply Modifiers
+    {
+        float inverseIgnore = 1.0 - ignore;
+
+        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+    
+            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+                
+                uint2 index = uint2(x, y);
+                uint2 mirrorIndex = uint2(x, size * 2 - y);
+
+                float mandate;
+                float minimum;
+                float maximum;
+                uint mask = 0;
+
+                if (mandateRT[index].r < ignore || mandateRT[index].r > inverseIgnore)
+                    mandate = 0.0;
+                else {
+                    mask |= MANDATE_BIT;
+                    mandate = mandateRT[index].r * depth - start;
+                }
+
+                if (minimumRT[index].r < ignore || mandateRT[index].r > inverseIgnore)
+                    minimum = 0.0;
+                else {
+                    mask |= MINIMUM_BIT;
+                    minimum = minimumRT[index].r * depth - start;
+                }
+
+                if (maximumRT[mirrorIndex].r < ignore || mandateRT[mirrorIndex].r > inverseIgnore)
+                    maximum = 0.0;
+                else {
+                    mask |= MAXIMUM_BIT;
+                    maximum = start - maximumRT[mirrorIndex].r * depth;
+                }
+
+                StoreModify(x, y, mandate, minimum, maximum, mask);
+            }
+        }
+    }
+}
 
 // this oeprate per vertex
 [numthreads(32, 32, 1)]
-void ApplyModifiers(uint3 id: SV_DispatchThreadID) { ApplyModifiersImpl(id); }
+void ApplyModifiers(uint3 id: SV_DispatchThreadID) {
 
-// this oeprate per vertex
-[numthreads(32, 32, 1)]
-void ModifyMesh(uint3 id : SV_DispatchThreadID) { ModifyMeshImpl(id); }
+    ApplyRenderTexture(id);
+    
+    ApplyConstraints(id);
+
+    ApplyNormals(id);
+}
+#endif

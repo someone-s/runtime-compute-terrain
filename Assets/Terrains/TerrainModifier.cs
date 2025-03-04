@@ -12,9 +12,9 @@ public class TerrainModifier : MonoBehaviour
     private static int meshSize => TerrainController.meshSize;
     [SerializeField] private ComputeShader computeShader;
     private TerrainCoordinator coordinator;
+    private float area => coordinator.area;
 
     #region Configuration Region
-    private (int x, int z)? currentRegion = null;
 
     private void Start()
     {
@@ -22,14 +22,13 @@ public class TerrainModifier : MonoBehaviour
 
         computeShader = Instantiate(computeShader);
 
-        int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
 
         computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
         computeShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
-        
-        operationBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
 
+        SetupModify();
+
+        SetupProject();
     }
 
     private void OnDestroy()
@@ -37,41 +36,37 @@ public class TerrainModifier : MonoBehaviour
         operationBuffer.Dispose();
     }
 
-
-    private void SetModifyArea() {
-        int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
+    private void SetArea(int kernelIndex, (int x, int z) region)
+    {
 
         computeShader.SetInt(Shader.PropertyToID("stride"), TerrainController.VertexBufferStride);
         computeShader.SetInt(Shader.PropertyToID("positionOffset"), TerrainController.VertexPositionAttributeOffset);
         computeShader.SetInt(Shader.PropertyToID("normalOffset"), TerrainController.VertexNormalAttributeOffset);
 
-        TerrainController controllerBL = coordinator.controllers[currentRegion.Value];
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesBL"), controllerBL.graphicsBuffer);
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("baseBL"),     controllerBL.baseBuffer    );
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("modifyBL"),   controllerBL.modifyBuffer  );
-        
-        TerrainController controllerBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)];
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesBR"), controllerBR.graphicsBuffer);
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("baseBR"),     controllerBR.baseBuffer    );
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("modifyBR"),   controllerBR.modifyBuffer  );
+        TerrainController controllerBL = coordinator.controllers[region];
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBL"), controllerBL.graphicsBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("modifyBL"), controllerBL.deformBuffer);
 
-        TerrainController controllerTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)];
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTL"), controllerTL.graphicsBuffer);
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("baseTL"),     controllerTL.baseBuffer    );
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("modifyTL"),   controllerTL.modifyBuffer  );
+        TerrainController controllerBR = coordinator.controllers[(region.x + 1, region.z)];
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBR"), controllerBR.graphicsBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("modifyBR"), controllerBR.deformBuffer);
 
-        TerrainController controllerTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)];
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("verticesTR"), controllerTR.graphicsBuffer);
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("baseTR"),     controllerTR.baseBuffer    );
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("modifyTR"),   controllerTR.modifyBuffer  );
+        TerrainController controllerTL = coordinator.controllers[(region.x, region.z + 1)];
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTL"), controllerTL.graphicsBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("modifyTL"), controllerTL.deformBuffer);
+
+        TerrainController controllerTR = coordinator.controllers[(region.x + 1, region.z + 1)];
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTR"), controllerTR.graphicsBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("modifyTR"), controllerTR.deformBuffer);
 
     }
     #endregion
 
     #region Modify Section
     private ComputeBuffer operationBuffer;
+    private (int x, int z)? currentRegion = null;
 
-    private Queue<((int x, int y) region, Operation operation)> operationQueue = new Queue<((int x, int y) region, Operation operation)>(bufferCount);
+    private Queue<((int x, int z) region, Operation operation)> operationQueue = new Queue<((int x, int z) region, Operation operation)>(bufferCount);
 
     public enum OperationType
     {
@@ -90,6 +85,14 @@ public class TerrainModifier : MonoBehaviour
         public uint type { get; set; }
     }
 
+    private void SetupModify()
+    {
+        int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
+        
+        operationBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
+    }
+
     public void QueueModify((int x, int y) region, Vector2 normalPosition, float normalRadius, float operationParameter, OperationType operationType)
     {
         operationQueue.Enqueue((
@@ -104,7 +107,6 @@ public class TerrainModifier : MonoBehaviour
         ));
 
         enabled = true;
-
     }
 
     private void ExecuteModify()
@@ -116,9 +118,10 @@ public class TerrainModifier : MonoBehaviour
 
         (int x, int y) targetRegion = first.region;
         operationDestination[0] = first.operation;
-        
+
         int index = 1;
-        for (; index < bufferCount; index++) {
+        for (; index < bufferCount; index++)
+        {
             if (!operationQueue.TryPeek(out ((int x, int y) region, Operation operation) follow))
                 break;
 
@@ -129,32 +132,110 @@ public class TerrainModifier : MonoBehaviour
             operationDestination[index] = follow.operation;
         }
 
-        //NativeSlice<Operation> destinationRange = new NativeSlice<Operation>(operationDestination, 0, index);
-        //NativeSlice<Operation> writerRange = new NativeSlice<Operation>(operationQueue, 0, index);
-        //destinationRange.CopyFrom(writerRange);
-
         operationBuffer.EndWrite<Operation>(index);
 
         computeShader.SetInt(Shader.PropertyToID("count"), index);
 
-        if (targetRegion != currentRegion) {
+        int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
+
+        if (targetRegion != currentRegion)
+        {
             currentRegion = targetRegion;
-            SetModifyArea();
+            SetArea(modifyMeshKernelIndex, currentRegion.Value);
         }
 
-        computeShader.Dispatch(computeShader.FindKernel("ModifyMesh"), 32, 32, 1);
+        computeShader.Dispatch(modifyMeshKernelIndex, 32, 32, 1);
     }
+
+    #endregion
+
+    #region Project Section
+
+    [SerializeField] private float start = 500f;
+    [SerializeField] private float depth = 1000f;
+    [SerializeField] private float ignore = 0.05f;
+
+
+    [SerializeField] private Transform cameraRig;
+    [SerializeField] private Camera mandateCamera;
+    [SerializeField] private RenderTexture mandateTexture;
+    [SerializeField] private Camera minimumCamera;
+    [SerializeField] private RenderTexture minimumTexture;
+    [SerializeField] private Camera maximumCamera;
+    [SerializeField] private RenderTexture maximumTexture;
+
+
+    private Queue<(int x, int z)> projectQueue = new Queue<(int x, int y)>(bufferCount);
+
+    private void SetupProject() 
+    {
+        int applyModifiersKernelIndex = computeShader.FindKernel("ApplyModifiers");
+
+        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("mandateRT"), mandateTexture);
+        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("minimumRT"), minimumTexture);
+        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("maximumRT"), maximumTexture);
+
+        computeShader.SetFloat(Shader.PropertyToID("start"), start);
+        computeShader.SetFloat(Shader.PropertyToID("depth"), depth);
+        computeShader.SetFloat(Shader.PropertyToID("ignore"), ignore);
+
+        mandateCamera.orthographicSize = area + (area / TerrainController.meshSize * 0.5f);
+        mandateCamera.nearClipPlane = 0f;
+        mandateCamera.farClipPlane = depth;
+        mandateCamera.transform.localPosition = new Vector3(0f, start, 0f);
+        mandateCamera.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        
+        minimumCamera.orthographicSize = area + (area / TerrainController.meshSize * 0.5f);
+        minimumCamera.nearClipPlane = 0f;
+        minimumCamera.farClipPlane = depth;
+        minimumCamera.transform.localPosition = new Vector3(0f, start, 0f);
+        minimumCamera.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+        maximumCamera.orthographicSize = area + (area / TerrainController.meshSize * 0.5f);
+        maximumCamera.nearClipPlane = 0f;
+        maximumCamera.farClipPlane = depth;
+        maximumCamera.transform.localPosition = new Vector3(0f, -start, 0f);
+        maximumCamera.transform.localRotation = Quaternion.Euler(270f, 0f, 0f);
+    }
+
+    public void QueueProject((int x, int z) region)
+    {
+        if (!projectQueue.Contains(region))
+            projectQueue.Enqueue(region);
+
+        enabled = true;
+    }
+
+    private void ExecuteProject()
+    {
+        for (int i = 0; i < bufferCount && projectQueue.TryDequeue(out (int x, int z) region); i++)
+        {
+
+            (int x, int z) = region;
+
+            cameraRig.localPosition = new Vector3((x + 1) * area, 0f, (z + 1) * area);
+            mandateCamera.Render();
+            minimumCamera.Render();
+            maximumCamera.Render();
+
+
+            int applyModifiersKernelIndex = computeShader.FindKernel("ApplyModifiers");
+
+            SetArea(applyModifiersKernelIndex, region);
+
+            computeShader.Dispatch(applyModifiersKernelIndex, 32, 32, 1);
+        }
+    }
+    #endregion
 
     private void LateUpdate()
     {
         if (operationQueue.Count > 0)
             ExecuteModify();
+        if (projectQueue.Count > 0)
+            ExecuteProject();
 
-        if (operationQueue.Count == 0)
+        if (operationQueue.Count == 0 && projectQueue.Count == 0)
             enabled = false;
     }
-    #endregion
-
-    #region Offset Section
-    #endregion
 }

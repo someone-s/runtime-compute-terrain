@@ -2,10 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
 
@@ -17,11 +14,11 @@ public class TerrainCoordinator : MonoBehaviour
     private (int x, int z)[] renderedChunks;
     private (int x, int z)[] previousChunks;
     private int renderRange = 3;
-    private float area = 50f;
+    internal float area = 50f;
 
-    private TerrainModifier modifier;
-    private TerrainIntersector intersector;
-    public Dictionary<(int x, int z), TerrainController> controllers = new();
+    internal TerrainModifier modifier;
+    internal TerrainIntersector intersector;
+    internal Dictionary<(int x, int z), TerrainController> controllers = new();
 
     private void Start()
     {
