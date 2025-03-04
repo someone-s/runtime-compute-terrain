@@ -50,7 +50,6 @@ int normalOffset;
 
 struct Export {
     float height;
-    float3 normal;
 };
 RWStructuredBuffer<Export> exports;
 
@@ -84,7 +83,7 @@ void RestoreBuffers(uint3 id : SV_DispatchThreadID) {
                 uint index = CalculateLogicalIndex(x, y);
                 StoreVertexY(x, y, exports[index].height);
                 modify[index].terrain = exports[index].height;
-                StoreNormal(x, y, exports[index].normal);
+                //StoreNormal(x, y, exports[index].normal);
             }
         }
     }
@@ -101,7 +100,7 @@ void ExportBuffers(uint3 id : SV_DispatchThreadID) {
                 
                 uint index = CalculateLogicalIndex(x, y);
                 exports[index].height = modify[index].terrain;
-                exports[index].normal = LoadNormal(x, y);
+                //exports[index].normal = LoadNormal(x, y);
             }
         }
     }

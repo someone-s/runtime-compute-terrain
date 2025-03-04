@@ -161,14 +161,46 @@ public class TerrainCoordinator : MonoBehaviour
             if (!TerrainFiler.SavePathExist(saveName, entry.Key))
                 entry.Value.Reset();
 
+        if (entries.Length < 1)
+            return;
+
+        (int x, int z) minGrid = entries[0].grid;
+        (int x, int z) maxGrid = entries[0].grid;
+        
         // Load files
         foreach (((int x, int z) grid, string path) entry in entries)
         {           
+            if (entry.grid.x < minGrid.x)
+                minGrid.x = entry.grid.x;
+            if (entry.grid.z < minGrid.z)
+                minGrid.z = entry.grid.z;
+
+            if (entry.grid.x > maxGrid.x)
+                maxGrid.x = entry.grid.x;
+            if (entry.grid.z > maxGrid.z)
+                maxGrid.z = entry.grid.z;
+
             if (!controllers.TryGetValue(entry.grid, out TerrainController controller))
                 controller = Generate(entry.grid.x, entry.grid.z);
 
             controller.Load(entry.path);  
         }
+
+        for (int x = minGrid.x; x < Mathf.Max(1 + minGrid.x, maxGrid.x); x++)
+            for (int z = minGrid.z; z < Mathf.Max(1 + minGrid.z, maxGrid.z); z++) 
+            {
+                if (!controllers.ContainsKey((x, z)))
+                    Generate(x, z);
+                if (!controllers.ContainsKey((x+1, z)))
+                    Generate(x+1, z);
+                if (!controllers.ContainsKey((x+1, z+1)))
+                    Generate(x+1, z+1);
+                if (!controllers.ContainsKey((x, z+1)))
+                    Generate(x, z+1);
+
+                modifier.QueueProject((x, z));
+            }
+        
     }
 
     public void ModifyAdd(Vector3 position, float radius, float magnitude)
@@ -224,11 +256,18 @@ public class TerrainCoordinator : MonoBehaviour
         if (limitToOne)
             return;
         
-        (int x, int z) deltaRegion = (maxRegion.x - minRegion.x, maxRegion.z - minRegion.z);
-        deltaRegion = (deltaRegion.x < 1 ? 1 : deltaRegion.x, deltaRegion.z < 1 ? 1 : deltaRegion.z);
-
-        for (int x = 0; x < deltaRegion.x; x++)
-            for (int z = 0; z < deltaRegion.z; z++) 
-                modifier.QueueProject((minRegion.x + x, minRegion.z + z));
+        for (int x = minRegion.x; x < Mathf.Max(1 + minRegion.x, maxRegion.x); x++)
+            for (int z = minRegion.z; z < Mathf.Max(1 + minRegion.z, maxRegion.z); z++) 
+            {
+                if (!controllers.ContainsKey((x, z)))
+                    Generate(x, z);
+                if (!controllers.ContainsKey((x+1, z)))
+                    Generate(x+1, z);
+                if (!controllers.ContainsKey((x+1, z+1)))
+                    Generate(x+1, z+1);
+                if (!controllers.ContainsKey((x, z+1)))
+                    Generate(x, z+1);
+                modifier.QueueProject((x, z));
+            }
     }
 }

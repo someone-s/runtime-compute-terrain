@@ -121,9 +121,10 @@ public class TrackController : MonoBehaviour
 
     private void LateUpdate()
     {
+        Bounds oldBounds = mesh.bounds;
         ExecuteRefresh();
-        Bounds bounds = mesh.bounds;
-        coordinator.Project(bounds.min, bounds.max);
+        Bounds newBounds = mesh.bounds;
+        coordinator.Project(Vector3.Min(oldBounds.min, newBounds.min), Vector3.Max(oldBounds.max, newBounds.max));
         enabled = false;
     }
 
