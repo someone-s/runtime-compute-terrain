@@ -220,6 +220,9 @@ public class TrackController : MonoBehaviour
     {
         ExecuteRefresh();
         modifier.QueueProject((0, 0));
+        modifier.QueueProject((-1, 0));
+        modifier.QueueProject((0, -1));
+        modifier.QueueProject((-1, -1));
         //enabled = false;
     }
 
