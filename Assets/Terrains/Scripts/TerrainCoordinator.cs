@@ -213,4 +213,22 @@ public class TerrainCoordinator : MonoBehaviour
 
         modifier.QueueModify((centerX, centerZ), new Vector2(scaledPoint.x - centerX, scaledPoint.z - centerZ), scaledRadius, parameter, operation);
     }
+
+    public void Project(Vector3 minPosition, Vector3 maxPosition, bool limitToOne = false)
+    {
+        (int x, int z) minRegion = (Mathf.FloorToInt(minPosition.x / area), Mathf.FloorToInt(minPosition.z / area));
+        (int x, int z) maxRegion = (Mathf.CeilToInt(maxPosition.x / area) - 1, Mathf.CeilToInt(maxPosition.z / area) - 1);
+
+        modifier.QueueProject(minRegion);
+
+        if (limitToOne)
+            return;
+        
+        (int x, int z) deltaRegion = (maxRegion.x - minRegion.x, maxRegion.z - minRegion.z);
+        deltaRegion = (deltaRegion.x < 1 ? 1 : deltaRegion.x, deltaRegion.z < 1 ? 1 : deltaRegion.z);
+
+        for (int x = 0; x < deltaRegion.x; x++)
+            for (int z = 0; z < deltaRegion.z; z++) 
+                modifier.QueueProject((minRegion.x + x, minRegion.z + z));
+    }
 }

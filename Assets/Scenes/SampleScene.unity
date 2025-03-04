@@ -128,10 +128,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 85225548}
-  - component: {fileID: 85225547}
   - component: {fileID: 85225546}
   - component: {fileID: 85225545}
   - component: {fileID: 85225544}
+  - component: {fileID: 85225549}
   m_Layer: 9
   m_Name: Maximum Spline
   m_TagString: Untagged
@@ -205,40 +205,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: 3a9e056805ee0fcbbb7b73f192dcaf6b, type: 3}
-  a: {fileID: 726176229}
-  b: {fileID: 160254231}
-  x: 10
-  y: 10
-  profileIndex: 4
-  modifier: {fileID: 2124539158}
---- !u!114 &85225547
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 85225543}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dab5c7d4c32e743048dfca98e2d5914f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Spline:
-    m_EditModeType: 1
-    m_Knots: []
-    m_MetaData: []
-    m_Closed: 0
-    m_IntData:
-      m_Data: []
-    m_FloatData:
-      m_Data: []
-    m_Float4Data:
-      m_Data: []
-    m_ObjectData:
-      m_Data: []
-  m_Splines: []
-  m_Knots:
-    m_KnotsLink: []
+  coordinator: {fileID: 2124539162}
 --- !u!4 &85225548
 Transform:
   m_ObjectHideFlags: 0
@@ -254,6 +221,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &85225549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 85225543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  profileIndex: 4
+  a: {fileID: 726176229}
+  b: {fileID: 160254231}
 --- !u!1 &160254230
 GameObject:
   m_ObjectHideFlags: 0
@@ -449,10 +431,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 341201142}
-  - component: {fileID: 341201141}
   - component: {fileID: 341201140}
   - component: {fileID: 341201139}
   - component: {fileID: 341201138}
+  - component: {fileID: 341201143}
   m_Layer: 8
   m_Name: Minimum Spline
   m_TagString: Untagged
@@ -526,40 +508,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: 3a9e056805ee0fcbbb7b73f192dcaf6b, type: 3}
-  a: {fileID: 726176229}
-  b: {fileID: 160254231}
-  x: 10
-  y: 10
-  profileIndex: 2
-  modifier: {fileID: 2124539158}
---- !u!114 &341201141
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 341201137}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dab5c7d4c32e743048dfca98e2d5914f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Spline:
-    m_EditModeType: 1
-    m_Knots: []
-    m_MetaData: []
-    m_Closed: 0
-    m_IntData:
-      m_Data: []
-    m_FloatData:
-      m_Data: []
-    m_Float4Data:
-      m_Data: []
-    m_ObjectData:
-      m_Data: []
-  m_Splines: []
-  m_Knots:
-    m_KnotsLink: []
+  coordinator: {fileID: 2124539162}
 --- !u!4 &341201142
 Transform:
   m_ObjectHideFlags: 0
@@ -575,6 +524,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &341201143
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 341201137}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  profileIndex: 2
+  a: {fileID: 726176229}
+  b: {fileID: 160254231}
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -705,10 +669,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 661704924}
-  - component: {fileID: 661704923}
   - component: {fileID: 661704922}
   - component: {fileID: 661704921}
   - component: {fileID: 661704920}
+  - component: {fileID: 661704925}
   m_Layer: 8
   m_Name: Minimum Spline
   m_TagString: Untagged
@@ -782,40 +746,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: 3a9e056805ee0fcbbb7b73f192dcaf6b, type: 3}
-  a: {fileID: 726176229}
-  b: {fileID: 160254231}
-  x: 10
-  y: 10
-  profileIndex: 1
-  modifier: {fileID: 2124539158}
---- !u!114 &661704923
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 661704919}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dab5c7d4c32e743048dfca98e2d5914f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Spline:
-    m_EditModeType: 1
-    m_Knots: []
-    m_MetaData: []
-    m_Closed: 0
-    m_IntData:
-      m_Data: []
-    m_FloatData:
-      m_Data: []
-    m_Float4Data:
-      m_Data: []
-    m_ObjectData:
-      m_Data: []
-  m_Splines: []
-  m_Knots:
-    m_KnotsLink: []
+  coordinator: {fileID: 2124539162}
 --- !u!4 &661704924
 Transform:
   m_ObjectHideFlags: 0
@@ -831,6 +762,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &661704925
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 661704919}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  profileIndex: 1
+  a: {fileID: 726176229}
+  b: {fileID: 160254231}
 --- !u!1 &726176228
 GameObject:
   m_ObjectHideFlags: 0
@@ -1028,10 +974,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1047455049}
-  - component: {fileID: 1047455048}
   - component: {fileID: 1047455047}
   - component: {fileID: 1047455050}
   - component: {fileID: 1047455051}
+  - component: {fileID: 1047455052}
   m_Layer: 7
   m_Name: Mandate Spline
   m_TagString: Untagged
@@ -1052,40 +998,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: 3a9e056805ee0fcbbb7b73f192dcaf6b, type: 3}
-  a: {fileID: 726176229}
-  b: {fileID: 160254231}
-  x: 10
-  y: 10
-  profileIndex: 0
-  modifier: {fileID: 2124539158}
---- !u!114 &1047455048
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1047455046}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dab5c7d4c32e743048dfca98e2d5914f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Spline:
-    m_EditModeType: 1
-    m_Knots: []
-    m_MetaData: []
-    m_Closed: 0
-    m_IntData:
-      m_Data: []
-    m_FloatData:
-      m_Data: []
-    m_Float4Data:
-      m_Data: []
-    m_ObjectData:
-      m_Data: []
-  m_Splines: []
-  m_Knots:
-    m_KnotsLink: []
+  coordinator: {fileID: 2124539162}
 --- !u!4 &1047455049
 Transform:
   m_ObjectHideFlags: 0
@@ -1154,6 +1067,21 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1047455052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1047455046}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  profileIndex: 0
+  a: {fileID: 726176229}
+  b: {fileID: 160254231}
 --- !u!1 &1200509106
 GameObject:
   m_ObjectHideFlags: 0
@@ -1271,10 +1199,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1722015704}
-  - component: {fileID: 1722015703}
   - component: {fileID: 1722015702}
   - component: {fileID: 1722015701}
   - component: {fileID: 1722015700}
+  - component: {fileID: 1722015705}
   m_Layer: 9
   m_Name: Maximum Spline
   m_TagString: Untagged
@@ -1348,40 +1276,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: 3a9e056805ee0fcbbb7b73f192dcaf6b, type: 3}
-  a: {fileID: 726176229}
-  b: {fileID: 160254231}
-  x: 10
-  y: 10
-  profileIndex: 3
-  modifier: {fileID: 2124539158}
---- !u!114 &1722015703
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1722015699}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dab5c7d4c32e743048dfca98e2d5914f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Spline:
-    m_EditModeType: 1
-    m_Knots: []
-    m_MetaData: []
-    m_Closed: 0
-    m_IntData:
-      m_Data: []
-    m_FloatData:
-      m_Data: []
-    m_Float4Data:
-      m_Data: []
-    m_ObjectData:
-      m_Data: []
-  m_Splines: []
-  m_Knots:
-    m_KnotsLink: []
+  coordinator: {fileID: 2124539162}
 --- !u!4 &1722015704
 Transform:
   m_ObjectHideFlags: 0
@@ -1397,15 +1292,30 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2124539158 stripped
+--- !u!114 &1722015705
 MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1722015699}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  profileIndex: 3
+  a: {fileID: 726176229}
+  b: {fileID: 160254231}
+--- !u!114 &2124539162 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
   m_PrefabInstance: {fileID: 2232955420235175304}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d8b16ce0d410dc122a5de20037d8c536, type: 3}
+  m_Script: {fileID: 11500000, guid: 683507b61936a9634a793a6313258bae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1001 &2232955420235175304
@@ -1416,6 +1326,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: projectBatchSize
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 2728536552217882223, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

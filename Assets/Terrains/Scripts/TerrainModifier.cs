@@ -8,7 +8,6 @@ public class TerrainModifier : MonoBehaviour
 {
 
     // General state
-    private static int bufferCount = 50;
     private static int meshSize => TerrainCoordinator.meshSize;
     [SerializeField] private ComputeShader computeShader;
     private TerrainCoordinator coordinator;
@@ -65,8 +64,10 @@ public class TerrainModifier : MonoBehaviour
     #region Modify Section
     private ComputeBuffer operationBuffer;
     private (int x, int z)? currentRegion = null;
+    [Header("Modify Section")]
+    [SerializeField] private int modifyBufferCount = 50;
 
-    private Queue<((int x, int z) region, Operation operation)> operationQueue = new Queue<((int x, int z) region, Operation operation)>(bufferCount);
+    private Queue<((int x, int z) region, Operation operation)> operationQueue = new Queue<((int x, int z) region, Operation operation)>();
 
     public enum OperationType
     {
@@ -89,7 +90,7 @@ public class TerrainModifier : MonoBehaviour
     {
         int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
         
-        operationBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        operationBuffer = new ComputeBuffer(modifyBufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
     }
 
@@ -114,13 +115,13 @@ public class TerrainModifier : MonoBehaviour
         if (!operationQueue.TryDequeue(out ((int x, int y) region, Operation operation) first))
             return;
 
-        NativeArray<Operation> operationDestination = operationBuffer.BeginWrite<Operation>(0, bufferCount);
+        NativeArray<Operation> operationDestination = operationBuffer.BeginWrite<Operation>(0, modifyBufferCount);
 
         (int x, int y) targetRegion = first.region;
         operationDestination[0] = first.operation;
 
         int index = 1;
-        for (; index < bufferCount; index++)
+        for (; index < modifyBufferCount; index++)
         {
             if (!operationQueue.TryPeek(out ((int x, int y) region, Operation operation) follow))
                 break;
@@ -165,8 +166,9 @@ public class TerrainModifier : MonoBehaviour
     [SerializeField] private Camera maximumCamera;
     private RenderTexture maximumTexture;
 
+    [SerializeField] private int projectBatchSize = 1;
 
-    private Queue<(int x, int z)> projectQueue = new Queue<(int x, int y)>(bufferCount);
+    private Queue<(int x, int z)> projectQueue = new Queue<(int x, int y)>();
 
     private void SetupProject() 
     {
@@ -223,7 +225,7 @@ public class TerrainModifier : MonoBehaviour
 
     private void ExecuteProject()
     {
-        for (int i = 0; i < bufferCount && projectQueue.TryDequeue(out (int x, int z) region); i++)
+        for (int i = 0; i < projectBatchSize && projectQueue.TryDequeue(out (int x, int z) region); i++)
         {
 
             (int x, int z) = region;
@@ -243,13 +245,23 @@ public class TerrainModifier : MonoBehaviour
     }
     #endregion
 
+    private bool state = false;
     private void LateUpdate()
     {
-        if (operationQueue.Count > 0)
-            ExecuteModify();
-        if (projectQueue.Count > 0)
-            ExecuteProject();
-
+        if (state) {
+            if (operationQueue.Count > 0)
+                ExecuteModify();
+            else if (projectQueue.Count > 0)
+                ExecuteProject();
+        }
+        else {
+            if (projectQueue.Count > 0)
+                ExecuteProject();
+            else if (operationQueue.Count > 0)
+                ExecuteModify();
+        }
+        state = !state;
+        
         if (operationQueue.Count == 0 && projectQueue.Count == 0)
             enabled = false;
     }
