@@ -93,8 +93,12 @@ public class TerrainController : MonoBehaviour
     public unsafe void Save(string path)
     {
 
+        int count = (meshSize + 1) * (meshSize + 1);
+        int element = sizeof(float);
+        int size = element * count;
+
         int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
-        ComputeBuffer exportBuffer = new ComputeBuffer((meshSize + 1) * (meshSize + 1), sizeof(float) * 4, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        ComputeBuffer exportBuffer = new ComputeBuffer(count, element, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("exports"), exportBuffer);
         configShader.Dispatch(exportBuffersKernelIndex, 32, 32, 1);
 
@@ -116,16 +120,17 @@ public class TerrainController : MonoBehaviour
     public void Load(string path) 
     {
         Setup();
-
-        int size = sizeof(float) * 4* (meshSize + 1) * (meshSize + 1);
+            
+        int count = (meshSize + 1) * (meshSize + 1);
+        int element = sizeof(float);
+        int size = element * count;
         NativeArray<byte> input = new NativeArray<byte>(size, Allocator.Persistent);
 
         using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             using (GZipStream compressor = new GZipStream(stream, CompressionMode.Decompress))
                 compressor.Read(input);
                 
-        //graphicsBuffer.SetData(input);
-        ComputeBuffer exportBuffer = new ComputeBuffer((meshSize + 1) * (meshSize + 1), sizeof(float) * 4, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        ComputeBuffer exportBuffer = new ComputeBuffer(count, element, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         exportBuffer.SetData(input);
         
         int restoreBuffersKernalIndex = configShader.FindKernel("RestoreBuffers");
