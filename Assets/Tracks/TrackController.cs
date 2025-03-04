@@ -7,133 +7,35 @@ using UnityEngine.Rendering;
 using UnityEngine.Splines;
 
 [RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshRenderer))]
 public class TrackController : MonoBehaviour
 {
     [SerializeField] private ComputeShader computeShader;
     private Spline spline;
 
-    private void Start()
-    {
-        SplineContainer container = GetComponent<SplineContainer>();
-        spline = new Spline(2);
-
-        Setup();
-    }
-
-    #region Test Section
-    public Transform a, b;
-    public float x, y;
-    private void Update()
-    {
-        SetPoints(a.position, a.rotation, x, b.position, b.rotation, y);
-        QueueRefresh();
-        
-    }
-    #endregion
-
     #region Knot Section
-    private static AnimationCurve multiplierCurve = new AnimationCurve(
-        new Keyframe(0f, 0.3440594f, 0.000061201645f, 0.000061201645f),
-        new Keyframe(45f, 2.758091f, 0.021357296f, 0.021357296f),
-        new Keyframe(90f, 2.266216f, -0.018373445f, -0.018373445f),
-        new Keyframe(135f, 1.104481f, -0.017840002f, -0.017840002f),
-        new Keyframe(180f, 0.6606158f, -0.007067918f, -0.007067918f),
-        new Keyframe(225f, 0.4683684f, -0.0032283035f, -0.0032283035f),
-        new Keyframe(270f, 0.3700685f, -0.0013002945f, -0.0013002945f),
-        new Keyframe(315f, 0.3513419f, -0.0002889898f, -0.0002889898f),
-        new Keyframe(360f, 0.3440594f, -0.00016183323f, -0.00016183323f));
-
-    private void SetPoints(Vector3 aPos, Quaternion aRot, float aExt, Vector3 bPos, Quaternion bRot, float bExt)
+    public void SetPoints(Vector3 aPos, Quaternion aRot, Vector3 bPos, Quaternion bRot)
     {
         BezierKnot[] knots = new BezierKnot[2];
         knots[0].Position = aPos - transform.position;
-        knots[0].TangentOut = aRot * Vector3.forward * aExt;
+        knots[0].TangentOut = aRot * Vector3.forward * Vector3.Distance(aPos, bPos) * 0.5f;
         knots[1].Position = bPos - transform.position;
-        knots[1].TangentIn = bRot * Vector3.forward * bExt;
+        knots[1].TangentIn = bRot * Vector3.forward * Vector3.Distance(aPos, bPos) * 0.5f;
         spline.Knots = knots;
     }
     #endregion
     
-    private static TrackProfile[] profiles = new TrackProfile[] {
-        new () {
-            count = 2,
-            points = new Vector3[] 
-            { 
-                new Vector3(-0.5f,  0f,   0f),
-                new Vector3( 0.5f,  0f,   0f),
-            },
-            normals = new Vector3[] 
-            {
-                new Vector3( 0f,     1f,     0f),
-                new Vector3( 0f,     1f,     0f),
-            }
-        },
-
-        new () {
-            count = 2,
-            points = new Vector3[] 
-            { 
-                new Vector3(-10f,   -5f, 0f),
-                new Vector3(-0.5f,  0f,   0f),
-            },
-            normals = new Vector3[] 
-            {
-                new Vector3(-0.707f, 0.707f, 0f),
-                new Vector3( 0f,     1f,     0f),
-            }
-        },
-
-        new () {
-            count = 2,
-            points = new Vector3[] 
-            { 
-                new Vector3( 0.5f,  0f,   0f),
-                new Vector3( 10f,   -5f, 0f)
-            },
-            normals = new Vector3[] 
-            {
-                new Vector3( 0f,     1f,     0f),
-                new Vector3( 0.707f, 0.707f, 0f)
-            }
-        },
-
-        new () {
-            count = 2,
-            points = new Vector3[] 
-            { 
-                new Vector3(-0.5f,  0f,   0f),
-                new Vector3(-10f,   5f, 0f)
-            },
-            normals = new Vector3[] 
-            {
-                new Vector3( 0f,     1f,     0f),
-                new Vector3(0.707f, -0.707f, 0f)
-            }
-        },
-
-        new () {
-            count = 2,
-            points = new Vector3[] 
-            { 
-                new Vector3( 10f,   5f, 0f),
-                new Vector3( 0.5f,  0f,   0f)
-            },
-            normals = new Vector3[] 
-            {
-                new Vector3(-0.707f, 0.707f, 0f),
-                new Vector3( 0f,     1f,     0f)
-            }
-        }
-    };
     private static int maxSliceCount = 1024;
 
+    private TrackProfile profile;
     private Mesh mesh;
     public GraphicsBuffer graphicsBuffer { get; private set; }
     private ComputeBuffer pointsBuffer;
-    public int profileIndex;
-    private void Setup()
+    public void Setup(TrackProfile profileToUse)
     {
-        TrackProfile profile = profiles[profileIndex];
+        profile = profileToUse;
+
+        spline = new Spline(2);
 
         MeshFilter filter = GetComponent<MeshFilter>();
         mesh = MeshGenerator.GetMesh(profile);
@@ -158,6 +60,7 @@ public class TrackController : MonoBehaviour
         
         pointsBuffer = new ComputeBuffer(maxSliceCount, sizeof(float) * 7, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         computeShader.SetBuffer(updateTrackKernelIndex, Shader.PropertyToID("points"), pointsBuffer);
+
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -167,7 +70,7 @@ public class TrackController : MonoBehaviour
         public Quaternion rotation;
     }
 
-    private void QueueRefresh() {
+    public void QueueRefresh() {
         enabled = true;
     }
     private static float targetSegmentLength = 1f;
@@ -189,7 +92,7 @@ public class TrackController : MonoBehaviour
             pointsDestination[p] = new Point
             {
                 position = position,
-                rotation = quaternion.LookRotation(tangent, upVector)
+                rotation = profile.vertical ? quaternion.LookRotation(Vector3.Normalize(new Vector3(tangent.x, 0f, tangent.z)), Vector3.up) : quaternion.LookRotation(tangent, upVector)
             };
             if (position.x < meshMin.x)
                 meshMin.x = position.x;
@@ -211,19 +114,17 @@ public class TrackController : MonoBehaviour
 
         computeShader.Dispatch(computeShader.FindKernel("UpdateTrack"), 64, 1, 1);
 
-        mesh.bounds = new Bounds((meshMax + meshMin) * 0.5f, (meshMax - meshMin) * 1f + Vector3.one);
+        mesh.bounds = new Bounds((meshMax + meshMin) * 0.5f, meshMax - meshMin + new Vector3(profile.extent, profile.extent, profile.extent));
     }
 
-    public TerrainModifier modifier;
+    public TerrainCoordinator coordinator;
 
     private void LateUpdate()
     {
         ExecuteRefresh();
-        modifier.QueueProject((0, 0));
-        modifier.QueueProject((-1, 0));
-        modifier.QueueProject((0, -1));
-        modifier.QueueProject((-1, -1));
-        //enabled = false;
+        Bounds bounds = mesh.bounds;
+        coordinator.Project(bounds.min, bounds.max);
+        enabled = false;
     }
 
     private static class MeshGenerator
@@ -317,7 +218,7 @@ public class TrackController : MonoBehaviour
 
             Entry entry = new Entry() {
                 prototype                       = mesh,
-                reference                        = mesh.GetVertexBuffer(0), 
+                reference                       = mesh.GetVertexBuffer(0), 
                 vertexBufferStride              = mesh.GetVertexBufferStride(0), 
                 vertexPositionAttributeOffset   = mesh.GetVertexAttributeOffset(VertexAttribute.Position), 
                 vertexNormalAttributeOffset     = mesh.GetVertexAttributeOffset(VertexAttribute.Normal)
