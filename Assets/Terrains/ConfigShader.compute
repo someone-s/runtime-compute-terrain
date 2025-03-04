@@ -5,19 +5,19 @@
 #define FLOAT_SIZE_IN_BYTES 4
 
 struct Modify {
+    float terrain;
     float mandate;
     float minimum;
     float maximum;
     uint mask;
 };
 
-RWStructuredBuffer<float> base;
 RWStructuredBuffer<Modify> modify;
 
 uint size; // i.e. 1000
 uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
 
-uint CalculateBaseIndex(uint x, uint y) {
+uint CalculateLogicalIndex(uint x, uint y) {
     return y * (size + 1) + x;
 }
 
@@ -31,8 +31,8 @@ void ResetBuffers(uint3 id : SV_DispatchThreadID) {
     
             for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
     
-                uint index = CalculateBaseIndex(x, y);
-                base[index] = 0.0;
+                uint index = CalculateLogicalIndex(x, y);
+                modify[index].terrain = 0.0;
                 modify[index].mandate = 0.0;
                 modify[index].minimum = 0.0;
                 modify[index].maximum = 0.0;
@@ -81,9 +81,9 @@ void RestoreBuffers(uint3 id : SV_DispatchThreadID) {
     
             for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
                 
-                uint index = CalculateBaseIndex(x, y);
+                uint index = CalculateLogicalIndex(x, y);
                 StoreVertexY(x, y, exports[index].height);
-                base[index] = exports[index].height;
+                modify[index].terrain = exports[index].height;
                 StoreNormal(x, y, exports[index].normal);
             }
         }
@@ -99,8 +99,8 @@ void ExportBuffers(uint3 id : SV_DispatchThreadID) {
     
             for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
                 
-                uint index = CalculateBaseIndex(x, y);
-                exports[index].height = base[index];
+                uint index = CalculateLogicalIndex(x, y);
+                exports[index].height = modify[index].terrain;
                 exports[index].normal = LoadNormal(x, y);
             }
         }

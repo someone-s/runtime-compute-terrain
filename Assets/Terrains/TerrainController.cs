@@ -6,8 +6,6 @@ using UnityEngine.Assertions;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System;
-using Unity.Collections.LowLevel.Unsafe;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class TerrainController : MonoBehaviour
@@ -18,12 +16,12 @@ public class TerrainController : MonoBehaviour
     [SerializeField] private ComputeShader configShader;
 
     #region Buffer Section
-    public ComputeBuffer baseBuffer { get; private set; } 
-    public ComputeBuffer modifyBuffer { get; private set; } 
+    public ComputeBuffer deformBuffer { get; private set; } 
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Modify
     {
+        public float terrain;
         public float mandate;
         public float minimum;
         public float maximum;
@@ -52,8 +50,7 @@ public class TerrainController : MonoBehaviour
         filter.sharedMesh = mesh;
         graphicsBuffer = mesh.GetVertexBuffer(0);
         
-        baseBuffer = new ComputeBuffer((meshSize + 1) * (meshSize + 1), sizeof(float), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        modifyBuffer = new ComputeBuffer((meshSize + 1) * (meshSize + 1), sizeof(float) * 3 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        deformBuffer = new ComputeBuffer((meshSize + 1) * (meshSize + 1), sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         
         configShader.SetInt(Shader.PropertyToID("size"), meshSize);
         configShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
@@ -62,16 +59,15 @@ public class TerrainController : MonoBehaviour
         configShader.SetInt(Shader.PropertyToID("normalOffset"), VertexNormalAttributeOffset);
 
         int resetBuffersKernelIndex = configShader.FindKernel("ResetBuffers");
-        configShader.SetBuffer(resetBuffersKernelIndex, Shader.PropertyToID("base"),   baseBuffer  );
-        configShader.SetBuffer(resetBuffersKernelIndex, Shader.PropertyToID("modify"), modifyBuffer);
+        configShader.SetBuffer(resetBuffersKernelIndex, Shader.PropertyToID("modify"), deformBuffer);
 
         int restoreBuffersKernelIndex = configShader.FindKernel("RestoreBuffers");
         configShader.SetBuffer(restoreBuffersKernelIndex, Shader.PropertyToID("vertices"), graphicsBuffer);
-        configShader.SetBuffer(restoreBuffersKernelIndex, Shader.PropertyToID("base"),     baseBuffer    );
+        configShader.SetBuffer(restoreBuffersKernelIndex, Shader.PropertyToID("modify"),     deformBuffer);
 
         int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
         configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("vertices"), graphicsBuffer);
-        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("base"),     baseBuffer    );
+        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("modify"),     deformBuffer);
 
         configShader.Dispatch(resetBuffersKernelIndex, 32, 32, 1);
 

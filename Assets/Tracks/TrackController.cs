@@ -6,7 +6,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Splines;
 
-[RequireComponent(typeof(SplineContainer))]
 [RequireComponent(typeof(MeshFilter))]
 public class TrackController : MonoBehaviour
 {
@@ -16,7 +15,7 @@ public class TrackController : MonoBehaviour
     private void Start()
     {
         SplineContainer container = GetComponent<SplineContainer>();
-        spline = container.AddSpline();
+        spline = new Spline(2);
 
         Setup();
     }
@@ -27,7 +26,8 @@ public class TrackController : MonoBehaviour
     private void Update()
     {
         SetPoints(a.position, a.rotation, x, b.position, b.rotation, y);
-        Refresh();
+        QueueRefresh();
+        
     }
     #endregion
 
@@ -54,21 +54,75 @@ public class TrackController : MonoBehaviour
     }
     #endregion
     
-    private static TrackProfile profile = new () {
-        count = 4,
-        points = new Vector3[] 
-        { 
-            new Vector3(-1f,   -0.5f, 0f),
-            new Vector3(-0.5f,  0f,   0f),
-            new Vector3( 0.5f,  0f,   0f),
-            new Vector3( 1f,   -0.5f, 0f)
+    private static TrackProfile[] profiles = new TrackProfile[] {
+        new () {
+            count = 2,
+            points = new Vector3[] 
+            { 
+                new Vector3(-0.5f,  0f,   0f),
+                new Vector3( 0.5f,  0f,   0f),
+            },
+            normals = new Vector3[] 
+            {
+                new Vector3( 0f,     1f,     0f),
+                new Vector3( 0f,     1f,     0f),
+            }
         },
-        normals = new Vector3[] 
-        {
-            new Vector3(-0.707f, 0.707f, 0f),
-            new Vector3( 0f,     1f,     0f),
-            new Vector3( 0f,     1f,     0f),
-            new Vector3( 0.707f, 0.707f, 0f)
+
+        new () {
+            count = 2,
+            points = new Vector3[] 
+            { 
+                new Vector3(-10f,   -5f, 0f),
+                new Vector3(-0.5f,  0f,   0f),
+            },
+            normals = new Vector3[] 
+            {
+                new Vector3(-0.707f, 0.707f, 0f),
+                new Vector3( 0f,     1f,     0f),
+            }
+        },
+
+        new () {
+            count = 2,
+            points = new Vector3[] 
+            { 
+                new Vector3( 0.5f,  0f,   0f),
+                new Vector3( 10f,   -5f, 0f)
+            },
+            normals = new Vector3[] 
+            {
+                new Vector3( 0f,     1f,     0f),
+                new Vector3( 0.707f, 0.707f, 0f)
+            }
+        },
+
+        new () {
+            count = 2,
+            points = new Vector3[] 
+            { 
+                new Vector3(-0.5f,  0f,   0f),
+                new Vector3(-10f,   5f, 0f)
+            },
+            normals = new Vector3[] 
+            {
+                new Vector3( 0f,     1f,     0f),
+                new Vector3(0.707f, -0.707f, 0f)
+            }
+        },
+
+        new () {
+            count = 2,
+            points = new Vector3[] 
+            { 
+                new Vector3( 10f,   5f, 0f),
+                new Vector3( 0.5f,  0f,   0f)
+            },
+            normals = new Vector3[] 
+            {
+                new Vector3(-0.707f, 0.707f, 0f),
+                new Vector3( 0f,     1f,     0f)
+            }
         }
     };
     private static int maxSliceCount = 1024;
@@ -76,8 +130,11 @@ public class TrackController : MonoBehaviour
     private Mesh mesh;
     public GraphicsBuffer graphicsBuffer { get; private set; }
     private ComputeBuffer pointsBuffer;
+    public int profileIndex;
     private void Setup()
     {
+        TrackProfile profile = profiles[profileIndex];
+
         MeshFilter filter = GetComponent<MeshFilter>();
         mesh = MeshGenerator.GetMesh(profile);
         mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination;
@@ -110,8 +167,11 @@ public class TrackController : MonoBehaviour
         public Quaternion rotation;
     }
 
+    private void QueueRefresh() {
+        enabled = true;
+    }
     private static float targetSegmentLength = 1f;
-    private void Refresh()
+    private void ExecuteRefresh()
     {
         float totalLength = CurveUtility.ApproximateLength(spline.GetCurve(0));
         int segmentCount = Mathf.Min(Mathf.CeilToInt(totalLength / targetSegmentLength), maxSliceCount - 1);
@@ -154,7 +214,14 @@ public class TrackController : MonoBehaviour
         mesh.bounds = new Bounds((meshMax + meshMin) * 0.5f, (meshMax - meshMin) * 1f + Vector3.one);
     }
 
+    public TerrainModifier modifier;
 
+    private void LateUpdate()
+    {
+        ExecuteRefresh();
+        modifier.QueueProject((0, 0));
+        //enabled = false;
+    }
 
     private static class MeshGenerator
     {
