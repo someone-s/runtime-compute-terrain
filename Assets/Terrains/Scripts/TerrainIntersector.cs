@@ -11,7 +11,7 @@ public class TerrainIntersector : MonoBehaviour {
 
     // General state
     private static int bufferCount = 10;
-    private static int meshSize => TerrainController.meshSize;
+    private static int meshSize => TerrainCoordinator.meshSize;
     [SerializeField] private ComputeShader computeShader;
     private TerrainCoordinator coordinator;
 

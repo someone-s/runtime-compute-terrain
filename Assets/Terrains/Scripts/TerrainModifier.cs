@@ -9,7 +9,7 @@ public class TerrainModifier : MonoBehaviour
 
     // General state
     private static int bufferCount = 50;
-    private static int meshSize => TerrainController.meshSize;
+    private static int meshSize => TerrainCoordinator.meshSize;
     [SerializeField] private ComputeShader computeShader;
     private TerrainCoordinator coordinator;
     private float area => coordinator.area;
@@ -151,9 +151,10 @@ public class TerrainModifier : MonoBehaviour
 
     #region Project Section
 
-    [SerializeField] private float start = 500f;
+    [Header("Project Section")]
     [SerializeField] private float depth = 1000f;
-    [SerializeField] private float ignore = 0.05f;
+    private float start => depth * 0.5f;
+    private float ignore => 1f / depth;
 
 
     [SerializeField] private Transform cameraRig;
@@ -170,8 +171,8 @@ public class TerrainModifier : MonoBehaviour
     private void SetupProject() 
     {
         RenderTextureDescriptor descriptor = new RenderTextureDescriptor(
-            width: TerrainController.meshSize * 2 + 1,
-            height: TerrainController.meshSize * 2 + 1,
+            width: meshSize * 2 + 1,
+            height: meshSize * 2 + 1,
             colorFormat: UnityEngine.Experimental.Rendering.GraphicsFormat.None,
             depthStencilFormat: UnityEngine.Experimental.Rendering.GraphicsFormat.D32_SFloat
         );
@@ -190,21 +191,21 @@ public class TerrainModifier : MonoBehaviour
         computeShader.SetFloat(Shader.PropertyToID("depth"), depth);
         computeShader.SetFloat(Shader.PropertyToID("ignore"), ignore);
 
-        mandateCamera.orthographicSize = area + (area / TerrainController.meshSize * 0.5f);
+        mandateCamera.orthographicSize = area + (area / meshSize * 0.5f);
         mandateCamera.nearClipPlane = 0f;
         mandateCamera.farClipPlane = depth;
         mandateCamera.transform.localPosition = new Vector3(0f, start, 0f);
         mandateCamera.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
         mandateCamera.targetTexture = mandateTexture;
         
-        minimumCamera.orthographicSize = area + (area / TerrainController.meshSize * 0.5f);
+        minimumCamera.orthographicSize = area + (area / meshSize * 0.5f);
         minimumCamera.nearClipPlane = 0f;
         minimumCamera.farClipPlane = depth;
         minimumCamera.transform.localPosition = new Vector3(0f, start, 0f);
         minimumCamera.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
         minimumCamera.targetTexture = minimumTexture;
 
-        maximumCamera.orthographicSize = area + (area / TerrainController.meshSize * 0.5f);
+        maximumCamera.orthographicSize = area + (area / meshSize * 0.5f);
         maximumCamera.nearClipPlane = 0f;
         maximumCamera.farClipPlane = depth;
         maximumCamera.transform.localPosition = new Vector3(0f, -start, 0f);

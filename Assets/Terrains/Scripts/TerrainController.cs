@@ -12,7 +12,7 @@ public class TerrainController : MonoBehaviour
 {
 
     // General state
-    public static int meshSize { get; private set; } = 125;
+    private static int meshSize => TerrainCoordinator.meshSize;
     [SerializeField] private ComputeShader configShader;
 
     #region Buffer Section
@@ -41,6 +41,8 @@ public class TerrainController : MonoBehaviour
     private void Setup()
     {
         if (setupComplete) return;
+
+        GetComponentInParent<TerrainCoordinator>();
 
         configShader = Instantiate(configShader);
 
