@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
 using System.Runtime.InteropServices;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainModifier : MonoBehaviour
@@ -166,6 +168,8 @@ public class TerrainModifier : MonoBehaviour
     [SerializeField] private Camera maximumCamera;
     private RenderTexture maximumTexture;
 
+    [SerializeField] private Shader shader;
+
     [SerializeField] private int projectBatchSize = 1;
 
     private Queue<(int x, int z)> projectQueue = new Queue<(int x, int y)>();
@@ -199,6 +203,7 @@ public class TerrainModifier : MonoBehaviour
         mandateCamera.transform.localPosition = new Vector3(0f, start, 0f);
         mandateCamera.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
         mandateCamera.targetTexture = mandateTexture;
+        mandateCamera.SetReplacementShader(shader, string.Empty);
         
         minimumCamera.orthographicSize = area + (area / meshSize * 0.5f);
         minimumCamera.nearClipPlane = 0f;
@@ -206,6 +211,7 @@ public class TerrainModifier : MonoBehaviour
         minimumCamera.transform.localPosition = new Vector3(0f, start, 0f);
         minimumCamera.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
         minimumCamera.targetTexture = minimumTexture;
+        minimumCamera.SetReplacementShader(shader, string.Empty);
 
         maximumCamera.orthographicSize = area + (area / meshSize * 0.5f);
         maximumCamera.nearClipPlane = 0f;
@@ -213,6 +219,7 @@ public class TerrainModifier : MonoBehaviour
         maximumCamera.transform.localPosition = new Vector3(0f, -start, 0f);
         maximumCamera.transform.localRotation = Quaternion.Euler(270f, 0f, 0f);
         maximumCamera.targetTexture = maximumTexture;
+        maximumCamera.SetReplacementShader(shader, string.Empty);
     }
 
     public void QueueProject((int x, int z) region)

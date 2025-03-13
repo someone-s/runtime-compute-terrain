@@ -115,7 +115,7 @@ Camera:
   m_AllowMSAA: 1
   m_AllowDynamicResolution: 0
   m_ForceIntoRT: 0
-  m_OcclusionCulling: 0
+  m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
 --- !u!114 &7077280040776676329
@@ -243,7 +243,7 @@ Camera:
   m_AllowMSAA: 1
   m_AllowDynamicResolution: 0
   m_ForceIntoRT: 0
-  m_OcclusionCulling: 0
+  m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
 --- !u!114 &2438594040218515915
@@ -371,7 +371,7 @@ Camera:
   m_AllowMSAA: 1
   m_AllowDynamicResolution: 0
   m_ForceIntoRT: 0
-  m_OcclusionCulling: 0
+  m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
 --- !u!114 &2205912660240085666
@@ -467,6 +467,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   chunkPrefab: {fileID: 5037301470321108824, guid: e2888f1cfa331b522b6434bd8c95e16f, type: 3}
+  area: 50
 --- !u!114 &2246402343811926042
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -480,13 +481,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: d93d64336a0404f298e280cb249d93a5, type: 3}
-  start: 50
+  modifyBufferCount: 50
   depth: 100
-  ignore: 0.05
   cameraRig: {fileID: 1842733856479701710}
   mandateCamera: {fileID: 8251791456215992828}
   minimumCamera: {fileID: 3726834299262461037}
   maximumCamera: {fileID: 2472529606903144129}
+  projectBatchSize: 1
+  shader: {fileID: 4800000, guid: bdc275d47cb4c014a8b9bff3e546a4bd, type: 3}
 --- !u!114 &5947181190290359038
 MonoBehaviour:
   m_ObjectHideFlags: 0
