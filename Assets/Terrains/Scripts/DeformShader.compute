@@ -10,28 +10,25 @@
 #define FLOAT_SIZE_IN_BYTES 4
 
 struct Modify {
-    float terrain;
+    uint mask;
     float mandate;
     float minimum;
     float maximum;
-    uint mask;
 };
 
 RWByteAddressBuffer verticesTL;
-RWStructuredBuffer<Modify> modifyTL;
 
 RWByteAddressBuffer verticesTR;
-RWStructuredBuffer<Modify> modifyTR;
 
 RWByteAddressBuffer verticesBL;
-RWStructuredBuffer<Modify> modifyBL;
 
 RWByteAddressBuffer verticesBR;
-RWStructuredBuffer<Modify> modifyBR;
 
 int stride;
 int positionOffset;
 int normalOffset;
+int baseOffset;
+int modifyOffset;
 
 uint size; // i.e. 1000
 uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
@@ -118,72 +115,76 @@ void StoreNormal(uint x, uint y, float3 value) {
 }
 
 uint CalculateModifyIndex(uint x, uint y) {
-    return y * (size + 1) + x;
+    return (y * (size + 1) + x) * stride + modifyOffset;
 }
 Modify LoadModify(uint x, uint y) {
+    uint4 bits;
+
     if (x > size && y > size)
-        return modifyTR[CalculateModifyIndex(x - size, y - size)];
+        bits = verticesTR.Load4(CalculateModifyIndex(x - size, y - size));
     else if (x > size) 
-        return modifyBR[CalculateModifyIndex(x - size, y       )];
+        bits = verticesBR.Load4(CalculateModifyIndex(x - size, y       ));
     else if (y > size) 
-        return modifyTL[CalculateModifyIndex(x,        y - size)];
+        bits = verticesTL.Load4(CalculateModifyIndex(x,        y - size));
     else 
-        return modifyBL[CalculateModifyIndex(x,        y       )];
+        bits = verticesBL.Load4(CalculateModifyIndex(x,        y       ));
+
+    Modify modify;
+    modify.mask = bits.x;
+
+    float4 vals = asfloat(bits);
+    modify.mandate = vals.y;
+    modify.minimum = vals.z;
+    modify.maximum = vals.w;
+
+    return modify;
 }
 void StoreModify(uint x, uint y, float mandate, float minimum, float maximum, uint mask) {
 
-    if (x >= size && y >= size) {
-        uint index = CalculateModifyIndex(x - size, y - size);
-        modifyTR[index].mandate = mandate;
-        modifyTR[index].minimum = minimum;
-        modifyTR[index].maximum = maximum;
-        modifyTR[index].mask = mask;
-    }
+    uint4 bits;
+    bits.x = mask;
+    bits.y = asuint(mandate);
+    bits.z = asuint(minimum);
+    bits.w = asuint(maximum);
 
-    if (x >= size && y <= size) {
-        uint index = CalculateModifyIndex(x - size, y);
-        modifyBR[index].mandate = mandate;
-        modifyBR[index].minimum = minimum;
-        modifyBR[index].maximum = maximum;
-        modifyBR[index].mask = mask;
-    }
+    if (x >= size && y >= size)
+        verticesTR.Store4(CalculateModifyIndex(x - size, y - size), bits);
 
-    if (x <= size && y >= size) {
-        uint index = CalculateModifyIndex(x, y - size);
-        modifyTL[index].mandate = mandate;
-        modifyTL[index].minimum = minimum;
-        modifyTL[index].maximum = maximum;
-        modifyTL[index].mask = mask;
-    }
+    if (x >= size && y <= size)
+        verticesBR.Store4(CalculateModifyIndex(x - size, y       ), bits);
 
-    if (x <= size && y <= size) {
-        uint index = CalculateModifyIndex(x, y);
-        modifyBL[index].mandate = mandate;
-        modifyBL[index].minimum = minimum;
-        modifyBL[index].maximum = maximum;
-        modifyBL[index].mask = mask;
-    }
+    if (x <= size && y >= size) 
+        verticesTL.Store4(CalculateModifyIndex(x       , y - size), bits);
+
+    if (x <= size && y <= size) 
+        verticesBL.Store4(CalculateModifyIndex(x       , y       ), bits);
+}
+
+uint CalculateBaseIndex(uint x, uint y) {
+    return (y * (size + 1) + x) * stride + baseOffset;
+}
+float LoadBase(uint x, uint y) {
+    if (x > size && y > size)
+        return asfloat(verticesTR.Load(CalculateBaseIndex(x - size, y - size)));
+    else if (x > size) 
+        return asfloat(verticesBR.Load(CalculateBaseIndex(x - size, y       )));
+    else if (y > size) 
+        return asfloat(verticesTL.Load(CalculateBaseIndex(x,        y - size)));
+    else 
+        return asfloat(verticesBL.Load(CalculateBaseIndex(x,        y       )));
 }
 void StoreBase(uint x, uint y, float value) {
-    if (x >= size && y >= size) {
-        uint index = CalculateModifyIndex(x - size, y - size);
-        modifyTR[index].terrain = value;
-    }
+    if (x >= size && y >= size)
+        verticesTR.Store(CalculateBaseIndex(x - size, y - size), asuint(value));
 
-    if (x >= size && y <= size) {
-        uint index = CalculateModifyIndex(x - size, y);
-        modifyBR[index].terrain = value;
-    }
+    if (x >= size && y <= size)
+        verticesBR.Store(CalculateBaseIndex(x - size, y       ), asuint(value));
 
-    if (x <= size && y >= size) {
-        uint index = CalculateModifyIndex(x, y - size);
-        modifyTL[index].terrain = value;
-    }
+    if (x <= size && y >= size) 
+        verticesTL.Store(CalculateBaseIndex(x       , y - size), asuint(value));
 
-    if (x <= size && y <= size) {
-        uint index = CalculateModifyIndex(x, y);
-        modifyBL[index].terrain = value;
-    }
+    if (x <= size && y <= size) 
+        verticesBL.Store(CalculateBaseIndex(x       , y       ), asuint(value));
 }
 
 
@@ -252,7 +253,7 @@ void ApplyConstraints(uint3 id) {
     
                 float3 vertex = LoadVertex(x, y);
                 Modify modify = LoadModify(x, y);
-                float base = modify.terrain;
+                float base = LoadBase(x, y);
                 
                 if (modify.mask & MAXIMUM_BIT && base > modify.maximum)
                     base = modify.maximum;
@@ -295,7 +296,7 @@ void ApplyOperations(uint3 id) {
                 float3 vertex = LoadVertex(x, y);
                 float2 localPos = vertex.xz;
 
-                float base = LoadModify(x, y).terrain;
+                float base = LoadBase(x, y);
 
                 float distToCent = distance(operation.position, localPos);
                 

@@ -14,26 +14,14 @@ public class TerrainController : MonoBehaviour
     // General state
     private static int meshSize => TerrainCoordinator.meshSize;
     [SerializeField] private ComputeShader configShader;
-
-    #region Buffer Section
-    public ComputeBuffer deformBuffer { get; private set; } 
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Modify
-    {
-        public float terrain;
-        public float mandate;
-        public float minimum;
-        public float maximum;
-        public uint mask;
-    } 
-    #endregion
     
     #region Vertices Section
     public GraphicsBuffer graphicsBuffer { get; private set; }
     public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
     public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
     public static int VertexNormalAttributeOffset => MeshGenerator.GetVertexNormalAttributeOffset();
+    public static int VertexBaseAttributeOffset => MeshGenerator.GetVertexBaseAttributeOffset();
+    public static int VertexModifyAttributeOffset => MeshGenerator.GetVertexModifyAttributeOffset();
     #endregion
 
     #region Config Section
@@ -52,24 +40,22 @@ public class TerrainController : MonoBehaviour
         filter.sharedMesh = mesh;
         graphicsBuffer = mesh.GetVertexBuffer(0);
         
-        deformBuffer = new ComputeBuffer((meshSize + 1) * (meshSize + 1), sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        
         configShader.SetInt(Shader.PropertyToID("size"), meshSize);
         configShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
         configShader.SetInt(Shader.PropertyToID("stride"), VertexBufferStride);
         configShader.SetInt(Shader.PropertyToID("positionOffset"), VertexPositionAttributeOffset);
         configShader.SetInt(Shader.PropertyToID("normalOffset"), VertexNormalAttributeOffset);
+        configShader.SetInt(Shader.PropertyToID("baseOffset"), VertexBaseAttributeOffset);
+        configShader.SetInt(Shader.PropertyToID("modifyOffset"), VertexModifyAttributeOffset);
 
         int resetBuffersKernelIndex = configShader.FindKernel("ResetBuffers");
-        configShader.SetBuffer(resetBuffersKernelIndex, Shader.PropertyToID("modify"), deformBuffer);
+        configShader.SetBuffer(resetBuffersKernelIndex, Shader.PropertyToID("vertices"), graphicsBuffer);
 
         int restoreBuffersKernelIndex = configShader.FindKernel("RestoreBuffers");
         configShader.SetBuffer(restoreBuffersKernelIndex, Shader.PropertyToID("vertices"), graphicsBuffer);
-        configShader.SetBuffer(restoreBuffersKernelIndex, Shader.PropertyToID("modify"),     deformBuffer);
 
         int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
         configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("vertices"), graphicsBuffer);
-        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("modify"),     deformBuffer);
 
         configShader.Dispatch(resetBuffersKernelIndex, 32, 32, 1);
 
@@ -160,6 +146,8 @@ public class TerrainController : MonoBehaviour
         private static int vertexBufferStride;
         private static int vertexPositionAttributeOffset;
         private static int vertexNormalAttributeOffset;
+        private static int vertexBaseAttributeOffset;
+        private static int vertexModifyAttributeOffset;
 
         public static int GetVertexBufferStride()
         {
@@ -183,6 +171,22 @@ public class TerrainController : MonoBehaviour
                 CreateMesh();
 
             return vertexNormalAttributeOffset;
+        }
+
+        public static int GetVertexBaseAttributeOffset()
+        {
+            if (prototype == null)
+                CreateMesh();
+
+            return vertexBaseAttributeOffset;
+        }
+
+        public static int GetVertexModifyAttributeOffset()
+        {
+            if (prototype == null)
+                CreateMesh();
+
+            return vertexModifyAttributeOffset;
         }
 
         public static Mesh GetMesh()
@@ -228,6 +232,12 @@ public class TerrainController : MonoBehaviour
             Mesh mesh = new Mesh();
             mesh.indexFormat = IndexFormat.UInt32;
             mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopySource;
+            mesh.SetVertexBufferParams(vertices.Length, new VertexAttributeDescriptor[] {
+                new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0),
+                new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 0),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord6, VertexAttributeFormat.Float32, 1, 0), // base
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord7, VertexAttributeFormat.Float32, 4, 0) // mask and modifiers
+            });
             mesh.SetVertices(vertices);
             mesh.SetIndices(indices, MeshTopology.Triangles, 0);
             mesh.SetNormals(normals);
@@ -242,6 +252,8 @@ public class TerrainController : MonoBehaviour
             vertexBufferStride = mesh.GetVertexBufferStride(0);
             vertexPositionAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Position);
             vertexNormalAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Normal);
+            vertexBaseAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.TexCoord6);
+            vertexModifyAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.TexCoord7);
         }
 
     }

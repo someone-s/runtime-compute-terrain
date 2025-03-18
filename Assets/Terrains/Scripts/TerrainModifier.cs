@@ -2,8 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
 using System.Runtime.InteropServices;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainModifier : MonoBehaviour
@@ -43,22 +41,20 @@ public class TerrainModifier : MonoBehaviour
         computeShader.SetInt(Shader.PropertyToID("stride"), TerrainController.VertexBufferStride);
         computeShader.SetInt(Shader.PropertyToID("positionOffset"), TerrainController.VertexPositionAttributeOffset);
         computeShader.SetInt(Shader.PropertyToID("normalOffset"), TerrainController.VertexNormalAttributeOffset);
+        computeShader.SetInt(Shader.PropertyToID("baseOffset"), TerrainController.VertexBaseAttributeOffset);
+        computeShader.SetInt(Shader.PropertyToID("modifyOffset"), TerrainController.VertexModifyAttributeOffset);
 
         TerrainController controllerBL = coordinator.controllers[region];
         computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBL"), controllerBL.graphicsBuffer);
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("modifyBL"), controllerBL.deformBuffer);
 
         TerrainController controllerBR = coordinator.controllers[(region.x + 1, region.z)];
         computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBR"), controllerBR.graphicsBuffer);
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("modifyBR"), controllerBR.deformBuffer);
 
         TerrainController controllerTL = coordinator.controllers[(region.x, region.z + 1)];
         computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTL"), controllerTL.graphicsBuffer);
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("modifyTL"), controllerTL.deformBuffer);
 
         TerrainController controllerTR = coordinator.controllers[(region.x + 1, region.z + 1)];
         computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTR"), controllerTR.graphicsBuffer);
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("modifyTR"), controllerTR.deformBuffer);
 
     }
     #endregion

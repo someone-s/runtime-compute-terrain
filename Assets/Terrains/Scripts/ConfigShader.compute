@@ -4,22 +4,51 @@
 
 #define FLOAT_SIZE_IN_BYTES 4
 
-struct Modify {
-    float terrain;
-    float mandate;
-    float minimum;
-    float maximum;
-    uint mask;
-};
-
-RWStructuredBuffer<Modify> modify;
-
 uint size; // i.e. 1000
 uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
+
+RWByteAddressBuffer vertices;
+int stride;
+int positionOffset;
+int normalOffset;
+int baseOffset;
+int modifyOffset;
 
 uint CalculateLogicalIndex(uint x, uint y) {
     return y * (size + 1) + x;
 }
+
+uint CalculateVertexIndex(uint x, uint y) {
+    return (y * (size + 1) + x) * stride + positionOffset;
+}
+void StoreVertexY(uint x, uint y, float value) {
+    vertices.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
+}
+
+uint CalculateModifyIndex(uint x, uint y) {
+    return (y * (size + 1) + x) * stride + modifyOffset;
+}
+void StoreModify(uint x, uint y, float mandate, float minimum, float maximum, uint mask) {
+
+    uint4 bits;
+    bits.x = mask;
+    bits.y = asuint(mandate);
+    bits.z = asuint(minimum);
+    bits.w = asuint(maximum);
+
+    vertices.Store4(CalculateModifyIndex(x, y), bits);
+}
+
+uint CalculateBaseIndex(uint x, uint y) {
+    return (y * (size + 1) + x) * stride + baseOffset;
+}
+float LoadBase(uint x, uint y) {
+        return asfloat(vertices.Load(CalculateBaseIndex(x, y)));
+}
+void StoreBase(uint x, uint y, float value) {
+        vertices.Store(CalculateBaseIndex(x, y), asuint(value));
+}
+
 
 // this oeprate per vertex
 [numthreads(32, 32, 1)]
@@ -31,44 +60,18 @@ void ResetBuffers(uint3 id : SV_DispatchThreadID) {
     
             for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
     
-                uint index = CalculateLogicalIndex(x, y);
-                modify[index].terrain = 0.0;
-                modify[index].mandate = 0.0;
-                modify[index].minimum = 0.0;
-                modify[index].maximum = 0.0;
-                modify[index].mask = 0;
+                StoreModify(x, y, 0.0, 0.0, 0.0, 0);
+                StoreBase(x, y, 0.0);
             }
         }
     }
 }
 
 
-RWByteAddressBuffer vertices;
-int stride;
-int positionOffset;
-int normalOffset;
-
 struct Export {
     float height;
 };
 RWStructuredBuffer<Export> exports;
-
-uint CalculateVertexIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + positionOffset;
-}
-void StoreVertexY(uint x, uint y, float value) {
-    vertices.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
-}
-
-uint CalculateNormalIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + normalOffset;
-}
-float3 LoadNormal(uint x, uint y) {
-    return asfloat(vertices.Load3(CalculateNormalIndex(x, y)));
-}
-void StoreNormal(uint x, uint y, float3 value) {
-        vertices.Store3(CalculateNormalIndex(x, y), asuint(value));
-}
 
 // this oeprate per vertex
 [numthreads(32, 32, 1)]
@@ -82,8 +85,7 @@ void RestoreBuffers(uint3 id : SV_DispatchThreadID) {
                 
                 uint index = CalculateLogicalIndex(x, y);
                 StoreVertexY(x, y, exports[index].height);
-                modify[index].terrain = exports[index].height;
-                //StoreNormal(x, y, exports[index].normal);
+                StoreBase(x, y, exports[index].height);
             }
         }
     }
@@ -99,8 +101,7 @@ void ExportBuffers(uint3 id : SV_DispatchThreadID) {
             for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
                 
                 uint index = CalculateLogicalIndex(x, y);
-                exports[index].height = modify[index].terrain;
-                //exports[index].normal = LoadNormal(x, y);
+                exports[index].height = LoadBase(x, y);
             }
         }
     }
