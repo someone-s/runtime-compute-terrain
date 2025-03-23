@@ -13,7 +13,7 @@ public class TerrainCoordinator : MonoBehaviour
 
     private (int x, int z)[] renderedChunks;
     private (int x, int z)[] previousChunks;
-    private int renderRange = 3;
+    [SerializeField] private int renderRange = 3;
     public float area { get; private set; } = 50f;
     public static int meshSize { get; private set; } = 126;
 
