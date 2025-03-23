@@ -7,13 +7,20 @@ public class GrassController : MonoBehaviour
     [SerializeField] private ComputeShader scatterShader;
     [SerializeField] private Material material;
     [SerializeField] private Mesh grassMesh;
+    
 
+    [Header("Grass Setting")]
     [SerializeField] private float minBladeHeight = 1f;
     [SerializeField] private float maxBladeHeight = 2f;
     [SerializeField] private float scale = 2f;
 
 
+    [Header("LOD Setting")]
     [SerializeField] private int multiplier = 4;
+    [SerializeField] private int lod1Divider = 4;
+    [SerializeField] private float lod1Distance = 100f;
+    [SerializeField] private int lod2Divider = 4;
+    [SerializeField] private float lod2Distance = 200f;
 
     private int threadGroups;
     private int scatterKernel;
@@ -118,8 +125,24 @@ public class GrassController : MonoBehaviour
 
     private void Update()
     {
-        if (allowRender) // && Vector3.Distance(transform.position + transform.localScale * 0.5f, Camera.main.transform.position) < 200f)
-            Graphics.RenderPrimitivesIndexed(parameters, MeshTopology.Triangles, grassIndexBuffer, grassIndexBuffer.count, instanceCount: terrainTriangleCount * multiplier);
+        if (!allowRender) 
+            return;
+
+        
+        float distance = Vector3.Distance(transform.position + transform.localScale * 0.5f, Camera.main.transform.position);
+        int pick = terrainTriangleCount * multiplier;
+        if (distance > lod1Distance)
+            pick /= lod1Divider;
+        if (distance > lod2Distance)
+            pick /= lod2Divider;
+        if (pick < 1)
+            return;
+
+        //Debug.Log($"{terrainTriangleCount * multiplier / pick} {terrainTriangleCount * multiplier} {pick}");
+
+        properties.SetInt(Shader.PropertyToID("jump"), terrainTriangleCount * multiplier / pick);
+
+        Graphics.RenderPrimitivesIndexed(parameters, MeshTopology.Triangles, grassIndexBuffer, grassIndexBuffer.count, instanceCount: pick);
     }
 
     private void OnDestroy()

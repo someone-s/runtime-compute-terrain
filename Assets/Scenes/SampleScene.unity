@@ -1609,6 +1609,10 @@ PrefabInstance:
       propertyPath: testDisplay
       value: 
       objectReference: {fileID: 1200509110}
+    - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: renderRange
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 9031885650118237956, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: m_Name
       value: Terrain
