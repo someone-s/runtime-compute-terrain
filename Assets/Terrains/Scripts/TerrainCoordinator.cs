@@ -44,7 +44,6 @@ public class TerrainCoordinator : MonoBehaviour
 
     public void CastRay(Vector3 position, Vector3 direction, Action<Vector3?> callback)
     {
-
         Vector3 scaledPosition = position;
         scaledPosition.x /= area;
         scaledPosition.z /= area;

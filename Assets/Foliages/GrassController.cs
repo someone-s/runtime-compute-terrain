@@ -10,9 +10,8 @@ public class GrassController : MonoBehaviour
 
     [SerializeField] private float minBladeHeight = 1f;
     [SerializeField] private float maxBladeHeight = 2f;
-    [SerializeField] private float minOffset = 1f;
-    [SerializeField] private float maxOffset = 2f;
     [SerializeField] private float scale = 2f;
+
 
     [SerializeField] private int multiplier = 4;
 
@@ -32,6 +31,7 @@ public class GrassController : MonoBehaviour
 
     private void Start() 
     {
+
         controller = GetComponent<TerrainController>();
 
         if (controller.terrainReady)
@@ -51,8 +51,9 @@ public class GrassController : MonoBehaviour
         transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, terrainTriangleCount * multiplier, sizeof(float) * 16);
         scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("TransformMatrices"), transformMatrixBuffer);
 
+        scatterShader.SetInt(Shader.PropertyToID("multiplier"), multiplier);
         properties.SetBuffer(Shader.PropertyToID("TransformMatrices"), transformMatrixBuffer);
-        
+
         QueueRefresh();
 
         enabled = true;
@@ -88,8 +89,8 @@ public class GrassController : MonoBehaviour
         scatterShader.SetFloat(Shader.PropertyToID("area"), controller.area);
         scatterShader.SetFloat(Shader.PropertyToID("minBladeHeight"), minBladeHeight);
         scatterShader.SetFloat(Shader.PropertyToID("maxBladeHeight"), maxBladeHeight);
-        scatterShader.SetFloat(Shader.PropertyToID("minOffset"), minOffset);
-        scatterShader.SetFloat(Shader.PropertyToID("maxOffset"), maxOffset);
+        scatterShader.SetFloat(Shader.PropertyToID("minOffset"), -controller.area / TerrainCoordinator.meshSize / 2f);
+        scatterShader.SetFloat(Shader.PropertyToID("maxOffset"), controller.area / TerrainCoordinator.meshSize / 2f);
         scatterShader.SetFloat(Shader.PropertyToID("scale"), scale);
         
         scatterShader.GetKernelThreadGroupSizes(scatterKernel, out uint threadGroupSize, out _, out _);
@@ -100,12 +101,13 @@ public class GrassController : MonoBehaviour
         properties.SetBuffer(Shader.PropertyToID("Vertices"), grassMesh.GetVertexBuffer(0));
         properties.SetInt(Shader.PropertyToID("stride"), grassMesh.GetVertexBufferStride(0));
         properties.SetInt(Shader.PropertyToID("positionOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Position));
+        properties.SetInt(Shader.PropertyToID("normalOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Normal));
         properties.SetInt(Shader.PropertyToID("uvOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.TexCoord0));
 
         parameters = new RenderParams(material);
         parameters.matProps = properties;
         parameters.worldBounds = controller.worldBound;
-        parameters.shadowCastingMode = ShadowCastingMode.TwoSided;
+        //parameters.shadowCastingMode = ShadowCastingMode.On;
         parameters.receiveShadows = true;
 
         grassIndexBuffer = grassMesh.GetIndexBuffer();

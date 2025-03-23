@@ -79,7 +79,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: e0840dcf087bcd88eb2ca8ff99267ebb, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -116,10 +116,8 @@ MonoBehaviour:
   scatterShader: {fileID: 7200000, guid: 946dee75d36ec233ba79f494a772ff02, type: 3}
   material: {fileID: 2100000, guid: 9201e3c319c1ae2d3bac619a2d4c4652, type: 2}
   grassMesh: {fileID: 2949893962580367973, guid: 25357df313829a924875e720825dd88e, type: 3}
-  minBladeHeight: 1
-  maxBladeHeight: 2
-  minOffset: -0.2
-  maxOffset: 0.2
-  scale: 0.2
+  minBladeHeight: 0.5
+  maxBladeHeight: 1
+  scale: 2
   multiplier: 4
   allowRender: 0
