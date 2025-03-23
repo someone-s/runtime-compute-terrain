@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 4112987190708819027}
   - component: {fileID: 3182353517884534904}
   - component: {fileID: 8977904579850691496}
+  - component: {fileID: 3876854061451890235}
   m_Layer: 0
   m_Name: Terrain Chunk
   m_TagString: Untagged
@@ -100,3 +101,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &3876854061451890235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5037301470321108824}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fffa1d48d39b656eb93cc7e77917a0a1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scatterShader: {fileID: 7200000, guid: 946dee75d36ec233ba79f494a772ff02, type: 3}
+  material: {fileID: 2100000, guid: 9201e3c319c1ae2d3bac619a2d4c4652, type: 2}
+  grassMesh: {fileID: 2949893962580367973, guid: 25357df313829a924875e720825dd88e, type: 3}
+  minBladeHeight: 1
+  maxBladeHeight: 2
+  minOffset: 0
+  maxOffset: 0
+  scale: 2
+  allowRender: 0

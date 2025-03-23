@@ -35,7 +35,7 @@ public class TerrainModifier : MonoBehaviour
         operationBuffer.Dispose();
     }
 
-    private void SetArea(int kernelIndex, (int x, int z) region)
+    private TerrainController[] SetArea(int kernelIndex, (int x, int z) region)
     {
 
         computeShader.SetInt(Shader.PropertyToID("stride"), TerrainController.VertexBufferStride);
@@ -44,17 +44,25 @@ public class TerrainModifier : MonoBehaviour
         computeShader.SetInt(Shader.PropertyToID("baseOffset"), TerrainController.VertexBaseAttributeOffset);
         computeShader.SetInt(Shader.PropertyToID("modifyOffset"), TerrainController.VertexModifyAttributeOffset);
 
+        TerrainController[] controllers = new TerrainController[4];
+        
         TerrainController controllerBL = coordinator.controllers[region];
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBL"), controllerBL.graphicsBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBL"), controllerBL.vertexBuffer);
+        controllers[0] = controllerBL;
 
         TerrainController controllerBR = coordinator.controllers[(region.x + 1, region.z)];
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBR"), controllerBR.graphicsBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBR"), controllerBR.vertexBuffer);
+        controllers[1] = controllerBR;
 
         TerrainController controllerTL = coordinator.controllers[(region.x, region.z + 1)];
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTL"), controllerTL.graphicsBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTL"), controllerTL.vertexBuffer);
+        controllers[2] = controllerTL;
 
         TerrainController controllerTR = coordinator.controllers[(region.x + 1, region.z + 1)];
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTR"), controllerTR.graphicsBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTR"), controllerTR.vertexBuffer);
+        controllers[3] = controllerTR;
+
+        return controllers;
 
     }
     #endregion
@@ -62,6 +70,8 @@ public class TerrainModifier : MonoBehaviour
     #region Modify Section
     private ComputeBuffer operationBuffer;
     private (int x, int z)? currentRegion = null;
+    private TerrainController[] currentControllers = null;
+    
     [Header("Modify Section")]
     [SerializeField] private int modifyBufferCount = 50;
 
@@ -140,10 +150,13 @@ public class TerrainModifier : MonoBehaviour
         if (targetRegion != currentRegion)
         {
             currentRegion = targetRegion;
-            SetArea(modifyMeshKernelIndex, currentRegion.Value);
+            currentControllers = SetArea(modifyMeshKernelIndex, currentRegion.Value);
         }
 
         computeShader.Dispatch(modifyMeshKernelIndex, 32, 32, 1);
+
+        foreach (TerrainController controller in currentControllers)
+            controller.OnTerrainChange.Invoke();
     }
 
     #endregion

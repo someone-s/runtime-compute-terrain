@@ -1,0 +1,85 @@
+// credit daniel lilett tutorial
+// https://danielilett.com/2022-12-05-tut6-2-six-grass-techniques/
+#pragma kernel Scatter
+
+ByteAddressBuffer TerrainVertices;
+ByteAddressBuffer TerrainTriangles;
+uint terrainTriangleCount;
+int terrainStride;
+int terrainPositionOffset;
+float area;
+
+RWStructuredBuffer<float4x4> TransformMatrices;
+
+float3 LoadTerrainPosition(uint index) {
+    return asfloat(TerrainVertices.Load3(index * terrainStride + terrainPositionOffset));
+}
+// assume 32bit indices
+int LoadTerrainTriangle(uint index) {
+    return asint(TerrainTriangles.Load(index * 4));
+}
+
+float scale;
+float minBladeHeight;
+float maxBladeHeight;
+float minOffset;
+float maxOffset;
+float4x4 terrainObjectToWorld;
+
+#define TWO_PI 6.28318530718
+
+float randomRange(float2 seed, float min, float max)
+{
+    float random = frac(sin(dot(seed, float2(12.9898, 78.233)))*43758.5453);
+    return lerp(min, max, random);
+}
+
+float4x4 rotationMatrixY(float angle)
+{
+    float s, c;
+    sincos(angle, s, c);
+
+    return float4x4
+    (
+        c,   0.0, s,   0.0,
+        0.0, 1.0, 0.0, 0.0,
+        -s,  0.0, c,   0.0,
+        0.0, 0.0, 0.0, 1.0
+    );
+}
+
+[numthreads(64, 1, 1)]
+void Scatter(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x > terrainTriangleCount)
+        return;
+
+    int triangleStart = id.x * 3;
+    float3 position0 = LoadTerrainPosition(LoadTerrainTriangle(triangleStart));
+    float3 position1 = LoadTerrainPosition(LoadTerrainTriangle(triangleStart + 1));
+    float3 position2 = LoadTerrainPosition(LoadTerrainTriangle(triangleStart + 2));
+
+    float3 triangleCenterPos = (position0 + position1 + position2) / 3.0;
+    triangleCenterPos.x *= area;
+    triangleCenterPos.z *= area;
+
+    float2 randomSeed1 = float2(id.x, id.y);
+    float2 randomSeed2 = float2(id.y, id.x);
+
+    float scaleY = scale * randomRange(randomSeed1, minBladeHeight, maxBladeHeight);
+
+    float offsetX = randomRange(randomSeed1, minOffset, maxOffset);
+    float offsetZ = randomRange(randomSeed2, minOffset, maxOffset);
+
+    float4x4 grassTransformMatrix = float4x4
+    (
+        scale, 0.0,    0.0,   triangleCenterPos.x + offsetX,
+        0.0,   scaleY, 0.0,   triangleCenterPos.y,
+        0.0,   0.0,    scale, triangleCenterPos.z + offsetZ,
+        0.0,   0.0,    0.0,   1.0
+    );
+
+    float4x4 randomRotationMatrix = rotationMatrixY(randomRange(randomSeed1, 0.0, TWO_PI));
+
+    TransformMatrices[id.x] = mul(terrainObjectToWorld, mul(grassTransformMatrix, randomRotationMatrix));
+}

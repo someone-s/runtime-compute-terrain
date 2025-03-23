@@ -48,16 +48,16 @@ public class TerrainIntersector : MonoBehaviour {
         computeShader.SetInt(Shader.PropertyToID("positionOffset"), TerrainController.VertexPositionAttributeOffset);
         computeShader.SetInt(Shader.PropertyToID("normalOffset"), TerrainController.VertexNormalAttributeOffset);
 
-        GraphicsBuffer meshBL = coordinator.controllers[currentRegion.Value].graphicsBuffer;
+        GraphicsBuffer meshBL = coordinator.controllers[currentRegion.Value].vertexBuffer;
         computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesBL"), meshBL);
 
-        GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)].graphicsBuffer;
+        GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)].vertexBuffer;
         computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesBR"), meshBR);
 
-        GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)].graphicsBuffer;
+        GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)].vertexBuffer;
         computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesTL"), meshTL);
 
-        GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)].graphicsBuffer;
+        GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)].vertexBuffer;
         computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesTR"), meshTR);
 
     }

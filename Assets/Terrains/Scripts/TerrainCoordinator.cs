@@ -14,8 +14,8 @@ public class TerrainCoordinator : MonoBehaviour
     private (int x, int z)[] renderedChunks;
     private (int x, int z)[] previousChunks;
     private int renderRange = 3;
-    [SerializeField] internal float area = 50f;
-    internal static int meshSize = 126;
+    public float area { get; private set; } = 50f;
+    public static int meshSize { get; private set; } = 126;
 
     internal TerrainModifier modifier;
     internal TerrainIntersector intersector;
