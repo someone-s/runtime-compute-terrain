@@ -1,5 +1,12 @@
 Shader "Custom/ProceduralShader"
 {
+    Properties
+    {
+        [MainColor] _StartColor("StartColor", Color) = (1,1,1,1)
+        [MainColor] _EndColor("EndColor", Color) = (1,1,1,1)
+
+    }
+
     SubShader
     {
         Tags {
@@ -23,6 +30,11 @@ Shader "Custom/ProceduralShader"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             
+            CBUFFER_START(UnityPerMaterial)
+            half4 _StartColor;
+            half4 _EndColor;
+            CBUFFER_END
+
             struct Attributes
             {
                 uint vertexID : SV_VertexID;
@@ -80,10 +92,11 @@ Shader "Custom/ProceduralShader"
             {
 
                 half shadowAmount = lerp(0.2, 1.0, MainLightRealtimeShadow(IN.shadowCoord));
-                float4 lightAmount = lerp(float4(0.2, 0.2, 0.2, 1.0), float4(1.0, 1.0, 1.0, 1.0), float4(IN.lightAmount, 1.0));
+                half4 lightAmount = lerp(half4(0.5, 0.5, 0.5, 1.0), half4(1.0, 1.0, 1.0, 1.0), half4(IN.lightAmount, 1.0));
+                half4 color = lerp(_StartColor, _EndColor, IN.uv.y);
                 //return tex2D(_MainTex, i.uv);
                 //return lightAmount * half4(0.243, 0.360, 0.196, 0.0);
-                return shadowAmount * lightAmount * half4(0.243, 0.360, 0.196, 0.0);
+                return shadowAmount * lightAmount * color;
             }
 
 
@@ -110,7 +123,11 @@ Shader "Custom/ProceduralShader"
             #pragma multi_compile _ LOD_FADE_CROSSFADE
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             
+            float3 _LightDirection;
+            float3 _LightPosition;
+
             struct Attributes
             {
                 uint vertexID : SV_VertexID;
@@ -125,6 +142,7 @@ Shader "Custom/ProceduralShader"
             ByteAddressBuffer Vertices;
             int stride;
             int positionOffset;
+            int normalOffset;
 
             float3 LoadPosition(uint index) {
                 return asfloat(Vertices.Load3(index * stride + positionOffset));
@@ -139,6 +157,7 @@ Shader "Custom/ProceduralShader"
 
                 float4 positionWS = mul(objectToWorld, positionOS);
                 OUT.positionCS = mul(UNITY_MATRIX_VP, positionWS);
+
 
                 return OUT;
             }
