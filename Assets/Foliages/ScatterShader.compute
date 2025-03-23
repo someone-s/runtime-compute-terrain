@@ -9,6 +9,7 @@ ByteAddressBuffer TerrainTriangles;
 uint terrainTriangleCount;
 int terrainStride;
 int terrainPositionOffset;
+int terrainNormalOffset;
 
 float3 anchor;
 float area;
@@ -17,6 +18,9 @@ RWStructuredBuffer<float4x4> TransformMatrices;
 
 float3 LoadTerrainPosition(uint index) {
     return asfloat(TerrainVertices.Load3(index * terrainStride + terrainPositionOffset));
+}
+float3 LoadTerrainNormal(uint index) {
+    return asfloat(TerrainVertices.Load3(index * terrainStride + terrainNormalOffset));
 }
 // assume 32bit indices
 int LoadTerrainTriangle(uint index) {
@@ -30,6 +34,7 @@ float minOffset;
 float maxOffset;
 float4x4 terrainObjectToWorld;
 
+#define ONE_OVER_PI 0.31830988618
 #define TWO_PI 6.28318530718
 
 float randomRange(float2 seed, float min, float max)
@@ -59,10 +64,11 @@ void Scatter(uint3 id : SV_DispatchThreadID)
         return;
 
     int triangleStart = id.x * 3;
+
     float3 position0 = LoadTerrainPosition(LoadTerrainTriangle(triangleStart));
     float3 position1 = LoadTerrainPosition(LoadTerrainTriangle(triangleStart + 1));
     float3 position2 = LoadTerrainPosition(LoadTerrainTriangle(triangleStart + 2));
-
+    
     float3 triangleCenterPos = (position0 + position1 + position2) / 3.0;
     triangleCenterPos.x *= area;
     triangleCenterPos.z *= area;

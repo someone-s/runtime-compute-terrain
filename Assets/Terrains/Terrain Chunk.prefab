@@ -116,8 +116,8 @@ MonoBehaviour:
   scatterShader: {fileID: 7200000, guid: 946dee75d36ec233ba79f494a772ff02, type: 3}
   material: {fileID: 2100000, guid: 9201e3c319c1ae2d3bac619a2d4c4652, type: 2}
   grassMesh: {fileID: 2949893962580367973, guid: 25357df313829a924875e720825dd88e, type: 3}
-  minBladeHeight: 0.5
-  maxBladeHeight: 1
-  scale: 2
-  multiplier: 4
+  minBladeHeight: 0.2
+  maxBladeHeight: 0.4
+  scale: 1
+  multiplier: 3
   allowRender: 0

@@ -27,7 +27,7 @@ public class GrassController : MonoBehaviour
     private int terrainTriangleCount;
 
     private bool shouldRefresh = false;
-    public bool allowRender = false;
+    private bool allowRender = false;
 
     private void Start() 
     {
@@ -78,6 +78,7 @@ public class GrassController : MonoBehaviour
         scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("TerrainTriangles"), controller.triangleBuffer);
         scatterShader.SetInt(Shader.PropertyToID("terrainStride"), TerrainController.VertexBufferStride);
         scatterShader.SetInt(Shader.PropertyToID("terrainPositionOffset"), TerrainController.VertexPositionAttributeOffset);
+        scatterShader.SetInt(Shader.PropertyToID("terrainNormalOffset"), TerrainController.VertexNormalAttributeOffset);
 
         terrainTriangleCount = controller.triangleBuffer.count / 3;
 
@@ -107,7 +108,7 @@ public class GrassController : MonoBehaviour
         parameters = new RenderParams(material);
         parameters.matProps = properties;
         parameters.worldBounds = controller.worldBound;
-        //parameters.shadowCastingMode = ShadowCastingMode.On;
+        parameters.shadowCastingMode = ShadowCastingMode.On;
         parameters.receiveShadows = true;
 
         grassIndexBuffer = grassMesh.GetIndexBuffer();
