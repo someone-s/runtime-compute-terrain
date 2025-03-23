@@ -72,6 +72,13 @@ Shader "Custom/ProceduralShader"
                 Varyings OUT;
                 
                 float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
+                float4x4 scale = float4x4(
+                    jump, 0.0,  0.0,  0.0,
+                    0.0,  1.0,  0.0,  0.0,
+                    0.0,  0.0,  jump, 0.0,
+                    0.0,  0.0,  0.0,  1.0 
+                );
+                positionOS = mul(scale, positionOS);
                 float4x4 objectToWorld = TransformMatrices[IN.instanceID * jump];
 
                 float4 positionWS = mul(objectToWorld, positionOS);
