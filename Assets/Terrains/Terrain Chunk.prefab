@@ -119,5 +119,8 @@ MonoBehaviour:
   minBladeHeight: 0.2
   maxBladeHeight: 0.4
   scale: 1
-  multiplier: 3
-  allowRender: 0
+  multiplier: 4
+  lod1Divider: 4
+  lod1Distance: 90
+  lod2Divider: 4
+  lod2Distance: 180

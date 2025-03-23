@@ -55,6 +55,8 @@ Shader "Custom/ProceduralShader"
             int normalOffset;
             int uvOffset;
 
+            uint jump;
+
             float3 LoadPosition(uint index) {
                 return asfloat(Vertices.Load3(index * stride + positionOffset));
             }
@@ -70,7 +72,7 @@ Shader "Custom/ProceduralShader"
                 Varyings OUT;
                 
                 float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
-                float4x4 objectToWorld = TransformMatrices[IN.instanceID];
+                float4x4 objectToWorld = TransformMatrices[IN.instanceID * jump];
 
                 float4 positionWS = mul(objectToWorld, positionOS);
                 OUT.positionCS = mul(UNITY_MATRIX_VP, positionWS);
@@ -144,6 +146,8 @@ Shader "Custom/ProceduralShader"
             int positionOffset;
             int normalOffset;
 
+            uint jump;
+
             float3 LoadPosition(uint index) {
                 return asfloat(Vertices.Load3(index * stride + positionOffset));
             }
@@ -153,7 +157,7 @@ Shader "Custom/ProceduralShader"
                 Varyings OUT;
                 
                 float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
-                float4x4 objectToWorld = TransformMatrices[IN.instanceID];
+                float4x4 objectToWorld = TransformMatrices[IN.instanceID * jump];
 
                 float4 positionWS = mul(objectToWorld, positionOS);
                 OUT.positionCS = mul(UNITY_MATRIX_VP, positionWS);
