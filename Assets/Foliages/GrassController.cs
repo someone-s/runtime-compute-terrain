@@ -118,7 +118,7 @@ public class GrassController : MonoBehaviour
 
     private void Update()
     {
-        if (allowRender)
+        if (allowRender) // && Vector3.Distance(transform.position + transform.localScale * 0.5f, Camera.main.transform.position) < 200f)
             Graphics.RenderPrimitivesIndexed(parameters, MeshTopology.Triangles, grassIndexBuffer, grassIndexBuffer.count, instanceCount: terrainTriangleCount * multiplier);
     }
 
