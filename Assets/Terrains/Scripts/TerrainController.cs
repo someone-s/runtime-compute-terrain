@@ -52,6 +52,16 @@ public class TerrainController : MonoBehaviour
         }
     }
     private UnityEvent TerrainHiddenInstance = null;
+    public UnityEvent<float> OnDistanceChange
+    {
+        get
+        {
+            if (DistanceChangeDistance == null)
+                DistanceChangeDistance = new();
+            return DistanceChangeDistance;
+        }
+    }
+    private UnityEvent<float> DistanceChangeDistance = null;
     #endregion
 
     #region Vertices Section
