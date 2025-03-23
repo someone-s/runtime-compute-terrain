@@ -21,8 +21,6 @@ Shader "Custom/ProceduralShader"
                 float2 uv : TEXCOORD1;
             };
 
-            uniform float4x4 _ObjectToWorld;
-
             StructuredBuffer<float4x4> TransformMatrices;
             ByteAddressBuffer Vertices;
             int stride;

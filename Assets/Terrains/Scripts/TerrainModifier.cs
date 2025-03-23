@@ -69,8 +69,8 @@ public class TerrainModifier : MonoBehaviour
 
     #region Modify Section
     private ComputeBuffer operationBuffer;
-    private (int x, int z)? currentRegion = null;
-    private TerrainController[] currentControllers = null;
+    private (int x, int z)? currentModifyRegion = null;
+    private TerrainController[] currentModifyControllers = null;
     
     [Header("Modify Section")]
     [SerializeField] private int modifyBufferCount = 50;
@@ -147,15 +147,15 @@ public class TerrainModifier : MonoBehaviour
 
         int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
 
-        if (targetRegion != currentRegion)
+        if (targetRegion != currentModifyRegion)
         {
-            currentRegion = targetRegion;
-            currentControllers = SetArea(modifyMeshKernelIndex, currentRegion.Value);
+            currentModifyRegion = targetRegion;
+            currentModifyControllers = SetArea(modifyMeshKernelIndex, currentModifyRegion.Value);
         }
 
         computeShader.Dispatch(modifyMeshKernelIndex, 32, 32, 1);
 
-        foreach (TerrainController controller in currentControllers)
+        foreach (TerrainController controller in currentModifyControllers)
             controller.OnTerrainChange.Invoke();
     }
 
@@ -254,9 +254,12 @@ public class TerrainModifier : MonoBehaviour
 
             int applyModifiersKernelIndex = computeShader.FindKernel("ApplyModifiers");
 
-            SetArea(applyModifiersKernelIndex, region);
+            TerrainController[] currentProjectController = SetArea(applyModifiersKernelIndex, region);
 
             computeShader.Dispatch(applyModifiersKernelIndex, 32, 32, 1);
+
+            foreach (TerrainController controller in currentProjectController)
+                controller.OnTerrainChange.Invoke();
         }
     }
     #endregion

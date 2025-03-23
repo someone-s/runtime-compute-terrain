@@ -118,7 +118,8 @@ MonoBehaviour:
   grassMesh: {fileID: 2949893962580367973, guid: 25357df313829a924875e720825dd88e, type: 3}
   minBladeHeight: 1
   maxBladeHeight: 2
-  minOffset: 0
-  maxOffset: 0
-  scale: 2
+  minOffset: -0.2
+  maxOffset: 0.2
+  scale: 0.2
+  multiplier: 4
   allowRender: 0

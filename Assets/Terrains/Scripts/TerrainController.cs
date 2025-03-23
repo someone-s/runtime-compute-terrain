@@ -32,6 +32,26 @@ public class TerrainController : MonoBehaviour
         }
     }
     private UnityEvent TerrainChangeInstance = null;
+    public UnityEvent OnTerrainVisible
+    {
+        get
+        {
+            if (TerrainVisibleInstance == null)
+                TerrainVisibleInstance = new();
+            return TerrainVisibleInstance;
+        }
+    }
+    private UnityEvent TerrainVisibleInstance = null;
+    public UnityEvent OnTerrainHidden
+    {
+        get
+        {
+            if (TerrainHiddenInstance == null)
+                TerrainHiddenInstance = new();
+            return TerrainHiddenInstance;
+        }
+    }
+    private UnityEvent TerrainHiddenInstance = null;
     #endregion
 
     #region Vertices Section
@@ -63,7 +83,7 @@ public class TerrainController : MonoBehaviour
         vertexBuffer = mesh.GetVertexBuffer(0);
         triangleBuffer = mesh.GetIndexBuffer();
         worldBound = new Bounds {
-            center = mesh.bounds.center + transform.position,
+            center = Vector3.Scale(mesh.bounds.center, transform.localScale) + transform.position,
             extents = Vector3.Scale(mesh.bounds.extents, transform.localScale)
         };
 
@@ -178,6 +198,10 @@ public class TerrainController : MonoBehaviour
         if (visualRenderer == null)
             visualRenderer = GetComponent<MeshRenderer>();
         visualRenderer.enabled = visualState;
+        if (visualState)
+            OnTerrainVisible.Invoke();
+        else
+            OnTerrainHidden.Invoke();
     }
     #endregion
 
