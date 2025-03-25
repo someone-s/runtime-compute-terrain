@@ -70,8 +70,8 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     float3 position2 = LoadTerrainPosition(LoadTerrainTriangle(triangleStart + 2));
     
     float3 triangleCenterPos = (position0 + position1 + position2) / 3.0;
-    triangleCenterPos.x *= area;
-    triangleCenterPos.z *= area;
+    //triangleCenterPos.x *= area;
+    //triangleCenterPos.z *= area;
     triangleCenterPos += anchor;
 
     float2 seed = float2(id.x * multiplier, 1.0);

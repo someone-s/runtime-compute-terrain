@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(TerrainController))]
-public class GrassController : MonoBehaviour
+public class BladeGrassController : MonoBehaviour
 {
     [SerializeField] private ComputeShader scatterShader;
     [SerializeField] private Material material;
@@ -94,11 +94,11 @@ public class GrassController : MonoBehaviour
         scatterShader.SetInt(Shader.PropertyToID("terrainTriangleCount"), terrainTriangleCount);
 
         scatterShader.SetVector(Shader.PropertyToID("anchor"), controller.transform.position);
-        scatterShader.SetFloat(Shader.PropertyToID("area"), controller.area);
+        scatterShader.SetFloat(Shader.PropertyToID("area"), TerrainCoordinator.area);
         scatterShader.SetFloat(Shader.PropertyToID("minBladeHeight"), minBladeHeight);
         scatterShader.SetFloat(Shader.PropertyToID("maxBladeHeight"), maxBladeHeight);
-        scatterShader.SetFloat(Shader.PropertyToID("minOffset"), -controller.area / TerrainCoordinator.meshSize / 2f);
-        scatterShader.SetFloat(Shader.PropertyToID("maxOffset"), controller.area / TerrainCoordinator.meshSize / 2f);
+        scatterShader.SetFloat(Shader.PropertyToID("minOffset"), -TerrainCoordinator.area / TerrainCoordinator.meshSize / 2f);
+        scatterShader.SetFloat(Shader.PropertyToID("maxOffset"), TerrainCoordinator.area / TerrainCoordinator.meshSize / 2f);
         scatterShader.SetFloat(Shader.PropertyToID("scale"), scale);
         
         scatterShader.GetKernelThreadGroupSizes(scatterKernel, out uint threadGroupSize, out _, out _);
