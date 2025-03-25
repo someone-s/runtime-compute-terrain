@@ -79,7 +79,8 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
-  m_Materials: []
+  m_Materials:
+  - {fileID: 2100000, guid: e0840dcf087bcd88eb2ca8ff99267ebb, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -108,7 +109,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5037301470321108824}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fffa1d48d39b656eb93cc7e77917a0a1, type: 3}
   m_Name: 
@@ -120,10 +121,10 @@ MonoBehaviour:
   maxBladeHeight: 0.4
   scale: 1
   multiplier: 4
-  lod1Divider: 4
-  lod1Distance: 90
+  lod1Divider: 3
+  lod1Distance: 100
   lod2Divider: 4
-  lod2Distance: 180
+  lod2Distance: 200
 --- !u!1 &9042844763829735847
 GameObject:
   m_ObjectHideFlags: 0
@@ -142,7 +143,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1451302051100945025
 Transform:
   m_ObjectHideFlags: 0
