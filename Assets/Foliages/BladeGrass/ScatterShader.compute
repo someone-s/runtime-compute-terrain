@@ -2,37 +2,37 @@
 // https://danielilett.com/2022-12-05-tut6-2-six-grass-techniques/
 #pragma kernel Scatter
 
-uint multiplier;
+uint _Multiplier;
 
-ByteAddressBuffer TerrainVertices;
-ByteAddressBuffer TerrainTriangles;
-uint terrainTriangleCount;
-int terrainStride;
-int terrainPositionOffset;
-int terrainNormalOffset;
+ByteAddressBuffer _TerrainVertices;
+ByteAddressBuffer _TerrainTriangles;
+uint _TerrainTriangleCount;
+int _TerrainStride;
+int _TerrainPositionOffset;
+int _TerrainNormalOffset;
 
-float3 anchor;
-float area;
+float3 _Anchor;
+float _Area;
 
-RWStructuredBuffer<float4x4> TransformMatrices;
+RWStructuredBuffer<float4x4> _TransformMatrices;
 
 float3 LoadTerrainPosition(uint index) {
-    return asfloat(TerrainVertices.Load3(index * terrainStride + terrainPositionOffset));
+    return asfloat(_TerrainVertices.Load3(index * _TerrainStride + _TerrainPositionOffset));
 }
 float3 LoadTerrainNormal(uint index) {
-    return asfloat(TerrainVertices.Load3(index * terrainStride + terrainNormalOffset));
+    return asfloat(_TerrainVertices.Load3(index * _TerrainStride + _TerrainNormalOffset));
 }
 // assume 32bit indices
 int LoadTerrainTriangle(uint index) {
-    return asint(TerrainTriangles.Load(index * 4));
+    return asint(_TerrainTriangles.Load(index * 4));
 }
 
-float scale;
-float minBladeHeight;
-float maxBladeHeight;
-float minOffset;
-float maxOffset;
-float4x4 terrainObjectToWorld;
+float _Scale;
+float _MinBladeHeight;
+float _MaxBladeHeight;
+float _MinOffset;
+float _MaxOffset;
+float4x4 _TerrainObjectToWorld;
 
 #define ONE_OVER_PI 0.31830988618
 #define TWO_PI 6.28318530718
@@ -60,7 +60,7 @@ float4x4 rotationMatrixY(float angle)
 [numthreads(64, 1, 1)]
 void Scatter(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x > terrainTriangleCount)
+    if (id.x > _TerrainTriangleCount)
         return;
 
     int triangleStart = id.x * 3;
@@ -70,31 +70,29 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     float3 position2 = LoadTerrainPosition(LoadTerrainTriangle(triangleStart + 2));
     
     float3 triangleCenterPos = (position0 + position1 + position2) / 3.0;
-    //triangleCenterPos.x *= area;
-    //triangleCenterPos.z *= area;
-    triangleCenterPos += anchor;
+    triangleCenterPos += _Anchor;
 
-    float2 seed = float2(id.x * multiplier, 1.0);
+    float2 seed = float2(id.x * _Multiplier, 1.0);
 
-    for (uint index = id.x * multiplier; index < (id.x + 1) * multiplier; index++)
+    for (uint index = id.x * _Multiplier; index < (id.x + 1) * _Multiplier; index++)
     {   
-        float r1 = randomRange(seed, minBladeHeight, maxBladeHeight);
+        float r1 = randomRange(seed, _MinBladeHeight, _MaxBladeHeight);
         seed.y = r1;
-        float scaleY = scale * r1;
+        float _ScaleY = _Scale * r1;
     
-        float r2 = randomRange(seed, minOffset, maxOffset);
+        float r2 = randomRange(seed, _MinOffset, _MaxOffset);
         seed.x = r2;
         float offsetX = r2;
 
-        float r3 = randomRange(seed, minOffset, maxOffset);
+        float r3 = randomRange(seed, _MinOffset, _MaxOffset);
         seed.y = r3;
         float offsetZ = r3;
     
         float4x4 grassTransformMatrix = float4x4
         (
-            scale, 0.0,    0.0,   triangleCenterPos.x + offsetX,
-            0.0,   scaleY, 0.0,   triangleCenterPos.y,
-            0.0,   0.0,    scale, triangleCenterPos.z + offsetZ,
+            _Scale, 0.0,    0.0,   triangleCenterPos.x + offsetX,
+            0.0,   _ScaleY, 0.0,   triangleCenterPos.y,
+            0.0,   0.0,    _Scale, triangleCenterPos.z + offsetZ,
             0.0,   0.0,    0.0,   1.0
         );
     
@@ -102,6 +100,6 @@ void Scatter(uint3 id : SV_DispatchThreadID)
         seed.x = r4;
         float4x4 randomRotationMatrix = rotationMatrixY(r4);
     
-        TransformMatrices[index] = mul(grassTransformMatrix, randomRotationMatrix);
+        _TransformMatrices[index] = mul(grassTransformMatrix, randomRotationMatrix);
     }
 }

@@ -56,10 +56,10 @@ public class BladeGrassController : MonoBehaviour
         allowRender = false;
 
         transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, terrainTriangleCount * multiplier, sizeof(float) * 16);
-        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("TransformMatrices"), transformMatrixBuffer);
+        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("_TransformMatrices"), transformMatrixBuffer);
 
-        scatterShader.SetInt(Shader.PropertyToID("multiplier"), multiplier);
-        properties.SetBuffer(Shader.PropertyToID("TransformMatrices"), transformMatrixBuffer);
+        scatterShader.SetInt(Shader.PropertyToID("_Multiplier"), multiplier);
+        properties.SetBuffer(Shader.PropertyToID("_TransformMatrices"), transformMatrixBuffer);
 
         QueueRefresh();
 
@@ -79,38 +79,41 @@ public class BladeGrassController : MonoBehaviour
 
         scatterKernel = scatterShader.FindKernel("Scatter");
 
-        scatterShader.SetInt(Shader.PropertyToID("multiplier"), multiplier);
+        scatterShader.SetInt(Shader.PropertyToID("_Multiplier"), multiplier);
 
-        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("TerrainVertices"), controller.vertexBuffer);
-        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("TerrainTriangles"), controller.triangleBuffer);
-        scatterShader.SetInt(Shader.PropertyToID("terrainStride"), TerrainController.VertexBufferStride);
-        scatterShader.SetInt(Shader.PropertyToID("terrainPositionOffset"), TerrainController.VertexPositionAttributeOffset);
-        scatterShader.SetInt(Shader.PropertyToID("terrainNormalOffset"), TerrainController.VertexNormalAttributeOffset);
+        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("_TerrainVertices"), controller.vertexBuffer);
+        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("_TerrainTriangles"), controller.triangleBuffer);
+        scatterShader.SetInt(Shader.PropertyToID("_TerrainStride"), TerrainController.VertexBufferStride);
+        scatterShader.SetInt(Shader.PropertyToID("_TerrainPositionOffset"), TerrainController.VertexPositionAttributeOffset);
+        scatterShader.SetInt(Shader.PropertyToID("_TerrainNormalOffset"), TerrainController.VertexNormalAttributeOffset);
 
         terrainTriangleCount = controller.triangleBuffer.count / 3;
 
         transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, terrainTriangleCount * multiplier, sizeof(float) * 16);
-        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("TransformMatrices"), transformMatrixBuffer);
-        scatterShader.SetInt(Shader.PropertyToID("terrainTriangleCount"), terrainTriangleCount);
+        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("_TransformMatrices"), transformMatrixBuffer);
+        scatterShader.SetInt(Shader.PropertyToID("_TerrainTriangleCount"), terrainTriangleCount);
 
-        scatterShader.SetVector(Shader.PropertyToID("anchor"), controller.transform.position);
-        scatterShader.SetFloat(Shader.PropertyToID("area"), TerrainCoordinator.area);
-        scatterShader.SetFloat(Shader.PropertyToID("minBladeHeight"), minBladeHeight);
-        scatterShader.SetFloat(Shader.PropertyToID("maxBladeHeight"), maxBladeHeight);
-        scatterShader.SetFloat(Shader.PropertyToID("minOffset"), -TerrainCoordinator.area / TerrainCoordinator.meshSize / 2f);
-        scatterShader.SetFloat(Shader.PropertyToID("maxOffset"), TerrainCoordinator.area / TerrainCoordinator.meshSize / 2f);
-        scatterShader.SetFloat(Shader.PropertyToID("scale"), scale);
+        scatterShader.SetVector(Shader.PropertyToID("_Anchor"), controller.transform.position);
+        scatterShader.SetFloat(Shader.PropertyToID("_Area"), TerrainCoordinator.area);
+        scatterShader.SetFloat(Shader.PropertyToID("_MinBladeHeight"), minBladeHeight);
+        scatterShader.SetFloat(Shader.PropertyToID("_MaxBladeHeight"), maxBladeHeight);
+        scatterShader.SetFloat(Shader.PropertyToID("_MinOffset"), -TerrainCoordinator.area / TerrainCoordinator.meshSize / 2f);
+        scatterShader.SetFloat(Shader.PropertyToID("_MaxOffset"), TerrainCoordinator.area / TerrainCoordinator.meshSize / 2f);
+        scatterShader.SetFloat(Shader.PropertyToID("_Scale"), scale);
         
         scatterShader.GetKernelThreadGroupSizes(scatterKernel, out uint threadGroupSize, out _, out _);
         threadGroups = Mathf.CeilToInt((float)terrainTriangleCount / threadGroupSize);
         
         properties = new MaterialPropertyBlock();
-        properties.SetBuffer(Shader.PropertyToID("TransformMatrices"), transformMatrixBuffer);
-        properties.SetBuffer(Shader.PropertyToID("Vertices"), grassMesh.GetVertexBuffer(0));
-        properties.SetInt(Shader.PropertyToID("stride"), grassMesh.GetVertexBufferStride(0));
-        properties.SetInt(Shader.PropertyToID("positionOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Position));
-        properties.SetInt(Shader.PropertyToID("normalOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Normal));
-        properties.SetInt(Shader.PropertyToID("uvOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.TexCoord0));
+        properties.SetBuffer(Shader.PropertyToID("_TransformMatrices"), transformMatrixBuffer);
+        properties.SetBuffer(Shader.PropertyToID("_Vertices"), grassMesh.GetVertexBuffer(0));
+        properties.SetInt(Shader.PropertyToID("_Stride"), grassMesh.GetVertexBufferStride(0));
+        properties.SetInt(Shader.PropertyToID("_PositionOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Position));
+        properties.SetInt(Shader.PropertyToID("_NormalOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Normal));
+        properties.SetInt(Shader.PropertyToID("_UVOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.TexCoord0));
+
+        properties.SetFloat(Shader.PropertyToID("_WindFrequency"), 2f);
+        properties.SetFloat(Shader.PropertyToID("_WindAmplitude"), 0.05f);
 
         parameters = new RenderParams(material);
         parameters.matProps = properties;
@@ -138,11 +141,10 @@ public class BladeGrassController : MonoBehaviour
         if (pick < 1)
             return;
 
-        //Debug.Log($"{terrainTriangleCount * multiplier / pick} {terrainTriangleCount * multiplier} {pick}");
         int jump = terrainTriangleCount * multiplier / pick;
-        properties.SetInt(Shader.PropertyToID("jump"), jump);
+        properties.SetInt(Shader.PropertyToID("_Jump"), jump);
         float jumpScale = 1f + (jump - 1) * 0.5f;
-        properties.SetFloat(Shader.PropertyToID("jumpScale"), jumpScale);
+        properties.SetFloat(Shader.PropertyToID("_JumpScale"), jumpScale);
 
         Graphics.RenderPrimitivesIndexed(parameters, MeshTopology.Triangles, grassIndexBuffer, grassIndexBuffer.count, instanceCount: pick);
     }
