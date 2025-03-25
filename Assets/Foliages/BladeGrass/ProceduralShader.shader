@@ -56,6 +56,7 @@ Shader "Custom/ProceduralShader"
             int uvOffset;
 
             uint jump;
+            float jumpScale;
 
             float3 LoadPosition(uint index) {
                 return asfloat(Vertices.Load3(index * stride + positionOffset));
@@ -72,14 +73,8 @@ Shader "Custom/ProceduralShader"
                 Varyings OUT;
                 
                 float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
-                float t = 1 + (jump - 1) * 0.5;
-                float4x4 scale = float4x4(
-                    t,   0.0, 0.0, 0.0,
-                    0.0, 1.0, 0.0, 0.0,
-                    0.0, 0.0, t,   0.0,
-                    0.0, 0.0, 0.0, 1.0 
-                );
-                positionOS = mul(scale, positionOS);
+                positionOS.x *= jumpScale;
+                positionOS.z *= jumpScale;
                 float4x4 objectToWorld = TransformMatrices[IN.instanceID * jump];
 
                 float4 positionWS = mul(objectToWorld, positionOS);
@@ -135,9 +130,6 @@ Shader "Custom/ProceduralShader"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             
-            float3 _LightDirection;
-            float3 _LightPosition;
-
             struct Attributes
             {
                 uint vertexID : SV_VertexID;
@@ -155,6 +147,7 @@ Shader "Custom/ProceduralShader"
             int normalOffset;
 
             uint jump;
+            float jumpScale;
 
             float3 LoadPosition(uint index) {
                 return asfloat(Vertices.Load3(index * stride + positionOffset));
@@ -165,11 +158,12 @@ Shader "Custom/ProceduralShader"
                 Varyings OUT;
                 
                 float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
+                positionOS.x *= jumpScale;
+                positionOS.z *= jumpScale;
                 float4x4 objectToWorld = TransformMatrices[IN.instanceID * jump];
 
                 float4 positionWS = mul(objectToWorld, positionOS);
                 OUT.positionCS = mul(UNITY_MATRIX_VP, positionWS);
-
 
                 return OUT;
             }
