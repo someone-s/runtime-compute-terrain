@@ -10,7 +10,7 @@ int stride;
 int positionOffset;
 int normalOffset;
 
-
+float area;
 uint size; // i.e. 1000
 
 uint CalculateVertexIndex(uint x, uint y) {
@@ -20,18 +20,18 @@ uint CalculateVertexIndex(uint x, uint y) {
 float3 LoadVertex(uint x, uint y) {
     if (x > size && y > size) {
         float3 value = asfloat(verticesTR.Load3(CalculateVertexIndex(x - size, y - size)));
-        value.x += 1.0;
-        value.z += 1.0;
+        value.x += area;
+        value.z += area;
         return value;
     }
     else if (x > size) {
         float3 value = asfloat(verticesBR.Load3(CalculateVertexIndex(x - size, y)));
-        value.x += 1.0;
+        value.x += area;
         return value;
     }
     else if (y > size) {
         float3 value = asfloat(verticesTL.Load3(CalculateVertexIndex(x, y - size)));
-        value.z += 1.0;
+        value.z += area;
         return value;
     }
     else {

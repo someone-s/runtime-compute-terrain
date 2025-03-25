@@ -8,10 +8,10 @@ public class TerrainModifier : MonoBehaviour
 {
 
     // General state
+    private static float area => TerrainCoordinator.area;
     private static int meshSize => TerrainCoordinator.meshSize;
     [SerializeField] private ComputeShader computeShader;
     private TerrainCoordinator coordinator;
-    private float area => coordinator.area;
 
     #region Configuration Region
 
@@ -22,6 +22,7 @@ public class TerrainModifier : MonoBehaviour
         computeShader = Instantiate(computeShader);
 
 
+        computeShader.SetFloat(Shader.PropertyToID("area"), area);
         computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
         computeShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
 

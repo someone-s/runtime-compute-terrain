@@ -11,6 +11,7 @@ public class TerrainIntersector : MonoBehaviour {
 
     // General state
     private static int bufferCount = 10;
+    private static float area => TerrainCoordinator.area;
     private static int meshSize => TerrainCoordinator.meshSize;
     [SerializeField] private ComputeShader computeShader;
     private TerrainCoordinator coordinator;
@@ -26,6 +27,7 @@ public class TerrainIntersector : MonoBehaviour {
 
         int findIntersectKernelIndex = computeShader.FindKernel("FindIntersect");
 
+        computeShader.SetFloat(Shader.PropertyToID("area"), area);
         computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
         computeShader.SetInt(Shader.PropertyToID("intersectSection"), Mathf.CeilToInt(((float)meshSize * 2) / 32f));
 
@@ -173,8 +175,8 @@ public class TerrainIntersector : MonoBehaviour {
                 if (result.hit == 1)
                 {
                     Vector3 globalPosition = result.position;
-                    globalPosition.x += currentRegion.Value.x;
-                    globalPosition.z += currentRegion.Value.z;
+                    globalPosition.x += currentRegion.Value.x * area;
+                    globalPosition.z += currentRegion.Value.z * area;
                     callback(globalPosition);
                 }
                 else

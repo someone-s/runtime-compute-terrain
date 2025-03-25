@@ -14,7 +14,7 @@ public class TerrainCoordinator : MonoBehaviour
     private (int x, int z)[] renderedChunks;
     private (int x, int z)[] previousChunks;
     [SerializeField] private int renderRange = 3;
-    public float area { get; private set; } = 50f;
+    public static float area { get; private set; } = 50f;
     public static int meshSize { get; private set; } = 126;
 
     internal TerrainModifier modifier;
@@ -34,7 +34,7 @@ public class TerrainCoordinator : MonoBehaviour
         Transform chunkTransform = chunkInstance.transform;
         chunkTransform.parent = transform;
         chunkTransform.position = new Vector3(x * area, 0f, z * area);
-        chunkTransform.localScale = new Vector3(area, 1f, area);
+        //chunkTransform.localScale = new Vector3(, 1f, area);
 
         TerrainController controller = chunkInstance.GetComponent<TerrainController>();
         controllers.Add((x, z), controller);
@@ -44,17 +44,17 @@ public class TerrainCoordinator : MonoBehaviour
 
     public void CastRay(Vector3 position, Vector3 direction, Action<Vector3?> callback)
     {
-        Vector3 scaledPosition = position;
-        scaledPosition.x /= area;
-        scaledPosition.z /= area;
+        //Vector3 scaledPosition = position;
+        //scaledPosition.x /= area;
+        //scaledPosition.z /= area;
 
         // Minus 1 for setting center to bottom left of 4 modified terrain pieces
-        int centerX = Mathf.RoundToInt(scaledPosition.x) - 1;
-        int centerZ = Mathf.RoundToInt(scaledPosition.z) - 1;
+        int centerX = Mathf.RoundToInt(position.x / area) - 1;
+        int centerZ = Mathf.RoundToInt(position.z / area) - 1;
 
-        Vector3 scaledDirection = direction;
-        scaledDirection.x /= area;
-        scaledDirection.z /= area;
+        // Vector3 scaledDirection = direction;
+        // scaledDirection.x /= area;
+        // scaledDirection.z /= area;
 
         // Ensure all terrain pieces exists
         for (int x = centerX; x <= centerX + 1; x++)
@@ -63,31 +63,31 @@ public class TerrainCoordinator : MonoBehaviour
                     controller = Generate(x, z);
 
 
-        Vector3 translatedPosition = scaledPosition;
-        translatedPosition.x -= centerX;
-        translatedPosition.z -= centerZ;
-        intersector.QueueIntersect((centerX, centerZ), translatedPosition, Vector3.Normalize(scaledDirection), (Vector3? hitPoint) =>
+        Vector3 translatedPosition = position;
+        translatedPosition.x -= centerX * area;
+        translatedPosition.z -= centerZ * area;
+        intersector.QueueIntersect((centerX, centerZ), translatedPosition, direction, (Vector3? hitPoint) =>
         {
             if (hitPoint is null)
                 callback(null);
             else
             {
-                Vector3 scaledPoint = hitPoint.Value;
-                scaledPoint.x *= area;
-                scaledPoint.z *= area;
-                callback(scaledPoint);
+                //Vector3 scaledPoint = hitPoint.Value;
+                //scaledPoint.x *= area;
+                //scaledPoint.z *= area;
+                callback(hitPoint.Value);
             }
         });
     }
 
     public void UpdateVisual(Vector3 position)
     {
-        Vector3 scaledPosition = position;
-        scaledPosition.x /= area;
-        scaledPosition.z /= area;
+        //Vector3 scaledPosition = position;
+        //scaledPosition.x /= area;
+        //scaledPosition.z /= area;
 
-        int centerX = Mathf.RoundToInt(scaledPosition.x);
-        int centerZ = Mathf.RoundToInt(scaledPosition.z);
+        int centerX = Mathf.RoundToInt(position.x / area);
+        int centerZ = Mathf.RoundToInt(position.z / area);
 
         bool setup = previousChunks == null;
 
@@ -228,21 +228,21 @@ public class TerrainCoordinator : MonoBehaviour
 
     private void Modify(Vector3 position, float radius, TerrainModifier.OperationType operation, float parameter)
     {
-        Vector3 scaledPoint = position;
-        scaledPoint.x /= area;
-        scaledPoint.z /= area;
+        //Vector3 scaledPoint = position;
+        //scaledPoint.x /= area;
+        //scaledPoint.z /= area;
 
-        int centerX = Mathf.RoundToInt(scaledPoint.x) - 1;
-        int centerZ = Mathf.RoundToInt(scaledPoint.z) - 1;
+        int centerX = Mathf.RoundToInt(position.x / area) - 1;
+        int centerZ = Mathf.RoundToInt(position.z / area) - 1;
 
         for (int x = centerX; x <= centerX + 1; x++)
             for (int z = centerZ; z <= centerZ + 1; z++)
                 if (!controllers.TryGetValue((x, z), out TerrainController controller))
                     controller = Generate(x, z);
 
-        float scaledRadius = radius / area;
+        //float scaledRadius = radius / area;
 
-        modifier.QueueModify((centerX, centerZ), new Vector2(scaledPoint.x - centerX, scaledPoint.z - centerZ), scaledRadius, parameter, operation);
+        modifier.QueueModify((centerX, centerZ), new Vector2(position.x - centerX * area, position.z - centerZ * area), radius, parameter, operation);
     }
 
     public void Project(Vector3 minPosition, Vector3 maxPosition, bool limitToOne = false)

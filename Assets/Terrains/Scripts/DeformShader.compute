@@ -30,6 +30,7 @@ int normalOffset;
 int baseOffset;
 int modifyOffset;
 
+float area;
 uint size; // i.e. 1000
 uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
 
@@ -39,18 +40,18 @@ uint CalculateVertexIndex(uint x, uint y) {
 float3 LoadVertex(uint x, uint y) {
     if (x > size && y > size) {
         float3 value = asfloat(verticesTR.Load3(CalculateVertexIndex(x - size, y - size)));
-        value.x += 1.0;
-        value.z += 1.0;
+        value.x += area;
+        value.z += area;
         return value;
     }
     else if (x > size) {
         float3 value = asfloat(verticesBR.Load3(CalculateVertexIndex(x - size, y)));
-        value.x += 1.0;
+        value.x += area;
         return value;
     }
     else if (y > size) {
         float3 value = asfloat(verticesTL.Load3(CalculateVertexIndex(x, y - size)));
-        value.z += 1.0;
+        value.z += area;
         return value;
     }
     else {
@@ -61,20 +62,20 @@ float3 LoadVertex(uint x, uint y) {
 void StoreVertex(uint x, uint y, float3 value) {
     if (x >= size && y >= size) {
         float3 valueCopy = value;
-        valueCopy.x -= 1.0;
-        valueCopy.z -= 1.0;
+        valueCopy.x -= area;
+        valueCopy.z -= area;
         verticesTR.Store3(CalculateVertexIndex(x - size, y - size), asuint(valueCopy));
     }
 
     if (x >= size && y <= size) {
         float3 valueCopy = value;
-        valueCopy.x -= 1.0;
+        valueCopy.x -= area;
         verticesBR.Store3(CalculateVertexIndex(x - size, y), asuint(valueCopy));
     }
 
     if (x <= size && y >= size) {
         float3 valueCopy = value;
-        valueCopy.z -= 1.0;
+        valueCopy.z -= area;
         verticesTL.Store3(CalculateVertexIndex(x, y - size), asuint(valueCopy));
     }
 

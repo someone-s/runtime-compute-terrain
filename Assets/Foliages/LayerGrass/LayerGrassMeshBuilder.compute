@@ -1,0 +1,82 @@
+// MIT License
+
+// Copyright (c) 2021 NedMakesGames
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files(the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions :
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Layer
+
+uint _MeshSize;
+uint _VerticesPerAxis;
+uint _NumGrassLayers;
+float _GrassHeight;
+
+ByteAddressBuffer _TerrainVertices;
+uint _TerrainStride;
+uint _TerrainPositionOffset;
+uint _TerrainNormalOffset;
+
+float3 LoadTerrainPosition(uint x, uint y) {
+	return asfloat(_TerrainVertices.Load3((y * _VerticesPerAxis + x) * _TerrainStride + _TerrainPositionOffset));
+}
+float3 LoadTerrainNormal(uint x, uint y) {
+	return asfloat(_TerrainVertices.Load3((y * _VerticesPerAxis + x) * _TerrainStride + _TerrainNormalOffset));
+}
+
+RWByteAddressBuffer _GeneratedVertices;
+uint _GeneratedStride;
+uint _GeneratedPositionOffset;
+uint _GeneratedNormalOffset;
+uint _GeneratedUVAndHeightOffset;
+
+void StoreGeneratedPosition(uint x, uint y, uint l, float3 value) {
+	_GeneratedVertices.Store3((y * _VerticesPerAxis * _NumGrassLayers + x * _NumGrassLayers + l) * _GeneratedStride + _GeneratedPositionOffset, asuint(value));
+}
+void StoreGeneratedNormal(uint x, uint y, uint l, float3 value) {
+	_GeneratedVertices.Store3((y * _VerticesPerAxis * _NumGrassLayers + x * _NumGrassLayers + l) * _GeneratedStride + _GeneratedNormalOffset, asuint(value));
+}
+void StoreGeneratedUVandHeight(uint x, uint y, uint l, float4 value) {
+	_GeneratedVertices.Store4((y * _VerticesPerAxis * _NumGrassLayers + x * _NumGrassLayers + l) * _GeneratedStride + _GeneratedUVAndHeightOffset, asuint(value));
+}
+
+
+// This is the number of threads to create per dispatch. This kernel only uses the
+// x value, so you can fine tune that if needed
+[numthreads(32, 1, 32)]
+void Layer(uint3 id : SV_DispatchThreadID) {
+    // Disptaches can only be in chunks of 128, there might be more threads than number
+    // of triangles. Return in that case
+	if(id.x >= _VerticesPerAxis || id.z >= _VerticesPerAxis) {
+		return;
+	}
+
+	for (uint l = 0; l < _NumGrassLayers; l++) {
+        // The clip percentage and height percentage are slightly different
+        // The first should never quite reach one, since then it would always be clipped
+		float clipPercent = (float) l / (float)_NumGrassLayers;
+		float heightPercent = (float)l / (float)(_NumGrassLayers - 1);
+
+		float3 position = LoadTerrainPosition(id.x, id.z);
+		float3 normal = LoadTerrainNormal(id.x, id.z);
+		StoreGeneratedPosition(id.x, id.z, l, position + float3(0, 1, 0) * (heightPercent * _GrassHeight));
+		StoreGeneratedNormal(id.x, id.z, l, normal);
+		StoreGeneratedUVandHeight((float)id.x, (float)id.z, l, float4(position.x, position.z, clipPercent, heightPercent));
+	}
+}

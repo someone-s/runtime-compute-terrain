@@ -65,11 +65,11 @@ public class TerrainController : MonoBehaviour
     #endregion
 
     #region Vertices Section
+    public static float area => TerrainCoordinator.area;
     private static int meshSize => TerrainCoordinator.meshSize;
     public GraphicsBuffer vertexBuffer { get; private set; }
     public GraphicsBuffer triangleBuffer { get; private set; }
     public Bounds worldBound { get; private set; }
-    public float area { get; private set; }
     public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
     public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
     public static int VertexNormalAttributeOffset => MeshGenerator.GetVertexNormalAttributeOffset();
@@ -81,9 +81,6 @@ public class TerrainController : MonoBehaviour
     private void Setup()
     {
         if (terrainReady) return;
-
-        TerrainCoordinator coordinator = GetComponentInParent<TerrainCoordinator>();
-        area = coordinator.area;
 
         MeshFilter filter = GetComponent<MeshFilter>();
         Mesh mesh = MeshGenerator.GetMesh();
@@ -288,7 +285,7 @@ public class TerrainController : MonoBehaviour
             for (int z = 0; z < meshSize + 1; z++)
                 for (int x = 0; x < meshSize + 1; x++)
                 {
-                    vertices[z * (meshSize + 1) + x] = new float3(x / (float)meshSize, 0, z / (float)meshSize);
+                    vertices[z * (meshSize + 1) + x] = new float3(x / (float)meshSize * area, 0, z / (float)meshSize * area);
                     normals[z * (meshSize + 1) + x] = new float3(0f, 1f, 0f);
                 }
 
@@ -318,7 +315,7 @@ public class TerrainController : MonoBehaviour
             mesh.SetVertices(vertices);
             mesh.SetIndices(indices, MeshTopology.Triangles, 0);
             mesh.SetNormals(normals);
-            mesh.bounds = new Bounds(new Vector3(0.5f, 0f, 0.5f), new Vector3(1f + 1f / meshSize, 200f, 1f + 1f / meshSize));
+            mesh.bounds = new Bounds(new Vector3(0.5f * area, 0f, 0.5f * area), new Vector3((1f + 1f / meshSize) * area, 200f, (1f + 1f / meshSize) * area));
 
             vertices.Dispose();
             normals.Dispose();
