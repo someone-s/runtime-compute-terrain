@@ -4,29 +4,28 @@
 
 #define FLOAT_SIZE_IN_BYTES 4
 
-uint size; // i.e. 1000
-uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
+uint _Size; // i.e. 1000
+uint _MeshSection; // if _Size is 1000, _MeshSection is 126 ceil((1000 * 2 + 1) / 32)
 
-RWByteAddressBuffer vertices;
-int stride;
-int positionOffset;
-int normalOffset;
-int baseOffset;
-int modifyOffset;
+RWByteAddressBuffer _Vertices;
+int _Stride;
+int _PositionOffset;
+int _BaseOffset;
+int _ModifyOffset;
 
 uint CalculateLogicalIndex(uint x, uint y) {
-    return y * (size + 1) + x;
+    return y * (_Size + 1) + x;
 }
 
 uint CalculateVertexIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + positionOffset;
+    return (y * (_Size + 1) + x) * _Stride + _PositionOffset;
 }
 void StoreVertexY(uint x, uint y, float value) {
-    vertices.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
+    _Vertices.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
 }
 
 uint CalculateModifyIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + modifyOffset;
+    return (y * (_Size + 1) + x) * _Stride + _ModifyOffset;
 }
 void StoreModify(uint x, uint y, float mandate, float minimum, float maximum, uint mask) {
 
@@ -36,17 +35,17 @@ void StoreModify(uint x, uint y, float mandate, float minimum, float maximum, ui
     bits.z = asuint(minimum);
     bits.w = asuint(maximum);
 
-    vertices.Store4(CalculateModifyIndex(x, y), bits);
+    _Vertices.Store4(CalculateModifyIndex(x, y), bits);
 }
 
 uint CalculateBaseIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + baseOffset;
+    return (y * (_Size + 1) + x) * _Stride + _BaseOffset;
 }
 float LoadBase(uint x, uint y) {
-        return asfloat(vertices.Load(CalculateBaseIndex(x, y)));
+        return asfloat(_Vertices.Load(CalculateBaseIndex(x, y)));
 }
 void StoreBase(uint x, uint y, float value) {
-        vertices.Store(CalculateBaseIndex(x, y), asuint(value));
+        _Vertices.Store(CalculateBaseIndex(x, y), asuint(value));
 }
 
 
@@ -56,9 +55,9 @@ void ResetBuffers(uint3 id : SV_DispatchThreadID) {
     
     // Apply Modifiers
     {
-        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
     
-            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
     
                 StoreModify(x, y, 0.0, 0.0, 0.0, 0);
                 StoreBase(x, y, 0.0);
@@ -71,7 +70,7 @@ void ResetBuffers(uint3 id : SV_DispatchThreadID) {
 struct Export {
     float height;
 };
-RWStructuredBuffer<Export> exports;
+RWStructuredBuffer<Export> _Exports;
 
 // this oeprate per vertex
 [numthreads(32, 32, 1)]
@@ -79,13 +78,13 @@ void RestoreBuffers(uint3 id : SV_DispatchThreadID) {
     
     // Apply Modifiers
     {
-        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
     
-            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
                 
                 uint index = CalculateLogicalIndex(x, y);
-                StoreVertexY(x, y, exports[index].height);
-                StoreBase(x, y, exports[index].height);
+                StoreVertexY(x, y, _Exports[index].height);
+                StoreBase(x, y, _Exports[index].height);
             }
         }
     }
@@ -96,12 +95,12 @@ void ExportBuffers(uint3 id : SV_DispatchThreadID) {
     
     // Apply Modifiers
     {
-        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
     
-            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
                 
                 uint index = CalculateLogicalIndex(x, y);
-                exports[index].height = LoadBase(x, y);
+                _Exports[index].height = LoadBase(x, y);
             }
         }
     }
