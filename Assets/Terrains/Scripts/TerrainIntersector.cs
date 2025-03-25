@@ -27,15 +27,15 @@ public class TerrainIntersector : MonoBehaviour {
 
         int findIntersectKernelIndex = computeShader.FindKernel("FindIntersect");
 
-        computeShader.SetFloat(Shader.PropertyToID("area"), area);
-        computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
-        computeShader.SetInt(Shader.PropertyToID("intersectSection"), Mathf.CeilToInt(((float)meshSize * 2) / 32f));
+        computeShader.SetFloat(Shader.PropertyToID("_Area"), area);
+        computeShader.SetInt(Shader.PropertyToID("_Size"), meshSize);
+        computeShader.SetInt(Shader.PropertyToID("_IntersectSection"), Mathf.CeilToInt(((float)meshSize * 2) / 32f));
 
         requestBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 6 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("requests"), requestBuffer);
+        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_Requests"), requestBuffer);
 
         resultBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 3 + sizeof(uint) * 2, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("results"), resultBuffer);
+        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_Results"), resultBuffer);
     }
 
     private void OnDestroy()
@@ -46,21 +46,20 @@ public class TerrainIntersector : MonoBehaviour {
     private void SetIntersectArea() {
         int findIntersectKernelIndex = computeShader.FindKernel("FindIntersect");
 
-        computeShader.SetInt(Shader.PropertyToID("stride"), TerrainController.VertexBufferStride);
-        computeShader.SetInt(Shader.PropertyToID("positionOffset"), TerrainController.VertexPositionAttributeOffset);
-        computeShader.SetInt(Shader.PropertyToID("normalOffset"), TerrainController.VertexNormalAttributeOffset);
+        computeShader.SetInt(Shader.PropertyToID("_Stride"), TerrainController.VertexBufferStride);
+        computeShader.SetInt(Shader.PropertyToID("_PositionOffset"), TerrainController.VertexPositionAttributeOffset);
 
         GraphicsBuffer meshBL = coordinator.controllers[currentRegion.Value].vertexBuffer;
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesBL"), meshBL);
+        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_VerticesBL"), meshBL);
 
         GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)].vertexBuffer;
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesBR"), meshBR);
+        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_VerticesBR"), meshBR);
 
         GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)].vertexBuffer;
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesTL"), meshTL);
+        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_VerticesTL"), meshTL);
 
         GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)].vertexBuffer;
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("verticesTR"), meshTR);
+        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_VerticesTR"), meshTR);
 
     }
     #endregion
@@ -153,7 +152,7 @@ public class TerrainIntersector : MonoBehaviour {
 
         requestBuffer.EndWrite<Request>(index);
 
-        computeShader.SetInt(Shader.PropertyToID("count"), index);
+        computeShader.SetInt(Shader.PropertyToID("_Count"), index);
 
         if (targetRegion != currentRegion) {
             currentRegion = targetRegion;
@@ -163,10 +162,10 @@ public class TerrainIntersector : MonoBehaviour {
         computeShader.Dispatch(computeShader.FindKernel("FindIntersect"), 32, 32, 1);
         AsyncGPUReadback.Request(resultBuffer, (readback) =>
         {
-            NativeArray<Result> results = readback.GetData<Result>();
+            NativeArray<Result> _Results = readback.GetData<Result>();
             for (int r = 0; r < index; r++)
             {
-                Result result = results[r];
+                Result result = _Results[r];
                 if (!callbacks.Remove(result.requestID, out Action<Vector3?> callback))
                     return;
 
@@ -182,7 +181,7 @@ public class TerrainIntersector : MonoBehaviour {
                 else
                     callback(null);
             }
-            results.Dispose();
+            _Results.Dispose();
         });
     }
     private void LateUpdate()
