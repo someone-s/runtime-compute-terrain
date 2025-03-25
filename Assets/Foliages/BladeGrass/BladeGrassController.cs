@@ -139,8 +139,10 @@ public class BladeGrassController : MonoBehaviour
             return;
 
         //Debug.Log($"{terrainTriangleCount * multiplier / pick} {terrainTriangleCount * multiplier} {pick}");
-
-        properties.SetInt(Shader.PropertyToID("jump"), terrainTriangleCount * multiplier / pick);
+        int jump = terrainTriangleCount * multiplier / pick;
+        properties.SetInt(Shader.PropertyToID("jump"), jump);
+        float jumpScale = 1f + (jump - 1) * 0.5f;
+        properties.SetFloat(Shader.PropertyToID("jumpScale"), jumpScale);
 
         Graphics.RenderPrimitivesIndexed(parameters, MeshTopology.Triangles, grassIndexBuffer, grassIndexBuffer.count, instanceCount: pick);
     }
