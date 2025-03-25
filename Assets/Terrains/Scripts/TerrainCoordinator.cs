@@ -11,8 +11,8 @@ public class TerrainCoordinator : MonoBehaviour
 {
     [SerializeField] private GameObject chunkPrefab;
 
-    private (int x, int z)[] renderedChunks;
-    private (int x, int z)[] previousChunks;
+    private List<(int x, int z)> renderedChunks = new();
+    private List<(int x, int z)> previousChunks = new();
     [SerializeField] private int renderRange = 3;
     public static float area { get; private set; } = 50f;
     public static int meshSize { get; private set; } = 126;
@@ -34,7 +34,6 @@ public class TerrainCoordinator : MonoBehaviour
         Transform chunkTransform = chunkInstance.transform;
         chunkTransform.parent = transform;
         chunkTransform.position = new Vector3(x * area, 0f, z * area);
-        //chunkTransform.localScale = new Vector3(, 1f, area);
 
         TerrainController controller = chunkInstance.GetComponent<TerrainController>();
         controllers.Add((x, z), controller);
@@ -44,17 +43,9 @@ public class TerrainCoordinator : MonoBehaviour
 
     public void CastRay(Vector3 position, Vector3 direction, Action<Vector3?> callback)
     {
-        //Vector3 scaledPosition = position;
-        //scaledPosition.x /= area;
-        //scaledPosition.z /= area;
-
         // Minus 1 for setting center to bottom left of 4 modified terrain pieces
         int centerX = Mathf.RoundToInt(position.x / area) - 1;
         int centerZ = Mathf.RoundToInt(position.z / area) - 1;
-
-        // Vector3 scaledDirection = direction;
-        // scaledDirection.x /= area;
-        // scaledDirection.z /= area;
 
         // Ensure all terrain pieces exists
         for (int x = centerX; x <= centerX + 1; x++)
@@ -71,63 +62,43 @@ public class TerrainCoordinator : MonoBehaviour
             if (hitPoint is null)
                 callback(null);
             else
-            {
-                //Vector3 scaledPoint = hitPoint.Value;
-                //scaledPoint.x *= area;
-                //scaledPoint.z *= area;
                 callback(hitPoint.Value);
-            }
         });
     }
 
-    public void UpdateVisual(Vector3 position)
+    public void UpdateVisual(Vector3 position, Plane[] frsutumPlanes)
     {
-        //Vector3 scaledPosition = position;
-        //scaledPosition.x /= area;
-        //scaledPosition.z /= area;
-
         int centerX = Mathf.RoundToInt(position.x / area);
         int centerZ = Mathf.RoundToInt(position.z / area);
 
-        bool setup = previousChunks == null;
+        Bounds localBounds = TerrainController.LocalBounds;
 
-        if (setup)
-        {
-            previousChunks = new (int x, int z)[(2 * renderRange + 1) * (2 * renderRange + 1)];
-            renderedChunks = new (int x, int z)[(2 * renderRange + 1) * (2 * renderRange + 1)];
-        }
+        renderedChunks.Clear();
 
         for (int x = 0; x < 2 * renderRange + 1; x++)
             for (int z = 0; z < 2 * renderRange + 1; z++)
-                renderedChunks[z * (2 * renderRange + 1) + x] = (x + centerX - renderRange, z + centerZ - renderRange);
-
-        if (setup)
-        {
-            foreach ((int x, int z) chunk in renderedChunks)
             {
+                int xRegion = x + centerX - renderRange;
+                int zRegion = z + centerZ - renderRange;
 
-                if (!controllers.TryGetValue(chunk, out TerrainController controller))
-                    controller = Generate(chunk.x, chunk.z);
-
-                controller.SetVisible(true);
+                if (GeometryUtility.TestPlanesAABB(frsutumPlanes, 
+                new Bounds(localBounds.center + new Vector3(xRegion * area, 0f, zRegion * area), TerrainController.LocalBounds.size)))
+                    renderedChunks.Add((xRegion, zRegion));
             }
-        }
-        else
+
+        foreach ((int x, int z) chunk in previousChunks.Except(renderedChunks))
+            controllers[chunk].SetVisible(false);
+
+        foreach ((int x, int z) chunk in renderedChunks.Except(previousChunks))
         {
-            foreach ((int x, int z) chunk in previousChunks.Except(renderedChunks))
-                controllers[chunk].SetVisible(false);
+            if (!controllers.TryGetValue(chunk, out TerrainController controller))
+                controller = Generate(chunk.x, chunk.z);
 
-            foreach ((int x, int z) chunk in renderedChunks.Except(previousChunks))
-            {
-                if (!controllers.TryGetValue(chunk, out TerrainController controller))
-                    controller = Generate(chunk.x, chunk.z);
-
-                controller.SetVisible(true);
-            }
+            controller.SetVisible(true);
         }
 
         // Swap without reallocate
-        (int x, int y)[] temp = previousChunks;
+        List<(int x, int y)> temp = previousChunks;
         previousChunks = renderedChunks;
         renderedChunks = temp;
     }
@@ -228,10 +199,6 @@ public class TerrainCoordinator : MonoBehaviour
 
     private void Modify(Vector3 position, float radius, TerrainModifier.OperationType operation, float parameter)
     {
-        //Vector3 scaledPoint = position;
-        //scaledPoint.x /= area;
-        //scaledPoint.z /= area;
-
         int centerX = Mathf.RoundToInt(position.x / area) - 1;
         int centerZ = Mathf.RoundToInt(position.z / area) - 1;
 
@@ -239,8 +206,6 @@ public class TerrainCoordinator : MonoBehaviour
             for (int z = centerZ; z <= centerZ + 1; z++)
                 if (!controllers.TryGetValue((x, z), out TerrainController controller))
                     controller = Generate(x, z);
-
-        //float scaledRadius = radius / area;
 
         modifier.QueueModify((centerX, centerZ), new Vector2(position.x - centerX * area, position.z - centerZ * area), radius, parameter, operation);
     }

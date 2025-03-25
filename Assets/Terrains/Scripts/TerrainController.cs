@@ -70,11 +70,6 @@ public class TerrainController : MonoBehaviour
     public GraphicsBuffer vertexBuffer { get; private set; }
     public GraphicsBuffer triangleBuffer { get; private set; }
     public Bounds worldBound { get; private set; }
-    public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
-    public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
-    public static int VertexNormalAttributeOffset => MeshGenerator.GetVertexNormalAttributeOffset();
-    public static int VertexBaseAttributeOffset => MeshGenerator.GetVertexBaseAttributeOffset();
-    public static int VertexModifyAttributeOffset => MeshGenerator.GetVertexModifyAttributeOffset();
     #endregion
 
     #region Config Section
@@ -212,9 +207,17 @@ public class TerrainController : MonoBehaviour
     }
     #endregion
 
+    public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
+    public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
+    public static int VertexNormalAttributeOffset => MeshGenerator.GetVertexNormalAttributeOffset();
+    public static int VertexBaseAttributeOffset => MeshGenerator.GetVertexBaseAttributeOffset();
+    public static int VertexModifyAttributeOffset => MeshGenerator.GetVertexModifyAttributeOffset();
+    public static Bounds LocalBounds => MeshGenerator.GetLocalBounds();
+    
     private static class MeshGenerator
     {
         private static Mesh prototype = null;
+        private static Bounds localBounds;
         private static GraphicsBuffer vertexReferenceBuffer = null;
         private static int vertexBufferStride;
         private static int vertexPositionAttributeOffset;
@@ -278,6 +281,14 @@ public class TerrainController : MonoBehaviour
             return vertexReferenceBuffer;
         }
 
+        public static Bounds GetLocalBounds()
+        {
+            if (prototype == null)
+                CreateMesh();
+
+            return localBounds;
+        }
+
         private static void CreateMesh()
         {
             NativeArray<float3> vertices = new NativeArray<float3>((meshSize + 1) * (meshSize + 1), Allocator.Temp);
@@ -328,6 +339,7 @@ public class TerrainController : MonoBehaviour
             vertexNormalAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.Normal);
             vertexBaseAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.TexCoord6);
             vertexModifyAttributeOffset = mesh.GetVertexAttributeOffset(VertexAttribute.TexCoord7);
+            localBounds = mesh.bounds;
         }
 
     }

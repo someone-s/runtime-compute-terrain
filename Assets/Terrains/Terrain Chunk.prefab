@@ -121,10 +121,10 @@ MonoBehaviour:
   maxBladeHeight: 0.4
   scale: 1
   multiplier: 4
-  lod1Divider: 3
-  lod1Distance: 100
+  lod1Divider: 4
+  lod1Distance: 90
   lod2Divider: 4
-  lod2Distance: 200
+  lod2Distance: 180
 --- !u!1 &9042844763829735847
 GameObject:
   m_ObjectHideFlags: 0

@@ -5,7 +5,6 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainTester : MonoBehaviour {
 
-    public Transform testPlayer;
     public Transform testDisplay;
     public InputAction actionA;
     public InputAction actionB;
@@ -14,6 +13,7 @@ public class TerrainTester : MonoBehaviour {
     public InputAction actionE;
     public InputAction actionF;
     public string saveName = "save 2";
+    public float degree = 90f;
 
     private TerrainCoordinator coordinator;
 
@@ -40,13 +40,15 @@ public class TerrainTester : MonoBehaviour {
     private void Update()
     {
         Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-        coordinator.CastRay(testPlayer.position, ray.direction, (Vector3? result) => {
+        coordinator.CastRay(Camera.main.transform.position, ray.direction, (Vector3? result) => {
             if (result is null)
                 return;
             target = result.Value;
         });
 
-        coordinator.UpdateVisual(testPlayer.position);
+        coordinator.UpdateVisual(
+            Camera.main.transform.position, 
+            GeometryUtility.CalculateFrustumPlanes(Camera.main));
 
         if (actionA.IsPressed())
             coordinator.ModifyAdd(testDisplay.position, 10f, 5f);
