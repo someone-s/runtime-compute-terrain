@@ -47,19 +47,17 @@ public class TrackController : MonoBehaviour
 
         int updateTrackKernelIndex = computeShader.FindKernel("UpdateTrack");
 
-        computeShader.SetInt(Shader.PropertyToID("sliceSize"), profile.count);
-        computeShader.SetInt(Shader.PropertyToID("sliceCount"), maxSliceCount);
-        computeShader.SetInt(Shader.PropertyToID("slicePerThread"), Mathf.CeilToInt((float)maxSliceCount / 64f));
+        computeShader.SetInt(Shader.PropertyToID("_SliceSize"), profile.count);
 
-        computeShader.SetInt(Shader.PropertyToID("stride"), MeshGenerator.GetVertexBufferStride(profile));
-        computeShader.SetInt(Shader.PropertyToID("positionOffset"), MeshGenerator.GetVertexPositionAttributeOffset(profile));
-        computeShader.SetInt(Shader.PropertyToID("normalOffset"), MeshGenerator.GetVertexNormalAttributeOffset(profile));
+        computeShader.SetInt(Shader.PropertyToID("_Stride"), MeshGenerator.GetVertexBufferStride(profile));
+        computeShader.SetInt(Shader.PropertyToID("_PositionOffset"), MeshGenerator.GetVertexPositionAttributeOffset(profile));
+        computeShader.SetInt(Shader.PropertyToID("_NormalOffset"), MeshGenerator.GetVertexNormalAttributeOffset(profile));
 
-        computeShader.SetBuffer(updateTrackKernelIndex, Shader.PropertyToID("sourceVertices"), MeshGenerator.GetReference(profile));
-        computeShader.SetBuffer(updateTrackKernelIndex, Shader.PropertyToID("destVertices"), graphicsBuffer);
+        computeShader.SetBuffer(updateTrackKernelIndex, Shader.PropertyToID("_SourceVertices"), MeshGenerator.GetReference(profile));
+        computeShader.SetBuffer(updateTrackKernelIndex, Shader.PropertyToID("_DestVertices"), graphicsBuffer);
         
         pointsBuffer = new ComputeBuffer(maxSliceCount, sizeof(float) * 7, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        computeShader.SetBuffer(updateTrackKernelIndex, Shader.PropertyToID("points"), pointsBuffer);
+        computeShader.SetBuffer(updateTrackKernelIndex, Shader.PropertyToID("_Points"), pointsBuffer);
 
     }
 
@@ -110,7 +108,7 @@ public class TrackController : MonoBehaviour
         }
         pointsBuffer.EndWrite<Point>(pointCount);
 
-        computeShader.SetInt(Shader.PropertyToID("pointCount"), pointCount);
+        computeShader.SetInt(Shader.PropertyToID("_PointCount"), pointCount);
 
         computeShader.Dispatch(computeShader.FindKernel("UpdateTrack"), 64, 1, 1);
 
