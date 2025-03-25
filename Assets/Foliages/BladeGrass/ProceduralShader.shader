@@ -35,6 +35,10 @@ Shader "Custom/ProceduralShader"
             half4 _EndColor;
             CBUFFER_END
 
+
+            float _WindFrequency;
+            float _WindAmplitude;
+
             struct Attributes
             {
                 uint vertexID : SV_VertexID;
@@ -48,24 +52,30 @@ Shader "Custom/ProceduralShader"
                 float4 shadowCoord : TEXCOORD3;
             };
 
-            StructuredBuffer<float4x4> TransformMatrices;
-            ByteAddressBuffer Vertices;
-            int stride;
-            int positionOffset;
-            int normalOffset;
-            int uvOffset;
+            StructuredBuffer<float4x4> _TransformMatrices;
+            ByteAddressBuffer _Vertices;
+            int _Stride;
+            int _PositionOffset;
+            int _NormalOffset;
+            int _UVOffset;
 
-            uint jump;
-            float jumpScale;
+            uint _Jump;
+            float _JumpScale;
 
             float3 LoadPosition(uint index) {
-                return asfloat(Vertices.Load3(index * stride + positionOffset));
+                return asfloat(_Vertices.Load3(index * _Stride + _PositionOffset));
             }
             float3 LoadNormal(uint index) {
-                return asfloat(Vertices.Load3(index * stride + normalOffset));
+                return asfloat(_Vertices.Load3(index * _Stride + _NormalOffset));
             }
             float2 LoadUV(uint index) {
-                return asfloat(Vertices.Load2(index * stride + uvOffset));
+                return asfloat(_Vertices.Load2(index * _Stride + _UVOffset));
+            }
+
+            float randomRange(float2 seed, float min, float max)
+            {
+                float random = frac(sin(dot(seed, float2(12.9898, 78.233)))*43758.5453);
+                return lerp(min, max, random);
             }
 
             Varyings vert(Attributes IN)
@@ -73,11 +83,17 @@ Shader "Custom/ProceduralShader"
                 Varyings OUT;
                 
                 float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
-                positionOS.x *= jumpScale;
-                positionOS.z *= jumpScale;
-                float4x4 objectToWorld = TransformMatrices[IN.instanceID * jump];
-
+                positionOS.x *= _JumpScale;
+                positionOS.z *= _JumpScale;
+                float4x4 objectToWorld = _TransformMatrices[IN.instanceID * _Jump];
                 float4 positionWS = mul(objectToWorld, positionOS);
+
+                float xOffset = randomRange(float2(IN.vertexID, IN.instanceID), -1.0, 1.0);
+                positionWS.x += sin((_Time.y * _WindFrequency) + xOffset) * (_WindAmplitude * positionOS.y);
+
+                float zOffset = randomRange(float2(IN.instanceID, IN.vertexID), -1.0, 1.0);
+                positionWS.z += sin((_Time.y * _WindFrequency) + zOffset) * (_WindAmplitude * positionOS.y);
+
                 OUT.positionCS = mul(UNITY_MATRIX_VP, positionWS);
 
                 OUT.shadowCoord = TransformWorldToShadowCoord(positionWS.xyz);
@@ -90,6 +106,7 @@ Shader "Custom/ProceduralShader"
                 float4 normalWS = mul(objectToWorld, normalOS);
                 OUT.lightAmount = LightingLambert(light.color, light.direction, normalWS.xyz);
 
+                
                 return OUT;
             }
 
@@ -140,17 +157,17 @@ Shader "Custom/ProceduralShader"
                 float4 positionCS : SV_POSITION;
             };
 
-            StructuredBuffer<float4x4> TransformMatrices;
-            ByteAddressBuffer Vertices;
-            int stride;
-            int positionOffset;
-            int normalOffset;
+            StructuredBuffer<float4x4> _TransformMatrices;
+            ByteAddressBuffer _Vertices;
+            int _Stride;
+            int _PositionOffset;
+            int _NormalOffset;
 
-            uint jump;
-            float jumpScale;
+            uint _Jump;
+            float _JumpScale;
 
             float3 LoadPosition(uint index) {
-                return asfloat(Vertices.Load3(index * stride + positionOffset));
+                return asfloat(_Vertices.Load3(index * _Stride + _PositionOffset));
             }
 
             Varyings vert(Attributes IN)
@@ -158,9 +175,9 @@ Shader "Custom/ProceduralShader"
                 Varyings OUT;
                 
                 float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
-                positionOS.x *= jumpScale;
-                positionOS.z *= jumpScale;
-                float4x4 objectToWorld = TransformMatrices[IN.instanceID * jump];
+                positionOS.x *= _JumpScale;
+                positionOS.z *= _JumpScale;
+                float4x4 objectToWorld = _TransformMatrices[IN.instanceID * _Jump];
 
                 float4 positionWS = mul(objectToWorld, positionOS);
                 OUT.positionCS = mul(UNITY_MATRIX_VP, positionWS);
