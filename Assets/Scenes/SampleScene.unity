@@ -1648,6 +1648,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7047757095585420289, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: degree
+      value: 75
+      objectReference: {fileID: 0}
+    - target: {fileID: 7047757095585420289, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: testPlayer
       value: 
       objectReference: {fileID: 330585546}
