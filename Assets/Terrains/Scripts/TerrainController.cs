@@ -117,22 +117,21 @@ public class TerrainController : MonoBehaviour
     {
         configShader = Instantiate(configShader);
 
-        configShader.SetInt(Shader.PropertyToID("size"), meshSize);
-        configShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
-        configShader.SetInt(Shader.PropertyToID("stride"), VertexBufferStride);
-        configShader.SetInt(Shader.PropertyToID("positionOffset"), VertexPositionAttributeOffset);
-        configShader.SetInt(Shader.PropertyToID("normalOffset"), VertexNormalAttributeOffset);
-        configShader.SetInt(Shader.PropertyToID("baseOffset"), VertexBaseAttributeOffset);
-        configShader.SetInt(Shader.PropertyToID("modifyOffset"), VertexModifyAttributeOffset);
+        configShader.SetInt(Shader.PropertyToID("_Size"), meshSize);
+        configShader.SetInt(Shader.PropertyToID("_MeshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
+        configShader.SetInt(Shader.PropertyToID("_Stride"), VertexBufferStride);
+        configShader.SetInt(Shader.PropertyToID("_PositionOffset"), VertexPositionAttributeOffset);
+        configShader.SetInt(Shader.PropertyToID("_BaseOffset"), VertexBaseAttributeOffset);
+        configShader.SetInt(Shader.PropertyToID("_ModifyOffset"), VertexModifyAttributeOffset);
 
         int resetBuffersKernelIndex = configShader.FindKernel("ResetBuffers");
-        configShader.SetBuffer(resetBuffersKernelIndex, Shader.PropertyToID("vertices"), vertexBuffer);
+        configShader.SetBuffer(resetBuffersKernelIndex, Shader.PropertyToID("_Vertices"), vertexBuffer);
 
         int restoreBuffersKernelIndex = configShader.FindKernel("RestoreBuffers");
-        configShader.SetBuffer(restoreBuffersKernelIndex, Shader.PropertyToID("vertices"), vertexBuffer);
+        configShader.SetBuffer(restoreBuffersKernelIndex, Shader.PropertyToID("_Vertices"), vertexBuffer);
 
         int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
-        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("vertices"), vertexBuffer);
+        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("_Vertices"), vertexBuffer);
 
         configShader.Dispatch(resetBuffersKernelIndex, 32, 32, 1);
     }
@@ -146,7 +145,7 @@ public class TerrainController : MonoBehaviour
 
         int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
         ComputeBuffer exportBuffer = new ComputeBuffer(count, element, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("exports"), exportBuffer);
+        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("_Exports"), exportBuffer);
         configShader.Dispatch(exportBuffersKernelIndex, 32, 32, 1);
 
         AsyncGPUReadback.Request(exportBuffer, (AsyncGPUReadbackRequest request) =>
@@ -182,7 +181,7 @@ public class TerrainController : MonoBehaviour
         exportBuffer.SetData(input);
 
         int restoreBuffersKernalIndex = configShader.FindKernel("RestoreBuffers");
-        configShader.SetBuffer(restoreBuffersKernalIndex, Shader.PropertyToID("exports"), exportBuffer);
+        configShader.SetBuffer(restoreBuffersKernalIndex, Shader.PropertyToID("_Exports"), exportBuffer);
         configShader.Dispatch(restoreBuffersKernalIndex, 32, 32, 1);
 
         exportBuffer.Dispose();
