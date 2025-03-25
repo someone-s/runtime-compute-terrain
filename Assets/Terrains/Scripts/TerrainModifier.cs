@@ -22,9 +22,9 @@ public class TerrainModifier : MonoBehaviour
         computeShader = Instantiate(computeShader);
 
 
-        computeShader.SetFloat(Shader.PropertyToID("area"), area);
-        computeShader.SetInt(Shader.PropertyToID("size"), meshSize);
-        computeShader.SetInt(Shader.PropertyToID("meshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
+        computeShader.SetFloat(Shader.PropertyToID("_Area"), area);
+        computeShader.SetInt(Shader.PropertyToID("_Size"), meshSize);
+        computeShader.SetInt(Shader.PropertyToID("_MeshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
 
         SetupModify();
 
@@ -39,28 +39,28 @@ public class TerrainModifier : MonoBehaviour
     private TerrainController[] SetArea(int kernelIndex, (int x, int z) region)
     {
 
-        computeShader.SetInt(Shader.PropertyToID("stride"), TerrainController.VertexBufferStride);
-        computeShader.SetInt(Shader.PropertyToID("positionOffset"), TerrainController.VertexPositionAttributeOffset);
-        computeShader.SetInt(Shader.PropertyToID("normalOffset"), TerrainController.VertexNormalAttributeOffset);
-        computeShader.SetInt(Shader.PropertyToID("baseOffset"), TerrainController.VertexBaseAttributeOffset);
-        computeShader.SetInt(Shader.PropertyToID("modifyOffset"), TerrainController.VertexModifyAttributeOffset);
+        computeShader.SetInt(Shader.PropertyToID("_Stride"), TerrainController.VertexBufferStride);
+        computeShader.SetInt(Shader.PropertyToID("_PositionOffset"), TerrainController.VertexPositionAttributeOffset);
+        computeShader.SetInt(Shader.PropertyToID("_NormalOffset"), TerrainController.VertexNormalAttributeOffset);
+        computeShader.SetInt(Shader.PropertyToID("_BaseOffset"), TerrainController.VertexBaseAttributeOffset);
+        computeShader.SetInt(Shader.PropertyToID("_ModifyOffset"), TerrainController.VertexModifyAttributeOffset);
 
         TerrainController[] controllers = new TerrainController[4];
         
         TerrainController controllerBL = coordinator.controllers[region];
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBL"), controllerBL.vertexBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("_VerticesBL"), controllerBL.vertexBuffer);
         controllers[0] = controllerBL;
 
         TerrainController controllerBR = coordinator.controllers[(region.x + 1, region.z)];
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesBR"), controllerBR.vertexBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("_VerticesBR"), controllerBR.vertexBuffer);
         controllers[1] = controllerBR;
 
         TerrainController controllerTL = coordinator.controllers[(region.x, region.z + 1)];
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTL"), controllerTL.vertexBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("_VerticesTL"), controllerTL.vertexBuffer);
         controllers[2] = controllerTL;
 
         TerrainController controllerTR = coordinator.controllers[(region.x + 1, region.z + 1)];
-        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("verticesTR"), controllerTR.vertexBuffer);
+        computeShader.SetBuffer(kernelIndex, Shader.PropertyToID("_VerticesTR"), controllerTR.vertexBuffer);
         controllers[3] = controllerTR;
 
         return controllers;
@@ -100,7 +100,7 @@ public class TerrainModifier : MonoBehaviour
         int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
         
         operationBuffer = new ComputeBuffer(modifyBufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("operations"), operationBuffer);
+        computeShader.SetBuffer(modifyMeshKernelIndex, Shader.PropertyToID("_Operations"), operationBuffer);
     }
 
     public void QueueModify((int x, int y) region, Vector2 normalPosition, float normalRadius, float operationParameter, OperationType operationType)
@@ -144,7 +144,7 @@ public class TerrainModifier : MonoBehaviour
 
         operationBuffer.EndWrite<Operation>(index);
 
-        computeShader.SetInt(Shader.PropertyToID("count"), index);
+        computeShader.SetInt(Shader.PropertyToID("_Count"), index);
 
         int modifyMeshKernelIndex = computeShader.FindKernel("ModifyMesh");
 
@@ -199,13 +199,13 @@ public class TerrainModifier : MonoBehaviour
 
         int applyModifiersKernelIndex = computeShader.FindKernel("ApplyModifiers");
 
-        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("mandateRT"), mandateTexture);
-        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("minimumRT"), minimumTexture);
-        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("maximumRT"), maximumTexture);
+        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("_MandateRT"), mandateTexture);
+        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("_MinimumRT"), minimumTexture);
+        computeShader.SetTexture(applyModifiersKernelIndex, Shader.PropertyToID("_MaximumRT"), maximumTexture);
 
-        computeShader.SetFloat(Shader.PropertyToID("start"), start);
-        computeShader.SetFloat(Shader.PropertyToID("depth"), depth);
-        computeShader.SetFloat(Shader.PropertyToID("ignore"), ignore);
+        computeShader.SetFloat(Shader.PropertyToID("_Start"), start);
+        computeShader.SetFloat(Shader.PropertyToID("_Depth"), depth);
+        computeShader.SetFloat(Shader.PropertyToID("_Ignore"), ignore);
 
         mandateCamera.orthographicSize = area + (area / meshSize * 0.5f);
         mandateCamera.nearClipPlane = 0f;

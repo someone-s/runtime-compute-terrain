@@ -16,119 +16,119 @@ struct Modify {
     float maximum;
 };
 
-RWByteAddressBuffer verticesTL;
+RWByteAddressBuffer _VerticesTL;
 
-RWByteAddressBuffer verticesTR;
+RWByteAddressBuffer _VerticesTR;
 
-RWByteAddressBuffer verticesBL;
+RWByteAddressBuffer _VerticesBL;
 
-RWByteAddressBuffer verticesBR;
+RWByteAddressBuffer _VerticesBR;
 
-int stride;
-int positionOffset;
-int normalOffset;
-int baseOffset;
-int modifyOffset;
+int _Stride;
+int _PositionOffset;
+int _NormalOffset;
+int _BaseOffset;
+int _ModifyOffset;
 
-float area;
-uint size; // i.e. 1000
-uint meshSection; // if size is 1000, meshSection is 126 ceil((1000 * 2 + 1) / 32)
+float _Area;
+uint _Size; // i.e. 1000
+uint _MeshSection; // if _Size is 1000, _MeshSection is 126 ceil((1000 * 2 + 1) / 32)
 
 uint CalculateVertexIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + positionOffset;
+    return (y * (_Size + 1) + x) * _Stride + _PositionOffset;
 }
 float3 LoadVertex(uint x, uint y) {
-    if (x > size && y > size) {
-        float3 value = asfloat(verticesTR.Load3(CalculateVertexIndex(x - size, y - size)));
-        value.x += area;
-        value.z += area;
+    if (x > _Size && y > _Size) {
+        float3 value = asfloat(_VerticesTR.Load3(CalculateVertexIndex(x - _Size, y - _Size)));
+        value.x += _Area;
+        value.z += _Area;
         return value;
     }
-    else if (x > size) {
-        float3 value = asfloat(verticesBR.Load3(CalculateVertexIndex(x - size, y)));
-        value.x += area;
+    else if (x > _Size) {
+        float3 value = asfloat(_VerticesBR.Load3(CalculateVertexIndex(x - _Size, y)));
+        value.x += _Area;
         return value;
     }
-    else if (y > size) {
-        float3 value = asfloat(verticesTL.Load3(CalculateVertexIndex(x, y - size)));
-        value.z += area;
+    else if (y > _Size) {
+        float3 value = asfloat(_VerticesTL.Load3(CalculateVertexIndex(x, y - _Size)));
+        value.z += _Area;
         return value;
     }
     else {
-        float3 value = asfloat(verticesBL.Load3(CalculateVertexIndex(x, y)));
+        float3 value = asfloat(_VerticesBL.Load3(CalculateVertexIndex(x, y)));
         return value;
     }
 }
 void StoreVertex(uint x, uint y, float3 value) {
-    if (x >= size && y >= size) {
+    if (x >= _Size && y >= _Size) {
         float3 valueCopy = value;
-        valueCopy.x -= area;
-        valueCopy.z -= area;
-        verticesTR.Store3(CalculateVertexIndex(x - size, y - size), asuint(valueCopy));
+        valueCopy.x -= _Area;
+        valueCopy.z -= _Area;
+        _VerticesTR.Store3(CalculateVertexIndex(x - _Size, y - _Size), asuint(valueCopy));
     }
 
-    if (x >= size && y <= size) {
+    if (x >= _Size && y <= _Size) {
         float3 valueCopy = value;
-        valueCopy.x -= area;
-        verticesBR.Store3(CalculateVertexIndex(x - size, y), asuint(valueCopy));
+        valueCopy.x -= _Area;
+        _VerticesBR.Store3(CalculateVertexIndex(x - _Size, y), asuint(valueCopy));
     }
 
-    if (x <= size && y >= size) {
+    if (x <= _Size && y >= _Size) {
         float3 valueCopy = value;
-        valueCopy.z -= area;
-        verticesTL.Store3(CalculateVertexIndex(x, y - size), asuint(valueCopy));
+        valueCopy.z -= _Area;
+        _VerticesTL.Store3(CalculateVertexIndex(x, y - _Size), asuint(valueCopy));
     }
 
-    if (x <= size && y <= size) {
+    if (x <= _Size && y <= _Size) {
         float3 valueCopy = value;
-        verticesBL.Store3(CalculateVertexIndex(x, y), asuint(valueCopy));
+        _VerticesBL.Store3(CalculateVertexIndex(x, y), asuint(valueCopy));
     }
 }
 void StoreVertexY(uint x, uint y, float value) {
-    if (x >= size && y >= size) 
-        verticesTR.Store(CalculateVertexIndex(x - size, y - size) + FLOAT_SIZE_IN_BYTES, asuint(value));
+    if (x >= _Size && y >= _Size) 
+        _VerticesTR.Store(CalculateVertexIndex(x - _Size, y - _Size) + FLOAT_SIZE_IN_BYTES, asuint(value));
 
-    if (x >= size && y <= size) 
-        verticesBR.Store(CalculateVertexIndex(x - size, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
+    if (x >= _Size && y <= _Size) 
+        _VerticesBR.Store(CalculateVertexIndex(x - _Size, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
 
-    if (x <= size && y >= size) 
-        verticesTL.Store(CalculateVertexIndex(x, y - size) + FLOAT_SIZE_IN_BYTES, asuint(value));
+    if (x <= _Size && y >= _Size) 
+        _VerticesTL.Store(CalculateVertexIndex(x, y - _Size) + FLOAT_SIZE_IN_BYTES, asuint(value));
 
-    if (x <= size && y <= size) 
-        verticesBL.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
+    if (x <= _Size && y <= _Size) 
+        _VerticesBL.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
 }
 
 uint CalculateNormalIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + normalOffset;
+    return (y * (_Size + 1) + x) * _Stride + _NormalOffset;
 }
 void StoreNormal(uint x, uint y, float3 value) {
-    if (x >= size && y >= size)
-        verticesTR.Store3(CalculateNormalIndex(x - size, y - size), asuint(value));
+    if (x >= _Size && y >= _Size)
+        _VerticesTR.Store3(CalculateNormalIndex(x - _Size, y - _Size), asuint(value));
 
-    if (x >= size && y <= size)
-        verticesBR.Store3(CalculateNormalIndex(x - size, y), asuint(value));
+    if (x >= _Size && y <= _Size)
+        _VerticesBR.Store3(CalculateNormalIndex(x - _Size, y), asuint(value));
 
-    if (x <= size && y >= size)
-        verticesTL.Store3(CalculateNormalIndex(x, y - size), asuint(value));
+    if (x <= _Size && y >= _Size)
+        _VerticesTL.Store3(CalculateNormalIndex(x, y - _Size), asuint(value));
 
-    if (x <= size && y <= size)
-        verticesBL.Store3(CalculateNormalIndex(x, y), asuint(value));
+    if (x <= _Size && y <= _Size)
+        _VerticesBL.Store3(CalculateNormalIndex(x, y), asuint(value));
 }
 
 uint CalculateModifyIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + modifyOffset;
+    return (y * (_Size + 1) + x) * _Stride + _ModifyOffset;
 }
 Modify LoadModify(uint x, uint y) {
     uint4 bits;
 
-    if (x > size && y > size)
-        bits = verticesTR.Load4(CalculateModifyIndex(x - size, y - size));
-    else if (x > size) 
-        bits = verticesBR.Load4(CalculateModifyIndex(x - size, y       ));
-    else if (y > size) 
-        bits = verticesTL.Load4(CalculateModifyIndex(x,        y - size));
+    if (x > _Size && y > _Size)
+        bits = _VerticesTR.Load4(CalculateModifyIndex(x - _Size, y - _Size));
+    else if (x > _Size) 
+        bits = _VerticesBR.Load4(CalculateModifyIndex(x - _Size, y       ));
+    else if (y > _Size) 
+        bits = _VerticesTL.Load4(CalculateModifyIndex(x,        y - _Size));
     else 
-        bits = verticesBL.Load4(CalculateModifyIndex(x,        y       ));
+        bits = _VerticesBL.Load4(CalculateModifyIndex(x,        y       ));
 
     Modify modify;
     modify.mask = bits.x;
@@ -148,44 +148,44 @@ void StoreModify(uint x, uint y, float mandate, float minimum, float maximum, ui
     bits.z = asuint(minimum);
     bits.w = asuint(maximum);
 
-    if (x >= size && y >= size)
-        verticesTR.Store4(CalculateModifyIndex(x - size, y - size), bits);
+    if (x >= _Size && y >= _Size)
+        _VerticesTR.Store4(CalculateModifyIndex(x - _Size, y - _Size), bits);
 
-    if (x >= size && y <= size)
-        verticesBR.Store4(CalculateModifyIndex(x - size, y       ), bits);
+    if (x >= _Size && y <= _Size)
+        _VerticesBR.Store4(CalculateModifyIndex(x - _Size, y       ), bits);
 
-    if (x <= size && y >= size) 
-        verticesTL.Store4(CalculateModifyIndex(x       , y - size), bits);
+    if (x <= _Size && y >= _Size) 
+        _VerticesTL.Store4(CalculateModifyIndex(x       , y - _Size), bits);
 
-    if (x <= size && y <= size) 
-        verticesBL.Store4(CalculateModifyIndex(x       , y       ), bits);
+    if (x <= _Size && y <= _Size) 
+        _VerticesBL.Store4(CalculateModifyIndex(x       , y       ), bits);
 }
 
 uint CalculateBaseIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + baseOffset;
+    return (y * (_Size + 1) + x) * _Stride + _BaseOffset;
 }
 float LoadBase(uint x, uint y) {
-    if (x > size && y > size)
-        return asfloat(verticesTR.Load(CalculateBaseIndex(x - size, y - size)));
-    else if (x > size) 
-        return asfloat(verticesBR.Load(CalculateBaseIndex(x - size, y       )));
-    else if (y > size) 
-        return asfloat(verticesTL.Load(CalculateBaseIndex(x,        y - size)));
+    if (x > _Size && y > _Size)
+        return asfloat(_VerticesTR.Load(CalculateBaseIndex(x - _Size, y - _Size)));
+    else if (x > _Size) 
+        return asfloat(_VerticesBR.Load(CalculateBaseIndex(x - _Size, y       )));
+    else if (y > _Size) 
+        return asfloat(_VerticesTL.Load(CalculateBaseIndex(x,        y - _Size)));
     else 
-        return asfloat(verticesBL.Load(CalculateBaseIndex(x,        y       )));
+        return asfloat(_VerticesBL.Load(CalculateBaseIndex(x,        y       )));
 }
 void StoreBase(uint x, uint y, float value) {
-    if (x >= size && y >= size)
-        verticesTR.Store(CalculateBaseIndex(x - size, y - size), asuint(value));
+    if (x >= _Size && y >= _Size)
+        _VerticesTR.Store(CalculateBaseIndex(x - _Size, y - _Size), asuint(value));
 
-    if (x >= size && y <= size)
-        verticesBR.Store(CalculateBaseIndex(x - size, y       ), asuint(value));
+    if (x >= _Size && y <= _Size)
+        _VerticesBR.Store(CalculateBaseIndex(x - _Size, y       ), asuint(value));
 
-    if (x <= size && y >= size) 
-        verticesTL.Store(CalculateBaseIndex(x       , y - size), asuint(value));
+    if (x <= _Size && y >= _Size) 
+        _VerticesTL.Store(CalculateBaseIndex(x       , y - _Size), asuint(value));
 
-    if (x <= size && y <= size) 
-        verticesBL.Store(CalculateBaseIndex(x       , y       ), asuint(value));
+    if (x <= _Size && y <= _Size) 
+        _VerticesBL.Store(CalculateBaseIndex(x       , y       ), asuint(value));
 }
 
 
@@ -193,9 +193,9 @@ void ApplyNormals(uint3 id) {
 
     // Recalculate Normal
     {
-        for (uint x = id.x * meshSection > 0 ? id.x * meshSection : 1; x < (id.x + 1) * meshSection && x < (size * 2); x++) {
+        for (uint x = id.x * _MeshSection > 0 ? id.x * _MeshSection : 1; x < (id.x + 1) * _MeshSection && x < (_Size * 2); x++) {
     
-            for (uint y = id.y * meshSection ? id.y * meshSection : 1; y <  (id.y + 1) * meshSection && y < (size * 2); y++) {
+            for (uint y = id.y * _MeshSection ? id.y * _MeshSection : 1; y <  (id.y + 1) * _MeshSection && y < (_Size * 2); y++) {
     
                 float3 vertex = LoadVertex(x, y);
     
@@ -228,9 +228,9 @@ void ApplySmooth(uint3 id) {
 
     // Recalculate Normal
     {
-        for (uint x = id.x * meshSection > 0 ? id.x * meshSection : 1; x < (id.x + 1) * meshSection && x < (size * 2); x++) {
+        for (uint x = id.x * _MeshSection > 0 ? id.x * _MeshSection : 1; x < (id.x + 1) * _MeshSection && x < (_Size * 2); x++) {
     
-            for (uint y = id.y * meshSection ? id.y * meshSection : 1; y <  (id.y + 1) * meshSection && y < (size * 2); y++) {
+            for (uint y = id.y * _MeshSection ? id.y * _MeshSection : 1; y <  (id.y + 1) * _MeshSection && y < (_Size * 2); y++) {
     
                 float total = 0.0;
                 for (int dx = -1; dx <= 1; dx++) 
@@ -248,9 +248,9 @@ void ApplyConstraints(uint3 id) {
 
     // Apply Modifiers
     {
-        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
     
-            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
     
                 float3 vertex = LoadVertex(x, y);
                 Modify modify = LoadModify(x, y);
@@ -281,18 +281,18 @@ struct Operation {
     uint type;
 };
 
-StructuredBuffer<Operation> operations;
-int count; // operation count
+StructuredBuffer<Operation> _Operations;
+int _Count; // operation _Count
 
 void ApplyOperations(uint3 id) {
     
     // Execute Operations
-    for (int o = 0; o < count; o++) {
-        Operation operation = operations[o];
+    for (int o = 0; o < _Count; o++) {
+        Operation operation = _Operations[o];
 
-        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
 
-            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
 
                 float3 vertex = LoadVertex(x, y);
                 float2 localPos = vertex.xz;
@@ -345,54 +345,54 @@ void ModifyMesh(uint3 id : SV_DispatchThreadID) {
 #endif
 
 #ifdef DEFINE_APPLY
-Texture2D<float4> mandateRT; // 0-1, top down
-Texture2D<float4> minimumRT; // 0-1, bottom up
-Texture2D<float4> maximumRT; // 0-1, top down
-float start; // +ve offset from 0.0, if bottom up, take the negative
-float depth; // height of the depth texture space
-float ignore; // 0-1, range greater to treat as nothing rendered
+Texture2D<float4> _MandateRT; // 0-1, top down
+Texture2D<float4> _MinimumRT; // 0-1, bottom up
+Texture2D<float4> _MaximumRT; // 0-1, top down
+float _Start; // +ve offset from 0.0, if bottom up, take the negative
+float _Depth; // height of the _Depth texture space
+float _Ignore; // 0-1, range greater to treat as nothing rendered
 
 uint CalculateRTIndex(uint x, uint y) {
-    return y * (size * 2 + 1) + x;
+    return y * (_Size * 2 + 1) + x;
 }
 
 void ApplyRenderTexture(uint3 id) {
     
     // Apply Modifiers
     {
-        float inverseIgnore = 1.0 - ignore;
+        float inverseIgnore = 1.0 - _Ignore;
 
-        for (uint x = id.x * meshSection; x < (id.x + 1) * meshSection && x < (size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
     
-            for (uint y = id.y * meshSection; y <  (id.y + 1) * meshSection && y < (size * 2) + 1; y++) {
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
                 
                 uint2 index = uint2(x, y);
-                uint2 mirrorIndex = uint2(x, size * 2 - y);
+                uint2 mirrorIndex = uint2(x, _Size * 2 - y);
 
                 float mandate;
                 float minimum;
                 float maximum;
                 uint mask = 0;
 
-                if (mandateRT[index].r < ignore || mandateRT[index].r > inverseIgnore)
+                if (_MandateRT[index].r < _Ignore || _MandateRT[index].r > inverseIgnore)
                     mandate = 0.0;
                 else {
                     mask |= MANDATE_BIT;
-                    mandate = mandateRT[index].r * depth - start;
+                    mandate = _MandateRT[index].r * _Depth - _Start;
                 }
 
-                if (minimumRT[index].r < ignore || mandateRT[index].r > inverseIgnore)
+                if (_MinimumRT[index].r < _Ignore || _MandateRT[index].r > inverseIgnore)
                     minimum = 0.0;
                 else {
                     mask |= MINIMUM_BIT;
-                    minimum = minimumRT[index].r * depth - start;
+                    minimum = _MinimumRT[index].r * _Depth - _Start;
                 }
 
-                if (maximumRT[mirrorIndex].r < ignore || mandateRT[mirrorIndex].r > inverseIgnore)
+                if (_MaximumRT[mirrorIndex].r < _Ignore || _MandateRT[mirrorIndex].r > inverseIgnore)
                     maximum = 0.0;
                 else {
                     mask |= MAXIMUM_BIT;
-                    maximum = start - maximumRT[mirrorIndex].r * depth;
+                    maximum = _Start - _MaximumRT[mirrorIndex].r * _Depth;
                 }
 
                 StoreModify(x, y, mandate, minimum, maximum, mask);
