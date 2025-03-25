@@ -2,55 +2,54 @@
 
 #define EPSILON 0.0000000001
 
-RWByteAddressBuffer verticesTL;
-RWByteAddressBuffer verticesTR;
-RWByteAddressBuffer verticesBL;
-RWByteAddressBuffer verticesBR;
-int stride;
-int positionOffset;
-int normalOffset;
+RWByteAddressBuffer _VerticesTL;
+RWByteAddressBuffer _VerticesTR;
+RWByteAddressBuffer _VerticesBL;
+RWByteAddressBuffer _VerticesBR;
+int _Stride;
+int _PositionOffset;
 
-float area;
-uint size; // i.e. 1000
+float _Area;
+uint _Size; // i.e. 1000
 
 uint CalculateVertexIndex(uint x, uint y) {
-    return (y * (size + 1) + x) * stride + positionOffset;
+    return (y * (_Size + 1) + x) * _Stride + _PositionOffset;
 }
 
 float3 LoadVertex(uint x, uint y) {
-    if (x > size && y > size) {
-        float3 value = asfloat(verticesTR.Load3(CalculateVertexIndex(x - size, y - size)));
-        value.x += area;
-        value.z += area;
+    if (x > _Size && y > _Size) {
+        float3 value = asfloat(_VerticesTR.Load3(CalculateVertexIndex(x - _Size, y - _Size)));
+        value.x += _Area;
+        value.z += _Area;
         return value;
     }
-    else if (x > size) {
-        float3 value = asfloat(verticesBR.Load3(CalculateVertexIndex(x - size, y)));
-        value.x += area;
+    else if (x > _Size) {
+        float3 value = asfloat(_VerticesBR.Load3(CalculateVertexIndex(x - _Size, y)));
+        value.x += _Area;
         return value;
     }
-    else if (y > size) {
-        float3 value = asfloat(verticesTL.Load3(CalculateVertexIndex(x, y - size)));
-        value.z += area;
+    else if (y > _Size) {
+        float3 value = asfloat(_VerticesTL.Load3(CalculateVertexIndex(x, y - _Size)));
+        value.z += _Area;
         return value;
     }
     else {
-        float3 value = asfloat(verticesBL.Load3(CalculateVertexIndex(x, y)));
+        float3 value = asfloat(_VerticesBL.Load3(CalculateVertexIndex(x, y)));
         return value;
     }
 }
 
 // Calculate Intersect Section
 
-uint intersectSection; // if size is 1000, normalSection is 126 ceil(1000 * 2 / 32)
+uint _IntersectSection; // if _Size is 1000, normalSection is 126 ceil(1000 * 2 / 32)
 
 struct Request {
     float3 origin;
     float3 direction;
     uint id;
 };
-StructuredBuffer<Request> requests;
-int count; // request count
+StructuredBuffer<Request> _Requests;
+int _Count; // request _Count
 
 struct Result {
     float3 position;
@@ -58,7 +57,7 @@ struct Result {
     uint id;
 };
 
-RWStructuredBuffer<Result> results;
+RWStructuredBuffer<Result> _Results;
 groupshared int minT;
 
 // See Moller-Trumbore intersetion on Wikipedia
@@ -108,8 +107,8 @@ float4 RayQuadIntersect(float3 origin, float3 direction, float3 vertex0, float3 
 [numthreads(32, 32, 1)]
 void FindIntersect(uint3 id : SV_DispatchThreadID, uint gid : SV_GroupIndex) {
 
-    for (int r = 0; r < count; r++) {
-        Request request = requests[r];
+    for (int r = 0; r < _Count; r++) {
+        Request request = _Requests[r];
 
         if (gid == 0)
             minT = asint(0x7fffffff);
@@ -120,9 +119,9 @@ void FindIntersect(uint3 id : SV_DispatchThreadID, uint gid : SV_GroupIndex) {
         float3 localBest;
         int localMinT = asint(0x7fffffff);
 
-        for (uint x = id.x * intersectSection; x < (id.x + 1) * intersectSection && x < (size * 2) - 1; x++) {
+        for (uint x = id.x * _IntersectSection; x < (id.x + 1) * _IntersectSection && x < (_Size * 2) - 1; x++) {
 
-            for (uint y = id.y * intersectSection; y <  (id.y + 1) * intersectSection && y < (size * 2) - 1; y++) {
+            for (uint y = id.y * _IntersectSection; y <  (id.y + 1) * _IntersectSection && y < (_Size * 2) - 1; y++) {
 
                 float3 vertex0  = LoadVertex(x,      y);
                 float3 vertex1  = LoadVertex(x + 1,  y);
@@ -151,16 +150,16 @@ void FindIntersect(uint3 id : SV_DispatchThreadID, uint gid : SV_GroupIndex) {
         
         // If no intersect at all, all threads sets result to same no hit value
         if (minT == asint(0x7fffffff)) {
-            results[r].position = float3(0.0, 0.0, 0.0);
-            results[r].hit = 0;
+            _Results[r].position = float3(0.0, 0.0, 0.0);
+            _Results[r].hit = 0;
         }
         // Else only the threads with exact matching t assign result value
         // Fine if multiple threads hit since result will be the same
         else if (minT == localMinT) {
-            results[r].position = localBest;
-            results[r].hit = 1;
+            _Results[r].position = localBest;
+            _Results[r].hit = 1;
         }
 
-        results[r].id = request.id;
+        _Results[r].id = request.id;
     }
 }
