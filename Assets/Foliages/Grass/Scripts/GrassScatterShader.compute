@@ -1,5 +1,3 @@
-// credit daniel lilett tutorial
-// https://danielilett.com/2022-12-05-tut6-2-six-grass-techniques/
 #pragma kernel Scatter
 
 uint _Multiplier;

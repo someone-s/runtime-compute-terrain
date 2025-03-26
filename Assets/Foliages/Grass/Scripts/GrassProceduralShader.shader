@@ -1,4 +1,4 @@
-Shader "Custom/ProceduralShader"
+Shader "Custom/GrassProceduralShader"
 {
     Properties
     {
@@ -116,8 +116,6 @@ Shader "Custom/ProceduralShader"
                 half shadowAmount = lerp(0.2, 1.0, MainLightRealtimeShadow(IN.shadowCoord));
                 half4 lightAmount = lerp(half4(0.5, 0.5, 0.5, 1.0), half4(1.0, 1.0, 1.0, 1.0), half4(IN.lightAmount, 1.0));
                 half4 color = lerp(_StartColor, _EndColor, IN.uv.y);
-                //return tex2D(_MainTex, i.uv);
-                //return lightAmount * half4(0.243, 0.360, 0.196, 0.0);
                 return shadowAmount * lightAmount * color;
             }
 

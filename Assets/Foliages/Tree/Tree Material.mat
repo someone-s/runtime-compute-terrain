@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: GrassMaterial
-  m_Shader: {fileID: 4800000, guid: 7c275f5107695d2a1b56a26eff89c373, type: 3}
+  m_Name: Tree Material
+  m_Shader: {fileID: 4800000, guid: 1f15786d0216408bfbd4f187e781de5b, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -30,6 +30,10 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
         m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ColorTexture:
+        m_Texture: {fileID: 2800000, guid: 3dc2366b43119cee98fa124dd7706a42, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
