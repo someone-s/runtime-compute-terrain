@@ -1,6 +1,6 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public class LayerGrassModifier : MonoBehaviour
 {
@@ -11,6 +11,7 @@ public class LayerGrassModifier : MonoBehaviour
         {
             if (instance == null)
                 instance = FindFirstObjectByType<LayerGrassModifier>();
+            Assert.IsNotNull(instance, "LayerGrass Global Modifier prefab must be included in the scene for LayerGrass to work");
             return instance;
         }
     }
