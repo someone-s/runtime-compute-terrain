@@ -5,6 +5,14 @@ Shader "Custom/GrassProceduralShader"
         [MainColor] _StartColor("StartColor", Color) = (1,1,1,1)
         [MainColor] _EndColor("EndColor", Color) = (1,1,1,1)
 
+        [HideInInspector] _Cull("__cull", Float) = 2.0
+        [HideInInspector] _SrcBlend("__src", Float) = 1.0
+        [HideInInspector] _DstBlend("__dst", Float) = 0.0
+        [HideInInspector] _SrcBlendAlpha("__srcA", Float) = 1.0
+        [HideInInspector] _DstBlendAlpha("__dstA", Float) = 0.0
+        [HideInInspector] _ZWrite("__zw", Float) = 1.0
+
+        [HideInInspector] _AlphaToMask("__alphaToMask", Float) = 0.0
     }
 
     SubShader
@@ -21,104 +29,55 @@ Shader "Custom/GrassProceduralShader"
                 "LightMode" = "UniversalForward"
             }
 
+            // Render State Commands
+            // Use same blending / depth states as Standard shader
+            Blend[_SrcBlend][_DstBlend], [_SrcBlendAlpha][_DstBlendAlpha]
+            ZWrite[_ZWrite]
+            Cull[_Cull]
+            AlphaToMask[_AlphaToMask]
+
             HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 4.5
 
-            #pragma vertex vert
-            #pragma fragment frag
+            // Signal this shader requires a compute buffer
+            #pragma prefer_hlslcc gles
+            #pragma exclude_renderers d3d11_9x
+
+            // -------------------------------------
+            // Universal Pipeline keywords
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
+            #pragma multi_compile _ EVALUATE_SH_MIXED EVALUATE_SH_VERTEX
+            #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
+            #pragma multi_compile_fragment _ _REFLECTION_PROBE_BLENDING
+            #pragma multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
+            #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
+            #pragma multi_compile_fragment _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
+            #pragma multi_compile_fragment _ _LIGHT_COOKIES
+            #pragma multi_compile _ _LIGHT_LAYERS
+            #pragma multi_compile _ _FORWARD_PLUS
+            #include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ProbeVolumeVariants.hlsl"
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            // -------------------------------------
+            // Unity defined keywords
+            #pragma multi_compile _ LIGHTMAP_SHADOW_MIXING
+            #pragma multi_compile _ SHADOWS_SHADOWMASK
+            #pragma multi_compile _ DIRLIGHTMAP_COMBINED
+            #pragma multi_compile _ LIGHTMAP_ON
+            #pragma multi_compile _ DYNAMICLIGHTMAP_ON
+            #pragma multi_compile _ USE_LEGACY_LIGHTMAPS
+            #pragma multi_compile _ LOD_FADE_CROSSFADE
+            #pragma multi_compile_fog
+            #pragma multi_compile_fragment _ DEBUG_DISPLAY
+            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ProbeVolumeVariants.hlsl"
             
-            CBUFFER_START(UnityPerMaterial)
-            half4 _StartColor;
-            half4 _EndColor;
-            CBUFFER_END
+            #pragma vertex Vertex
+            #pragma fragment Fragment
 
-
-            float _WindFrequency;
-            float _WindAmplitude;
-
-            struct Attributes
-            {
-                uint vertexID : SV_VertexID;
-                uint instanceID : SV_InstanceID;
-            };
-
-            struct Varyings {
-                float4 positionCS : SV_POSITION;
-                float2 uv : TEXCOORD0;
-                half3 lightAmount : TEXCOORD2;
-                float4 shadowCoord : TEXCOORD3;
-            };
-
-            StructuredBuffer<float4x4> _TransformMatrices;
-            ByteAddressBuffer _Vertices;
-            int _Stride;
-            int _PositionOffset;
-            int _NormalOffset;
-            int _UVOffset;
-
-            uint _Jump;
-            float _JumpScale;
-
-            float3 LoadPosition(uint index) {
-                return asfloat(_Vertices.Load3(index * _Stride + _PositionOffset));
-            }
-            float3 LoadNormal(uint index) {
-                return asfloat(_Vertices.Load3(index * _Stride + _NormalOffset));
-            }
-            float2 LoadUV(uint index) {
-                return asfloat(_Vertices.Load2(index * _Stride + _UVOffset));
-            }
-
-            float randomRange(float2 seed, float min, float max)
-            {
-                float random = frac(sin(dot(seed, float2(12.9898, 78.233)))*43758.5453);
-                return lerp(min, max, random);
-            }
-
-            Varyings vert(Attributes IN)
-            {
-                Varyings OUT;
-                
-                float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
-                positionOS.x *= _JumpScale;
-                positionOS.z *= _JumpScale;
-                float4x4 objectToWorld = _TransformMatrices[IN.instanceID * _Jump];
-                float4 positionWS = mul(objectToWorld, positionOS);
-
-                float xOffset = randomRange(float2(IN.vertexID, IN.instanceID), -1.0, 1.0);
-                positionWS.x += sin((_Time.y * _WindFrequency) + xOffset) * (_WindAmplitude * positionOS.y);
-
-                float zOffset = randomRange(float2(IN.instanceID, IN.vertexID), -1.0, 1.0);
-                positionWS.z += sin((_Time.y * _WindFrequency) + zOffset) * (_WindAmplitude * positionOS.y);
-
-                OUT.positionCS = mul(UNITY_MATRIX_VP, positionWS);
-
-                OUT.shadowCoord = TransformWorldToShadowCoord(positionWS.xyz);
-
-                OUT.uv = LoadUV(IN.vertexID);
-
-                Light light = GetMainLight();
-
-                float4 normalOS = float4(LoadNormal(IN.vertexID), 0.0);
-                float4 normalWS = mul(objectToWorld, normalOS);
-                OUT.lightAmount = LightingLambert(light.color, light.direction, normalWS.xyz);
-
-                
-                return OUT;
-            }
-
-            half4 frag(Varyings IN) : SV_TARGET
-            {
-
-                half shadowAmount = lerp(0.2, 1.0, MainLightRealtimeShadow(IN.shadowCoord));
-                half4 lightAmount = lerp(half4(0.5, 0.5, 0.5, 1.0), half4(1.0, 1.0, 1.0, 1.0), half4(IN.lightAmount, 1.0));
-                half4 color = lerp(_StartColor, _EndColor, IN.uv.y);
-                return shadowAmount * lightAmount * color;
-            }
-
+            #include "GrassProceduralShader.hlsl"
 
             ENDHLSL
         }
@@ -134,59 +93,16 @@ Shader "Custom/GrassProceduralShader"
             ZWrite On
             ZTest LEqual
             ColorMask 0
+            Cull[_Cull]
 
             HLSLPROGRAM
             #pragma target 2.0
 
-            #pragma vertex vert
-            #pragma fragment frag
+            #pragma vertex Vertex
+            #pragma fragment Fragment
             #pragma multi_compile _ LOD_FADE_CROSSFADE
-
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             
-            struct Attributes
-            {
-                uint vertexID : SV_VertexID;
-                uint instanceID : SV_InstanceID;
-            };
-
-            struct Varyings {
-                float4 positionCS : SV_POSITION;
-            };
-
-            StructuredBuffer<float4x4> _TransformMatrices;
-            ByteAddressBuffer _Vertices;
-            int _Stride;
-            int _PositionOffset;
-            int _NormalOffset;
-
-            uint _Jump;
-            float _JumpScale;
-
-            float3 LoadPosition(uint index) {
-                return asfloat(_Vertices.Load3(index * _Stride + _PositionOffset));
-            }
-
-            Varyings vert(Attributes IN)
-            {
-                Varyings OUT;
-                
-                float4 positionOS = float4(LoadPosition(IN.vertexID), 1.0);
-                positionOS.x *= _JumpScale;
-                positionOS.z *= _JumpScale;
-                float4x4 objectToWorld = _TransformMatrices[IN.instanceID * _Jump];
-
-                float4 positionWS = mul(objectToWorld, positionOS);
-                OUT.positionCS = mul(UNITY_MATRIX_VP, positionWS);
-
-                return OUT;
-            }
-
-            half4 frag(Varyings IN) : SV_TARGET
-            {
-                return 0;
-            }
+            #include "GrassProceduralShader.hlsl"
             ENDHLSL
         }
 
