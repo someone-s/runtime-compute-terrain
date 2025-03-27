@@ -10,7 +10,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 5037301470321108824, guid: e2888f1cfa331b522b6434bd8c95e16f, type: 3}
       propertyPath: m_Name
-      value: BladeGrass Terrain Chunk
+      value: Grass Terrain Chunk
       objectReference: {fileID: 0}
     - target: {fileID: 5792173554020573830, guid: e2888f1cfa331b522b6434bd8c95e16f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -78,7 +78,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   scatterShader: {fileID: 7200000, guid: 946dee75d36ec233ba79f494a772ff02, type: 3}
-  material: {fileID: 2100000, guid: 9201e3c319c1ae2d3bac619a2d4c4652, type: 2}
+  material: {fileID: 2100000, guid: f5d9ce46ae15d2d2ba6198e6db78d8be, type: 2}
   grassMesh: {fileID: 2949893962580367973, guid: 25357df313829a924875e720825dd88e, type: 3}
   minBladeHeight: 0.2
   maxBladeHeight: 0.4

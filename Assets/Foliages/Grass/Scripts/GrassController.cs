@@ -110,7 +110,9 @@ public class GrassController : MonoBehaviour
         properties.SetInt(Shader.PropertyToID("_Stride"), grassMesh.GetVertexBufferStride(0));
         properties.SetInt(Shader.PropertyToID("_PositionOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Position));
         properties.SetInt(Shader.PropertyToID("_NormalOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Normal));
+        properties.SetInt(Shader.PropertyToID("_TangentOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Tangent));
         properties.SetInt(Shader.PropertyToID("_UVOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.TexCoord0));
+        properties.SetInt(Shader.PropertyToID("_StaticLightmapUVOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.TexCoord1));
 
         properties.SetFloat(Shader.PropertyToID("_WindFrequency"), 2f);
         properties.SetFloat(Shader.PropertyToID("_WindAmplitude"), 0.05f);
