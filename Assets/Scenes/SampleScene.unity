@@ -1688,7 +1688,7 @@ PrefabInstance:
     - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: chunkPrefab
       value: 
-      objectReference: {fileID: 3049258338250971638, guid: a4a4da76755515fc09bfd0c8082888a7, type: 3}
+      objectReference: {fileID: 2096383619678947609, guid: 614aa2bae76ff1fa1b83b9019cc68999, type: 3}
     - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: renderRange
       value: 4

@@ -1,5 +1,5 @@
 // Shader targeted for low end devices. Single Pass Forward Rendering.
-Shader "Custom/Grass Simple Lit"
+Shader "Custom/Instance Simple Lit"
 {
     // Keep properties of StandardSpecular shader for upgrade reasons.
     Properties
@@ -138,8 +138,8 @@ Shader "Custom/Grass Simple Lit"
 
             // -------------------------------------
             // Includes
-            #include "GrassInput.hlsl"
-            #include "GrassForwardPass.hlsl"
+            #include "InstanceInput.hlsl"
+            #include "InstanceForwardPass.hlsl"
             ENDHLSL
         }
 
@@ -185,8 +185,8 @@ Shader "Custom/Grass Simple Lit"
 
             // -------------------------------------
             // Includes
-            #include "GrassInput.hlsl"
-            #include "GrassShadowCasterPass.hlsl"
+            #include "InstanceInput.hlsl"
+            #include "InstanceShadowCasterPass.hlsl"
             ENDHLSL
         }
 
@@ -261,8 +261,8 @@ Shader "Custom/Grass Simple Lit"
 
             // -------------------------------------
             // Includes
-            #include "GrassInput.hlsl"
-            #include "GrassGBufferPass.hlsl"
+            #include "InstanceInput.hlsl"
+            #include "InstanceGBufferPass.hlsl"
             ENDHLSL
         }
 
@@ -304,8 +304,8 @@ Shader "Custom/Grass Simple Lit"
 
             // -------------------------------------
             // Includes
-            #include "GrassInput.hlsl"
-            #include "GrassDepthOnlyPass.hlsl"
+            #include "InstanceInput.hlsl"
+            #include "InstanceDepthOnlyPass.hlsl"
             ENDHLSL
         }
 
@@ -351,8 +351,8 @@ Shader "Custom/Grass Simple Lit"
 
             // -------------------------------------
             // Includes
-            #include "GrassInput.hlsl"
-            #include "GrassDepthNormalsPass.hlsl"
+            #include "InstanceInput.hlsl"
+            #include "InstanceDepthNormalsPass.hlsl"
             ENDHLSL
         }
 

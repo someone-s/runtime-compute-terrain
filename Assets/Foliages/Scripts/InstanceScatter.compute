@@ -1,0 +1,101 @@
+#pragma kernel Scatter
+
+#define ONE_OVER_PI 0.31830988618
+#define TWO_PI 6.28318530718
+#define EPSILON 0.00000000000001
+
+uint _ResultSize;
+float _ResultSizeInverse;
+
+ByteAddressBuffer _TerrainVertices;
+uint _TerrainSize;
+int _TerrainStride;
+int _TerrainPositionOffset;
+
+float3 _Anchor;
+
+RWStructuredBuffer<float4x4> _TransformMatrices;
+
+float3 LoadTerrainPosition(uint index) {
+    return asfloat(_TerrainVertices.Load3(index * _TerrainStride + _TerrainPositionOffset));
+}
+
+uint CalculateTerrainIndex(uint x, uint y) {
+    return (y * (_TerrainSize + 1) + x);
+}
+
+float3 SamplePosition(float2 normalPos) {
+    float2 coord = normalPos * ((float)_TerrainSize - EPSILON);
+    uint2 anchor = uint2(coord);
+    float2 offset = coord - anchor;
+
+    float3 positionBL = LoadTerrainPosition(CalculateTerrainIndex(anchor.x,     anchor.y));
+    float3 positionBR = LoadTerrainPosition(CalculateTerrainIndex(anchor.x + 1, anchor.y));
+    float3 positionUL = LoadTerrainPosition(CalculateTerrainIndex(anchor.x,     anchor.y + 1));
+    float3 positionUR = LoadTerrainPosition(CalculateTerrainIndex(anchor.x + 1, anchor.y + 1));
+
+    float3 positionB = lerp(positionBL, positionBR, offset.x);
+    float3 positionU = lerp(positionUL, positionUR, offset.x);
+
+    return lerp(positionB, positionU, offset.y) + _Anchor;
+}
+
+float _Scale;
+float _MinHeight;
+float _MaxHeight;
+
+float RandomRange(float2 seed, float min, float max) {
+    float random = frac(sin(dot(seed, float2(12.9898, 78.233)))*43758.5453);
+    return lerp(min, max, random);
+}
+
+float4x4 RotationMatrixY(float angle) {
+    float s, c;
+    sincos(angle, s, c);
+
+    return float4x4
+    (
+        c,   0.0, s,   0.0,
+        0.0, 1.0, 0.0, 0.0,
+        -s,  0.0, c,   0.0,
+        0.0, 0.0, 0.0, 1.0
+    );
+}
+
+[numthreads(8, 8, 1)]
+void Scatter(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _ResultSize || id.y >= _ResultSize) 
+        return; 
+
+    float2 normalPos = float2(id.xy) * _ResultSizeInverse;
+    float2 seed = float2(id.x, id.y);
+
+    float r = RandomRange(seed, 0.0, _ResultSizeInverse - EPSILON);
+    seed.x = r;
+    normalPos.x += r;
+
+    r = RandomRange(seed, 0.0, _ResultSizeInverse - EPSILON);
+    seed.y = r;
+    normalPos.y += r;
+
+    float3 worldPos = SamplePosition(normalPos);
+
+    r = RandomRange(seed, _MinHeight, _MaxHeight);
+    seed.x = r;
+    float _ScaleY = _Scale * r;
+
+    float4x4 objectTransformMatrix = float4x4
+    (
+        _Scale, 0.0,    0.0,   worldPos.x,
+        0.0,   _ScaleY, 0.0,   worldPos.y,
+        0.0,   0.0,    _Scale, worldPos.z,
+        0.0,   0.0,    0.0,   1.0
+    );
+
+    r = RandomRange(seed, 0.0, TWO_PI);
+    seed.y = r;
+    float4x4 randomRotationMatrix = RotationMatrixY(r);
+
+    _TransformMatrices[id.y * _ResultSize + id.x] = mul(objectTransformMatrix, randomRotationMatrix);
+}
