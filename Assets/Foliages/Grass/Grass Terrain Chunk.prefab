@@ -85,11 +85,13 @@ MonoBehaviour:
   minHeight: 0.1
   maxHeight: 0.15
   scale: 1
+  slopeMinDegree: 0
+  slopeMaxDegree: 40
   windFrequency: 2
   windAmplitude: 0.05
   lod1Divider: 3
   lod1Distance: 90
   lod1Scale: 1.5
-  lod2Divider: 4
+  lod2Divider: 12
   lod2Distance: 180
-  lod2Scale: 1.5
+  lod2Scale: 2.25
