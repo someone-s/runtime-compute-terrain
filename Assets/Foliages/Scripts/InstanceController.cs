@@ -44,6 +44,7 @@ public class InstanceController : MonoBehaviour
     private RenderParams parameters;
     private MaterialPropertyBlock properties;
     private TerrainController controller;
+    private Transform mainCamera;
 
     private GraphicsBuffer transformMatrixBuffer;
     private GraphicsBuffer meshIndexBuffer;
@@ -58,6 +59,7 @@ public class InstanceController : MonoBehaviour
 
     private void Start()
     {
+        mainCamera = Camera.main.transform;
 
         controller = GetComponent<TerrainController>();
 
@@ -170,7 +172,7 @@ public class InstanceController : MonoBehaviour
 
     private void UpdateLOD()
     {
-        float distance = Vector3.Distance(transform.position + transform.localScale * 0.5f, Camera.main.transform.position);
+        float distance = Vector3.Distance(transform.position + transform.localScale * 0.5f, mainCamera.position);
         bool lodChanged = false;
 
         if (distance < lod1Distance)
