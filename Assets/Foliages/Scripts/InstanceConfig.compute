@@ -1,0 +1,18 @@
+#pragma kernel Set
+
+#define UINT_SIZE 4
+#define INSTANCE_COUNT_POS 1
+
+RWByteAddressBuffer _IndirectArgs;
+
+ByteAddressBuffer _Intermediate;
+
+uint _Jump; // if pick = 4, keep 1 out of 4; if pick = 5, keep 1 out of 5
+
+[numthreads(1,1,1)]
+void Set(uint3 id : SV_DispatchThreadID)
+{
+    uint instanceCount = _Intermediate.Load(UINT_SIZE * 0);
+
+    _IndirectArgs.Store(UINT_SIZE * INSTANCE_COUNT_POS, instanceCount / _Jump);
+}

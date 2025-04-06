@@ -14,7 +14,7 @@ int _TerrainPositionOffset;
 
 float3 _Anchor;
 
-RWStructuredBuffer<float4x4> _TransformMatrices;
+AppendStructuredBuffer<float4x4> _TransformMatrices;
 
 float3 LoadTerrainPosition(uint index) {
     return asfloat(_TerrainVertices.Load3(index * _TerrainStride + _TerrainPositionOffset));
@@ -97,5 +97,5 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     seed.y = r;
     float4x4 randomRotationMatrix = RotationMatrixY(r);
 
-    _TransformMatrices[id.y * _ResultSize + id.x] = mul(objectTransformMatrix, randomRotationMatrix);
+    _TransformMatrices.Append(mul(objectTransformMatrix, randomRotationMatrix));
 }

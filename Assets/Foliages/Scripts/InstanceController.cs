@@ -6,9 +6,15 @@ using UnityEngine.Rendering;
 public class InstanceController : MonoBehaviour
 {
     [SerializeField] private ComputeShader scatterShader;
+    private int threadGroups;
+    private int scatterKernel;
+
+    [SerializeField] private ComputeShader setShader;
+    private int setKernel;
+
     [SerializeField] private Material material;
-    [SerializeField] private Mesh grassMesh;
-    
+    [SerializeField] private Mesh mesh;
+
 
     [Header("Instance Setting")]
     [SerializeField, Min(0.05f)] private float density = 4;
@@ -29,21 +35,23 @@ public class InstanceController : MonoBehaviour
     [SerializeField] private float lod2Distance = 200f;
     [SerializeField] private float lod2Scale = 2f;
 
-    private int threadGroups;
-    private int scatterKernel;
 
     private RenderParams parameters;
     private MaterialPropertyBlock properties;
     private TerrainController controller;
-    
+
     private GraphicsBuffer transformMatrixBuffer;
-    private GraphicsBuffer grassIndexBuffer;
+    private GraphicsBuffer meshIndexBuffer;
+    private GraphicsBuffer intermediateBuffer;
+    private GraphicsBuffer argumentsBuffer;
     private int resultSize;
+
+    private int lodLevel = -1;
 
     private bool shouldRefresh = false;
     private bool allowRender = false;
 
-    private void Start() 
+    private void Start()
     {
 
         controller = GetComponent<TerrainController>();
@@ -63,10 +71,10 @@ public class InstanceController : MonoBehaviour
         allowRender = false;
 
         // restore saved memory
-        transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, resultSize * resultSize, sizeof(float) * 16);
-        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("_TransformMatrices"), transformMatrixBuffer);
+        transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Append, resultSize * resultSize, sizeof(float) * 16);
+        scatterShader.SetBuffer(scatterKernel, "_TransformMatrices", transformMatrixBuffer);
 
-        properties.SetBuffer(Shader.PropertyToID("_TransformMatrices"), transformMatrixBuffer);
+        properties.SetBuffer("_TransformMatrices", transformMatrixBuffer);
 
         QueueRefresh();
 
@@ -76,53 +84,53 @@ public class InstanceController : MonoBehaviour
     private void Disable()
     {
         // save memory
-        transformMatrixBuffer.Dispose();     
+        transformMatrixBuffer.Dispose();
 
         enabled = false;
     }
 
 
-    private void Setup() {
+    private void Setup()
+    {
 
         scatterShader = Instantiate(scatterShader);
-
         scatterKernel = scatterShader.FindKernel("Scatter");
 
         int meshSize = TerrainCoordinator.meshSize;
         resultSize = Mathf.CeilToInt((float)meshSize * density);
 
-        scatterShader.SetInt(Shader.PropertyToID("_ResultSize"), resultSize);
-        scatterShader.SetFloat(Shader.PropertyToID("_ResultSizeInverse"), 1f / resultSize);
+        scatterShader.SetInt("_ResultSize", resultSize);
+        scatterShader.SetFloat("_ResultSizeInverse", 1f / resultSize);
 
-        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("_TerrainVertices"), controller.vertexBuffer);
-        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("_TerrainTriangles"), controller.triangleBuffer);
-        scatterShader.SetInt(Shader.PropertyToID("_TerrainSize"), meshSize);
-        scatterShader.SetInt(Shader.PropertyToID("_TerrainStride"), TerrainController.VertexBufferStride);
-        scatterShader.SetInt(Shader.PropertyToID("_TerrainPositionOffset"), TerrainController.VertexPositionAttributeOffset);
+        scatterShader.SetBuffer(scatterKernel, "_TerrainVertices", controller.vertexBuffer);
+        scatterShader.SetBuffer(scatterKernel, "_TerrainTriangles", controller.triangleBuffer);
+        scatterShader.SetInt("_TerrainSize", meshSize);
+        scatterShader.SetInt("_TerrainStride", TerrainController.VertexBufferStride);
+        scatterShader.SetInt("_TerrainPositionOffset", TerrainController.VertexPositionAttributeOffset);
 
-        scatterShader.SetVector(Shader.PropertyToID("_Anchor"), controller.transform.position);
+        scatterShader.SetVector("_Anchor", controller.transform.position);
 
-        transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, resultSize * resultSize, sizeof(float) * 16);
-        scatterShader.SetBuffer(scatterKernel, Shader.PropertyToID("_TransformMatrices"), transformMatrixBuffer);
+        transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Append, resultSize * resultSize, sizeof(float) * 16);
+        scatterShader.SetBuffer(scatterKernel, "_TransformMatrices", transformMatrixBuffer);
 
-        scatterShader.SetFloat(Shader.PropertyToID("_Scale"), scale);
-        scatterShader.SetFloat(Shader.PropertyToID("_MinHeight"), minHeight);
-        scatterShader.SetFloat(Shader.PropertyToID("_MaxHeight"), maxHeight);
-        
+        scatterShader.SetFloat("_Scale", scale);
+        scatterShader.SetFloat("_MinHeight", minHeight);
+        scatterShader.SetFloat("_MaxHeight", maxHeight);
+
         scatterShader.GetKernelThreadGroupSizes(scatterKernel, out uint threadGroupSizeX, out uint threadGroupSizeY, out uint threadGroupSizeZ);
         Assert.IsTrue(threadGroupSizeX == threadGroupSizeY, "Scatter Shader numthread x and y must equal");
         Assert.IsTrue(threadGroupSizeZ == 1, "Scatter Shader numthread z must be 1");
         threadGroups = Mathf.CeilToInt((float)resultSize / threadGroupSizeX);
-        
+
         properties = new MaterialPropertyBlock();
-        properties.SetBuffer(Shader.PropertyToID("_TransformMatrices"), transformMatrixBuffer);
-        properties.SetBuffer(Shader.PropertyToID("_Vertices"), grassMesh.GetVertexBuffer(0));
-        properties.SetInt(Shader.PropertyToID("_Stride"), grassMesh.GetVertexBufferStride(0));
-        properties.SetInt(Shader.PropertyToID("_PositionOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Position));
-        properties.SetInt(Shader.PropertyToID("_NormalOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Normal));
-        properties.SetInt(Shader.PropertyToID("_TangentOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.Tangent));
-        properties.SetInt(Shader.PropertyToID("_UVOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.TexCoord0));
-        properties.SetInt(Shader.PropertyToID("_StaticLightmapUVOffset"), grassMesh.GetVertexAttributeOffset(VertexAttribute.TexCoord1));
+        properties.SetBuffer("_TransformMatrices", transformMatrixBuffer);
+        properties.SetBuffer("_Vertices", mesh.GetVertexBuffer(0));
+        properties.SetInt("_Stride", mesh.GetVertexBufferStride(0));
+        properties.SetInt("_PositionOffset", mesh.GetVertexAttributeOffset(VertexAttribute.Position));
+        properties.SetInt("_NormalOffset", mesh.GetVertexAttributeOffset(VertexAttribute.Normal));
+        properties.SetInt("_TangentOffset", mesh.GetVertexAttributeOffset(VertexAttribute.Tangent));
+        properties.SetInt("_UVOffset", mesh.GetVertexAttributeOffset(VertexAttribute.TexCoord0));
+        properties.SetInt("_StaticLightmapUVOffset", mesh.GetVertexAttributeOffset(VertexAttribute.TexCoord1));
 
         parameters = new RenderParams(material);
         parameters.matProps = properties;
@@ -130,45 +138,90 @@ public class InstanceController : MonoBehaviour
         parameters.shadowCastingMode = ShadowCastingMode.On;
         parameters.receiveShadows = true;
 
-        grassIndexBuffer = grassMesh.GetIndexBuffer();
+        meshIndexBuffer = mesh.GetIndexBuffer();
+
+        argumentsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
+        var arguments = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+        arguments[0].baseVertexIndex = mesh.GetBaseVertex(0);
+        arguments[0].indexCountPerInstance = mesh.GetIndexCount(0);
+        arguments[0].startIndex = mesh.GetIndexStart(0);
+        arguments[0].startInstance = 0;
+        argumentsBuffer.SetData(arguments);
+
+        intermediateBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, 1, sizeof(uint));
+
+        setShader = Instantiate(setShader);
+        setKernel = setShader.FindKernel("Set");
+        setShader.SetBuffer(setKernel, "_IndirectArgs", argumentsBuffer);
+        setShader.SetBuffer(setKernel, "_Intermediate", intermediateBuffer);
+
 
         QueueRefresh();
     }
 
+    private void UpdateLOD()
+    {
+        float distance = Vector3.Distance(transform.position + transform.localScale * 0.5f, Camera.main.transform.position);
+        bool lodChanged = false;
+
+        if (distance < lod1Distance)
+        {
+            lodChanged = lodLevel != 0;
+            lodLevel = 0;
+        }
+        else if (distance < lod2Distance)
+        {
+            lodChanged = lodLevel != 1;
+            lodLevel = 1;
+        }
+        else
+        {
+            lodChanged = lodLevel != 2;
+            lodLevel = 2;
+        }
+
+        if (lodChanged)
+        {
+            int jump = 1;
+            float jumpScale = 1f;
+            if (distance > lod1Distance)
+            {
+                jump *= lod1Divider;
+                jumpScale *= lod1Scale;
+            }
+            if (distance > lod2Distance)
+            {
+                jump *= lod2Divider;
+                jumpScale *= lod2Scale;
+            }
+
+            properties.SetInt("_Jump", jump);
+            properties.SetFloat("_JumpScale", jumpScale);
+
+            setShader.SetInt("_Jump", jump);
+            setShader.Dispatch(setKernel, 1, 1, 1);
+        }
+    }
+
     private void Update()
     {
-        if (!allowRender) 
+        if (!allowRender)
             return;
 
-        
-        float distance = Vector3.Distance(transform.position + transform.localScale * 0.5f, Camera.main.transform.position);
-        int pick = resultSize * resultSize;
-        float jumpScale = 1f;
-        if (distance > lod1Distance)
-        {
-            pick /= lod1Divider;
-            jumpScale *= lod1Scale;
-        }
-        if (distance > lod2Distance)
-        {
-            pick /= lod2Divider;
-            jumpScale *= lod2Scale;
-        }
-        if (pick < 1)
-            return;
+        UpdateLOD();
 
-        int jump = resultSize * resultSize / pick;
-        properties.SetInt(Shader.PropertyToID("_Jump"), jump);
-        properties.SetFloat(Shader.PropertyToID("_JumpScale"), jumpScale);
-        properties.SetFloat(Shader.PropertyToID("_WindFrequency"), windFrequency);
-        properties.SetFloat(Shader.PropertyToID("_WindAmplitude"), windAmplitude);
+        properties.SetFloat("_WindFrequency", windFrequency);
+        properties.SetFloat("_WindAmplitude", windAmplitude);
 
-        Graphics.RenderPrimitivesIndexed(parameters, MeshTopology.Triangles, grassIndexBuffer, grassIndexBuffer.count, instanceCount: pick);
+        //Graphics.RenderPrimitivesIndexed(parameters, MeshTopology.Triangles, meshIndexBuffer, meshIndexBuffer.count, instanceCount: pick);
+        Graphics.RenderPrimitivesIndexedIndirect(parameters, MeshTopology.Triangles, meshIndexBuffer, argumentsBuffer);
     }
 
     private void OnDestroy()
     {
-        transformMatrixBuffer?.Dispose();       
+        transformMatrixBuffer?.Dispose();
+        argumentsBuffer?.Dispose();
+        intermediateBuffer?.Dispose();
     }
 
     public void QueueRefresh()
@@ -178,14 +231,18 @@ public class InstanceController : MonoBehaviour
 
     private void ExecuteRefresh()
     {
+        transformMatrixBuffer.SetCounterValue(0);
         scatterShader.Dispatch(scatterKernel, threadGroups, threadGroups, 1);
+        GraphicsBuffer.CopyCount(transformMatrixBuffer, intermediateBuffer, 0);
+        setShader.Dispatch(setKernel, 1, 1, 1);
 
         allowRender = true;
     }
 
     private void LateUpdate()
     {
-        if (shouldRefresh) {
+        if (shouldRefresh)
+        {
             ExecuteRefresh();
             shouldRefresh = false;
         }
