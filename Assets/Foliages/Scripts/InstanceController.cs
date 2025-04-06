@@ -22,6 +22,11 @@ public class InstanceController : MonoBehaviour
     [SerializeField] private float maxHeight = 2f;
     [SerializeField] private float scale = 2f;
 
+    [Header("Slope Setting")]
+    [SerializeField, Range(0f, 180f)] private float slopeMinDegree = 0f;
+    [SerializeField, Range(0f, 180f)] private float slopeMaxDegree = 70f;
+
+
     [Header("Wind Setting")]
     [SerializeField] private float windFrequency = 2f;
     [SerializeField] private float windAmplitude = 0.05f;
@@ -107,8 +112,12 @@ public class InstanceController : MonoBehaviour
         scatterShader.SetInt("_TerrainSize", meshSize);
         scatterShader.SetInt("_TerrainStride", TerrainController.VertexBufferStride);
         scatterShader.SetInt("_TerrainPositionOffset", TerrainController.VertexPositionAttributeOffset);
+        scatterShader.SetInt("_TerrainNormalOffset", TerrainController.VertexNormalAttributeOffset);
 
         scatterShader.SetVector("_Anchor", controller.transform.position);
+        scatterShader.SetFloat("_SlopeLower", Mathf.Sin(Mathf.Deg2Rad * (90f - slopeMinDegree)));
+        scatterShader.SetFloat("_SlopeUpper", Mathf.Sin(Mathf.Deg2Rad * (90f - slopeMaxDegree)));
+
 
         transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Append, resultSize * resultSize, sizeof(float) * 16);
         scatterShader.SetBuffer(scatterKernel, "_TransformMatrices", transformMatrixBuffer);
@@ -213,7 +222,6 @@ public class InstanceController : MonoBehaviour
         properties.SetFloat("_WindFrequency", windFrequency);
         properties.SetFloat("_WindAmplitude", windAmplitude);
 
-        //Graphics.RenderPrimitivesIndexed(parameters, MeshTopology.Triangles, meshIndexBuffer, meshIndexBuffer.count, instanceCount: pick);
         Graphics.RenderPrimitivesIndexedIndirect(parameters, MeshTopology.Triangles, meshIndexBuffer, argumentsBuffer);
     }
 

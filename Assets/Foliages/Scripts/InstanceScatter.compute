@@ -1,5 +1,6 @@
 #pragma kernel Scatter
 
+#define HALF_PI 1.57079632679
 #define ONE_OVER_PI 0.31830988618
 #define TWO_PI 6.28318530718
 #define EPSILON 0.00000000000001
@@ -11,6 +12,10 @@ ByteAddressBuffer _TerrainVertices;
 uint _TerrainSize;
 int _TerrainStride;
 int _TerrainPositionOffset;
+int _TerrainNormalOffset;
+
+float _SlopeLower;
+float _SlopeUpper;
 
 float3 _Anchor;
 
@@ -19,25 +24,49 @@ AppendStructuredBuffer<float4x4> _TransformMatrices;
 float3 LoadTerrainPosition(uint index) {
     return asfloat(_TerrainVertices.Load3(index * _TerrainStride + _TerrainPositionOffset));
 }
+float3 LoadTerrainNormal(uint index) {
+    return asfloat(_TerrainVertices.Load3(index * _TerrainStride + _TerrainNormalOffset));
+}
 
 uint CalculateTerrainIndex(uint x, uint y) {
     return (y * (_TerrainSize + 1) + x);
 }
 
-float3 SamplePosition(float2 normalPos) {
+float4 SamplePosition(float2 normalPos) {
     float2 coord = normalPos * ((float)_TerrainSize - EPSILON);
     uint2 anchor = uint2(coord);
     float2 offset = coord - anchor;
 
-    float3 positionBL = LoadTerrainPosition(CalculateTerrainIndex(anchor.x,     anchor.y));
-    float3 positionBR = LoadTerrainPosition(CalculateTerrainIndex(anchor.x + 1, anchor.y));
-    float3 positionUL = LoadTerrainPosition(CalculateTerrainIndex(anchor.x,     anchor.y + 1));
-    float3 positionUR = LoadTerrainPosition(CalculateTerrainIndex(anchor.x + 1, anchor.y + 1));
+    uint indexBL = CalculateTerrainIndex(anchor.x,     anchor.y);
+    uint indexBR = CalculateTerrainIndex(anchor.x + 1, anchor.y);
+    uint indexUL = CalculateTerrainIndex(anchor.x,     anchor.y + 1);
+    uint indexUR = CalculateTerrainIndex(anchor.x + 1, anchor.y + 1);
+
+    float3 positionBL = LoadTerrainPosition(indexBL);
+    float3 positionBR = LoadTerrainPosition(indexBR);
+    float3 positionUL = LoadTerrainPosition(indexUL);
+    float3 positionUR = LoadTerrainPosition(indexUR);
 
     float3 positionB = lerp(positionBL, positionBR, offset.x);
     float3 positionU = lerp(positionUL, positionUR, offset.x);
 
-    return lerp(positionB, positionU, offset.y) + _Anchor;
+    float3 position = lerp(positionB, positionU, offset.y);
+
+    float3 up = float3(0.0, 1.0, 0.0);
+
+    float gradientBL = dot(LoadTerrainNormal(indexBL), up);
+    float minGradient = gradientBL;
+
+    float gradientBR = dot(LoadTerrainNormal(indexBR), up);
+    minGradient = min(minGradient, gradientBR);
+
+    float gradienUL = dot(LoadTerrainNormal(indexUL), up);
+    minGradient = min(minGradient, gradienUL);
+
+    float gradienUR = dot(LoadTerrainNormal(indexUR), up);
+    minGradient = min(minGradient, gradienUR);
+    
+    return float4(position + _Anchor, minGradient);
 }
 
 float _Scale;
@@ -79,7 +108,13 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     seed.y = r;
     normalPos.y += r;
 
-    float3 worldPos = SamplePosition(normalPos);
+    float4 result = SamplePosition(normalPos);
+    // values goes from 1 to -1 as slope input incrase
+    // hence the direction of inequalities
+    if (result.w > _SlopeLower || result.w < _SlopeUpper)
+        return;
+         
+    float3 worldPos = result.xyz;
 
     r = RandomRange(seed, _MinHeight, _MaxHeight);
     seed.x = r;
