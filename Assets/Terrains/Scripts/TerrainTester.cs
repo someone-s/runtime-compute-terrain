@@ -16,9 +16,11 @@ public class TerrainTester : MonoBehaviour {
     public float degree = 90f;
 
     private TerrainCoordinator coordinator;
+    private Camera mainCamera;
 
     private void Start()
     {
+        mainCamera = Camera.main;
         coordinator = GetComponent<TerrainCoordinator>();
 
         actionA.Enable();
@@ -39,16 +41,16 @@ public class TerrainTester : MonoBehaviour {
 
     private void Update()
     {
-        Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-        coordinator.CastRay(Camera.main.transform.position, ray.direction, (Vector3? result) => {
+        Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        coordinator.CastRay(mainCamera.transform.position, ray.direction, (Vector3? result) => {
             if (result is null)
                 return;
             target = result.Value;
         });
 
         coordinator.UpdateVisual(
-            Camera.main.transform.position, 
-            GeometryUtility.CalculateFrustumPlanes(Camera.main));
+            mainCamera.transform.position, 
+            GeometryUtility.CalculateFrustumPlanes(mainCamera));
 
         if (actionA.IsPressed())
             coordinator.ModifyAdd(testDisplay.position, 10f, 5f);
