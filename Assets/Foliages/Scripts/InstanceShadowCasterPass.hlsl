@@ -38,10 +38,10 @@ Varyings ShadowPassVertex(Attributes input)
     float4x4 objectToWorld = _TransformMatrices[input.instanceID * _Jump];
     float3 positionWS = mul(objectToWorld, float4(positionOS, 1)).xyz;
 
-    float xOffset = randomRange(float2(input.vertexID, input.instanceID), -1.0, 1.0);
+    float xOffset = randomRange(float2(1.0, input.instanceID), -1.0, 1.0);
     positionWS.x += sin((_Time.y * _WindFrequency) + xOffset) * (_WindAmplitude * positionOS.y);
 
-    float zOffset = randomRange(float2(input.instanceID, input.vertexID), -1.0, 1.0);
+    float zOffset = randomRange(float2(input.instanceID, 1.0), -1.0, 1.0);
     positionWS.z += sin((_Time.y * _WindFrequency) + zOffset) * (_WindAmplitude * positionOS.y);
 
 #if _CASTING_PUNCTUAL_LIGHT_SHADOW

@@ -1,13 +1,10 @@
-#ifndef GRASS_GBUFFER_PASS_INCLUDED
-#define GRASS_GBUFFER_PASS_INCLUDED
+#ifndef GRASS_FORWARD_PASS_INCLUDED
+#define GRASS_FORWARD_PASS_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
 #if defined(LOD_FADE_CROSSFADE)
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
 #endif
-
-// keep this file in sync with LitForwardPass.hlsl
 
 struct Attributes
 {
@@ -19,25 +16,28 @@ struct Varyings
 {
     float2 uv                       : TEXCOORD0;
 
-    float3 posWS                    : TEXCOORD1;    // xyz: posWS
+    float3 positionWS                  : TEXCOORD1;    // xyz: posWS
 
-    #ifdef _NORMALMAP
-        half4 normal                   : TEXCOORD2;    // xyz: normal, w: viewDir.x
-        half4 tangent                  : TEXCOORD3;    // xyz: tangent, w: viewDir.y
-        half4 bitangent                : TEXCOORD4;    // xyz: bitangent, w: viewDir.z
-    #else
-        half3  normal                  : TEXCOORD2;
-    #endif
+#ifdef _NORMALMAP
+    half4 normalWS                 : TEXCOORD2;    // xyz: normal, w: viewDir.x
+    half4 tangentWS                : TEXCOORD3;    // xyz: tangent, w: viewDir.y
+    half4 bitangentWS              : TEXCOORD4;    // xyz: bitangent, w: viewDir.z
+#else
+    half3  normalWS                : TEXCOORD2;
+#endif
 
-    #ifdef _ADDITIONAL_LIGHTS_VERTEX
-        half3 vertexLighting            : TEXCOORD5; // xyz: vertex light
-    #endif
+#ifdef _ADDITIONAL_LIGHTS_VERTEX
+    half4 fogFactorAndVertexLight  : TEXCOORD5; // x: fogFactor, yzw: vertex light
+#else
+    half  fogFactor                 : TEXCOORD5;
+#endif
 
-    #if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR)
-        float4 shadowCoord              : TEXCOORD6;
-    #endif
+#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR)
+    float4 shadowCoord             : TEXCOORD6;
+#endif
 
-    DECLARE_LIGHTMAP_OR_SH(staticLightmapUV, vertexSH, 7);
+DECLARE_LIGHTMAP_OR_SH(staticLightmapUV, vertexSH, 7);
+
 #ifdef DYNAMICLIGHTMAP_ON
     float2  dynamicLightmapUV : TEXCOORD8; // Dynamic lightmap UVs
 #endif
@@ -46,61 +46,64 @@ struct Varyings
     float4 probeOcclusion : TEXCOORD9;
 #endif
 
-    float4 positionCS               : SV_POSITION;
+    float4 positionCS                  : SV_POSITION;
 };
 
 void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData)
 {
     inputData = (InputData)0;
 
-    inputData.positionWS = input.posWS;
+    inputData.positionWS = input.positionWS;
+#if defined(DEBUG_DISPLAY)
     inputData.positionCS = input.positionCS;
+#endif
 
-    #ifdef _NORMALMAP
-        half3 viewDirWS = half3(input.normal.w, input.tangent.w, input.bitangent.w);
-        inputData.normalWS = TransformTangentToWorld(normalTS,half3x3(input.tangent.xyz, input.bitangent.xyz, input.normal.xyz));
-    #else
-        half3 viewDirWS = GetWorldSpaceNormalizeViewDir(inputData.positionWS);
-        inputData.normalWS = input.normal;
-    #endif
+#ifdef _NORMALMAP
+    half3 viewDirWS = half3(input.normalWS.w, input.tangentWS.w, input.bitangentWS.w);
+    inputData.tangentToWorld = half3x3(input.tangentWS.xyz, input.bitangentWS.xyz, input.normalWS.xyz);
+    inputData.normalWS = TransformTangentToWorld(normalTS, inputData.tangentToWorld);
+#else
+    half3 viewDirWS = GetWorldSpaceNormalizeViewDir(inputData.positionWS);
+    inputData.normalWS = input.normalWS;
+#endif
 
     inputData.normalWS = NormalizeNormalPerPixel(inputData.normalWS);
     viewDirWS = SafeNormalize(viewDirWS);
 
     inputData.viewDirectionWS = viewDirWS;
 
-    #if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR)
-        inputData.shadowCoord = input.shadowCoord;
-    #elif defined(MAIN_LIGHT_CALCULATE_SHADOWS)
-        inputData.shadowCoord = TransformWorldToShadowCoord(inputData.positionWS);
-    #else
-        inputData.shadowCoord = float4(0, 0, 0, 0);
-    #endif
+#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR)
+    inputData.shadowCoord = input.shadowCoord;
+#elif defined(MAIN_LIGHT_CALCULATE_SHADOWS)
+    inputData.shadowCoord = TransformWorldToShadowCoord(inputData.positionWS);
+#else
+    inputData.shadowCoord = float4(0, 0, 0, 0);
+#endif
 
-    #ifdef _ADDITIONAL_LIGHTS_VERTEX
-        inputData.vertexLighting = input.vertexLighting.xyz;
-    #else
-        inputData.vertexLighting = half3(0, 0, 0);
-    #endif
+#ifdef _ADDITIONAL_LIGHTS_VERTEX
+    inputData.fogCoord = InitializeInputDataFog(float4(inputData.positionWS, 1.0), input.fogFactorAndVertexLight.x);
+    inputData.vertexLighting = input.fogFactorAndVertexLight.yzw;
+#else
+    inputData.fogCoord = InitializeInputDataFog(float4(inputData.positionWS, 1.0), input.fogFactor);
+    inputData.vertexLighting = half3(0, 0, 0);
+#endif
 
-    inputData.fogCoord = 0; // we don't apply fog in the gbuffer pass
     inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(input.positionCS);
 
-    #if defined(DEBUG_DISPLAY)
-    #if defined(DYNAMICLIGHTMAP_ON)
-    inputData.dynamicLightmapUV = input.staticLightmapUV; // Force fallback to static uv
-    #endif
-    #if defined(LIGHTMAP_ON)
+#if defined(DEBUG_DISPLAY)
+#if defined(DYNAMICLIGHTMAP_ON)
+    inputData.dynamicLightmapUV = input.staticLightmapUV.xy; // Force fallback to static uv
+#endif
+#if defined(LIGHTMAP_ON)
     inputData.staticLightmapUV = input.staticLightmapUV;
-    #else
+#else
     inputData.vertexSH = input.vertexSH;
-    #endif
-    #if defined(USE_APV_PROBE_OCCLUSION)
+#endif
+#if defined(USE_APV_PROBE_OCCLUSION)
     inputData.probeOcclusion = input.probeOcclusion;
-    #endif
-    #endif
+#endif
+#endif
 }
-
 
 // Calculates the shadow texture coordinate for lighting calculations
 float4 CalculateShadowCoord(float3 positionWS, float4 positionCS) {
@@ -123,7 +126,7 @@ void InitializeBakedGIData(Varyings input, inout InputData inputData)
         GetAbsolutePositionWS(inputData.positionWS),
         inputData.normalWS,
         inputData.viewDirectionWS,
-        inputData.positionCS.xy,
+        input.positionCS.xy,
         input.probeOcclusion,
         inputData.shadowMask);
 #else
@@ -147,10 +150,10 @@ Varyings LitPassVertexSimple(Attributes input)
     float4x4 objectToWorld = _TransformMatrices[input.instanceID * _Jump];
     float3 positionWS = mul(objectToWorld, float4(positionOS, 1)).xyz;
 
-    float xOffset = randomRange(float2(input.vertexID, input.instanceID), -1.0, 1.0);
+    float xOffset = randomRange(float2(1.0, input.instanceID), -1.0, 1.0);
     positionWS.x += sin((_Time.y * _WindFrequency) + xOffset) * (_WindAmplitude * positionOS.y);
 
-    float zOffset = randomRange(float2(input.instanceID, input.vertexID), -1.0, 1.0);
+    float zOffset = randomRange(float2(input.instanceID, 1.0), -1.0, 1.0);
     positionWS.z += sin((_Time.y * _WindFrequency) + zOffset) * (_WindAmplitude * positionOS.y);
 
     float4 positionCS = mul(UNITY_MATRIX_VP, float4(positionWS, 1));
@@ -167,42 +170,53 @@ Varyings LitPassVertexSimple(Attributes input)
 
     float2 texcoord = LoadUV(input.vertexID);
 
+#if defined(_FOG_FRAGMENT)
+    half fogFactor = 0;
+#else
+    half fogFactor = ComputeFogFactor(positionCS.z);
+#endif
 
     output.uv = TRANSFORM_TEX(texcoord, _BaseMap);
-    output.posWS.xyz = positionWS;
+    output.positionWS.xyz = positionWS;
     output.positionCS = positionCS;
 
-    #ifdef _NORMALMAP
-        half3 viewDirWS = GetWorldSpaceNormalizeViewDir(positionWS);
-        output.normal = half4(normalWS, viewDirWS.x);
-        output.tangent = half4(tangentWS, viewDirWS.y);
-        output.bitangent = half4(bitangentWS, viewDirWS.z);
-    #else
-        output.normal = NormalizeNormalPerVertex(normalWS);
-    #endif
+#ifdef _NORMALMAP
+    half3 viewDirWS = GetWorldSpaceViewDir(positionWS);
+    output.normalWS = half4(normalWS, viewDirWS.x);
+    output.tangentWS = half4(tangentWS, viewDirWS.y);
+    output.bitangentWS = half4(bitangentWS, viewDirWS.z);
+#else
+output.normalWS = NormalizeNormalPerVertex(normalWS);
+#endif
 
     OUTPUT_LIGHTMAP_UV(staticLightmapUV, unity_LightmapST, output.staticLightmapUV);
 #ifdef DYNAMICLIGHTMAP_ON
     output.dynamicLightmapUV = staticLightmapUV.xy * unity_DynamicLightmapST.xy + unity_DynamicLightmapST.zw; // Force fallback to static uv
 #endif
-    OUTPUT_SH4(positionWS, output.normal.xyz, GetWorldSpaceNormalizeViewDir(positionWS), output.vertexSH, output.probeOcclusion);
+    OUTPUT_SH4(positionWS, output.normalWS.xyz, GetWorldSpaceNormalizeViewDir(positionWS), output.vertexSH, output.probeOcclusion);
 
-    #ifdef _ADDITIONAL_LIGHTS_VERTEX
-        half3 vertexLight = VertexLighting(positionWS, normalWS);
-        output.vertexLighting = vertexLight;
-    #endif
+#ifdef _ADDITIONAL_LIGHTS_VERTEX
+    half3 vertexLight = VertexLighting(positionWS, normalWS);
+    output.fogFactorAndVertexLight = half4(fogFactor, vertexLight);
+#else
+    output.fogFactor = fogFactor;
+#endif
 
-    #if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR)
-        output.shadowCoord = CalculateShadowCoord(positionWS, positionCS);
-    #endif
-
+#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR)
+    output.shadowCoord = CalculateShadowCoord(positionWS, positionCS);
+#endif
+    
     return output;
 }
 
-
-
 // Used for StandardSimpleLighting shader
-FragmentOutput LitPassFragmentSimple(Varyings input)
+void LitPassFragmentSimple(
+    Varyings input
+    , out half4 outColor : SV_Target0
+#ifdef _WRITE_RENDERING_LAYERS
+    , out float4 outRenderingLayers : SV_Target1
+#endif
+)
 {
     SurfaceData surfaceData;
     InitializeSimpleLitSurfaceData(input.uv, surfaceData);
@@ -213,19 +227,23 @@ FragmentOutput LitPassFragmentSimple(Varyings input)
 
     InputData inputData;
     InitializeInputData(input, surfaceData.normalTS, inputData);
-    SETUP_DEBUG_TEXTURE_DATA(inputData, UNDO_TRANSFORM_TEX(input.uv, _BaseMap));
 
 #if defined(_DBUFFER)
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
 
-    InitializeBakedGIData(input, inputData);
+    InitializeBakedGIData(input, inputData);    
 
-    Light mainLight = GetMainLight(inputData.shadowCoord, inputData.positionWS, inputData.shadowMask);
-    MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI, inputData.shadowMask);
-    half4 color = half4(inputData.bakedGI * surfaceData.albedo + surfaceData.emission, surfaceData.alpha);
+    half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData);
+    color.rgb = MixFog(color.rgb, inputData.fogCoord);
+    color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));
 
-    return SurfaceDataToGbuffer(surfaceData, inputData, color.rgb, kLightingSimpleLit);
-};
+    outColor = color;
+
+#ifdef _WRITE_RENDERING_LAYERS
+    uint renderingLayers = GetMeshRenderingLayer();
+    outRenderingLayers = float4(EncodeMeshRenderingLayer(renderingLayers), 0, 0, 0);
+#endif
+}
 
 #endif
