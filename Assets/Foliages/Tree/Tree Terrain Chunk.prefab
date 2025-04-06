@@ -95,9 +95,9 @@ MonoBehaviour:
   lod1Divider: 3
   lod1Distance: 90
   lod1Scale: 1.5
-  lod2Divider: 4
+  lod2Divider: 12
   lod2Distance: 180
-  lod2Scale: 1.5
+  lod2Scale: 2.25
 --- !u!114 &7820424704870549901
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -114,7 +114,7 @@ MonoBehaviour:
   setShader: {fileID: 7200000, guid: a259e251a88c9426ba1b891fbe05d201, type: 3}
   material: {fileID: 2100000, guid: e81f6121210239b44802c75f68d6fb57, type: 2}
   mesh: {fileID: 5099472449193182022, guid: a44c9fdcb671087798c5efc375a2f912, type: 3}
-  density: 0.2
+  density: 0.05
   minHeight: 1
   maxHeight: 1
   scale: 0.5
@@ -125,6 +125,6 @@ MonoBehaviour:
   lod1Divider: 2
   lod1Distance: 90
   lod1Scale: 1
-  lod2Divider: 2
+  lod2Divider: 4
   lod2Distance: 180
   lod2Scale: 1

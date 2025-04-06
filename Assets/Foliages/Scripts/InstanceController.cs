@@ -193,15 +193,21 @@ public class InstanceController : MonoBehaviour
         {
             int jump = 1;
             float jumpScale = 1f;
-            if (distance > lod1Distance)
+
+            switch (lodLevel)
             {
-                jump *= lod1Divider;
-                jumpScale *= lod1Scale;
-            }
-            if (distance > lod2Distance)
-            {
-                jump *= lod2Divider;
-                jumpScale *= lod2Scale;
+                case 2:
+                    jump = lod2Divider;
+                    jumpScale = lod2Scale;
+                    break;
+                case 1:
+                    jump = lod1Divider;
+                    jumpScale = lod1Scale;
+                    break;
+                default:
+                    jump = 1;
+                    jumpScale = 1f;
+                    break;
             }
 
             properties.SetInt("_Jump", jump);
