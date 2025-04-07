@@ -89,9 +89,9 @@ MonoBehaviour:
   slopeMaxDegree: 40
   windFrequency: 2
   windAmplitude: 0.05
-  lod1Divider: 3
+  lod1Divider: 0.5773503
   lod1Distance: 90
-  lod1Scale: 1.5
-  lod2Divider: 12
+  lod1Scale: 2.25
+  lod2Divider: 0.2886751
   lod2Distance: 180
-  lod2Scale: 2.25
+  lod2Scale: 5.0625

@@ -92,12 +92,12 @@ MonoBehaviour:
   slopeMaxDegree: 40
   windFrequency: 2
   windAmplitude: 0.05
-  lod1Divider: 3
+  lod1Divider: 0.5773503
   lod1Distance: 90
-  lod1Scale: 1.5
-  lod2Divider: 12
+  lod1Scale: 2.25
+  lod2Divider: 0.2886751
   lod2Distance: 180
-  lod2Scale: 2.25
+  lod2Scale: 5.0625
 --- !u!114 &7820424704870549901
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -122,9 +122,9 @@ MonoBehaviour:
   slopeMaxDegree: 20
   windFrequency: 1.75
   windAmplitude: 0.01
-  lod1Divider: 2
-  lod1Distance: 90
+  lod1Divider: 0.7071068
+  lod1Distance: 135
   lod1Scale: 1
-  lod2Divider: 4
-  lod2Distance: 180
+  lod2Divider: 0.5
+  lod2Distance: 225
   lod2Scale: 1

@@ -9,9 +9,6 @@ public class InstanceController : MonoBehaviour
     private int threadGroups;
     private int scatterKernel;
 
-    [SerializeField] private ComputeShader setShader;
-    private int setKernel;
-
     [SerializeField] private Material material;
     [SerializeField] private Mesh mesh;
 
@@ -33,33 +30,26 @@ public class InstanceController : MonoBehaviour
 
 
     [Header("LOD Setting")]
-    [SerializeField] private int lod1Divider = 4;
-    [SerializeField] private float lod1Distance = 100f;
+    [SerializeField] private float lod1Divider = 0.25f;
     [SerializeField] private float lod1Scale = 2f;
-    [SerializeField] private int lod2Divider = 4;
-    [SerializeField] private float lod2Distance = 200f;
+    [SerializeField] private float lod2Divider = 0.0625f;
     [SerializeField] private float lod2Scale = 2f;
 
-
+    private InstanceUpdater updater;
     private RenderParams parameters;
     private MaterialPropertyBlock properties;
     private TerrainController controller;
-    private Transform mainCamera;
 
     private GraphicsBuffer transformMatrixBuffer;
     private GraphicsBuffer meshIndexBuffer;
-    private GraphicsBuffer intermediateBuffer;
     private GraphicsBuffer argumentsBuffer;
     private int resultSize;
 
     private int lodLevel = -1;
 
-    private bool shouldRefresh = false;
-    private bool allowRender = false;
-
     private void Start()
     {
-        mainCamera = Camera.main.transform;
+        updater = InstanceUpdater.Instance;
 
         controller = GetComponent<TerrainController>();
 
@@ -70,12 +60,13 @@ public class InstanceController : MonoBehaviour
         controller.OnTerrainChange.AddListener(QueueRefresh);
 
         controller.OnTerrainVisible.AddListener(Enable);
+        controller.OnTerrainLod.AddListener(ChangeLod);
         controller.OnTerrainHidden.AddListener(Disable);
     }
 
-    private void Enable()
+    private void Enable(int selectedLod)
     {
-        allowRender = false;
+        lodLevel = selectedLod;
 
         // restore saved memory
         transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Append, resultSize * resultSize, sizeof(float) * 16);
@@ -84,8 +75,13 @@ public class InstanceController : MonoBehaviour
         properties.SetBuffer("_TransformMatrices", transformMatrixBuffer);
 
         QueueRefresh();
+    }
 
-        enabled = true;
+    private void ChangeLod(int selectedLod)
+    {
+        lodLevel = selectedLod;
+
+        QueueRefresh();
     }
 
     private void Disable()
@@ -93,7 +89,7 @@ public class InstanceController : MonoBehaviour
         // save memory
         transformMatrixBuffer.Dispose();
 
-        enabled = false;
+        updater.RemoveRender(this);
     }
 
 
@@ -143,6 +139,9 @@ public class InstanceController : MonoBehaviour
         properties.SetInt("_UVOffset", mesh.GetVertexAttributeOffset(VertexAttribute.TexCoord0));
         properties.SetInt("_StaticLightmapUVOffset", mesh.GetVertexAttributeOffset(VertexAttribute.TexCoord1));
 
+        properties.SetFloat("_WindFrequency", windFrequency);
+        properties.SetFloat("_WindAmplitude", windAmplitude);
+
         parameters = new RenderParams(material);
         parameters.matProps = properties;
         parameters.worldBounds = controller.worldBound;
@@ -159,77 +158,11 @@ public class InstanceController : MonoBehaviour
         arguments[0].startInstance = 0;
         argumentsBuffer.SetData(arguments);
 
-        intermediateBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, 1, sizeof(uint));
-
-        setShader = Instantiate(setShader);
-        setKernel = setShader.FindKernel("Set");
-        setShader.SetBuffer(setKernel, "_IndirectArgs", argumentsBuffer);
-        setShader.SetBuffer(setKernel, "_Intermediate", intermediateBuffer);
-
-
         QueueRefresh();
     }
 
-    private void UpdateLOD()
+    internal void RenderCommand()
     {
-        float distance = Vector3.Distance(transform.position + transform.localScale * 0.5f, mainCamera.position);
-        bool lodChanged = false;
-
-        if (distance < lod1Distance)
-        {
-            lodChanged = lodLevel != 0;
-            lodLevel = 0;
-        }
-        else if (distance < lod2Distance)
-        {
-            lodChanged = lodLevel != 1;
-            lodLevel = 1;
-        }
-        else
-        {
-            lodChanged = lodLevel != 2;
-            lodLevel = 2;
-        }
-
-        if (lodChanged)
-        {
-            int jump = 1;
-            float jumpScale = 1f;
-
-            switch (lodLevel)
-            {
-                case 2:
-                    jump = lod2Divider;
-                    jumpScale = lod2Scale;
-                    break;
-                case 1:
-                    jump = lod1Divider;
-                    jumpScale = lod1Scale;
-                    break;
-                default:
-                    jump = 1;
-                    jumpScale = 1f;
-                    break;
-            }
-
-            properties.SetInt("_Jump", jump);
-            properties.SetFloat("_JumpScale", jumpScale);
-
-            setShader.SetInt("_Jump", jump);
-            setShader.Dispatch(setKernel, 1, 1, 1);
-        }
-    }
-
-    private void Update()
-    {
-        if (!allowRender)
-            return;
-
-        UpdateLOD();
-
-        properties.SetFloat("_WindFrequency", windFrequency);
-        properties.SetFloat("_WindAmplitude", windAmplitude);
-
         Graphics.RenderPrimitivesIndexedIndirect(parameters, MeshTopology.Triangles, meshIndexBuffer, argumentsBuffer);
     }
 
@@ -237,30 +170,47 @@ public class InstanceController : MonoBehaviour
     {
         transformMatrixBuffer?.Dispose();
         argumentsBuffer?.Dispose();
-        intermediateBuffer?.Dispose();
     }
 
     public void QueueRefresh()
     {
-        shouldRefresh = true;
+        updater.QueueRefresh(this);
     }
 
-    private void ExecuteRefresh()
+    internal void ExecuteRefresh()
     {
+        float jump;
+        float stretch;
+
+        switch (lodLevel)
+        {
+            case 2:
+                jump = lod2Divider;
+                stretch = lod2Scale;
+                break;
+            case 1:
+                jump = lod1Divider;
+                stretch = lod1Scale;
+                break;
+            default:
+                jump = 1f;
+                stretch = 1f;
+                break;
+        }
+
+        scatterShader.SetFloat("_Stretch", stretch);
+
+        int resultSizeLOD = Mathf.CeilToInt(resultSize * jump);
+        scatterShader.SetInt("_ResultSize", resultSizeLOD);
+        scatterShader.SetFloat("_ResultSizeInverse", 1f / resultSizeLOD);
+
+        scatterShader.GetKernelThreadGroupSizes(scatterKernel, out uint threadGroupSizeX, out _, out _);
+        threadGroups = Mathf.CeilToInt((float)resultSizeLOD / threadGroupSizeX);
+
         transformMatrixBuffer.SetCounterValue(0);
         scatterShader.Dispatch(scatterKernel, threadGroups, threadGroups, 1);
-        GraphicsBuffer.CopyCount(transformMatrixBuffer, intermediateBuffer, 0);
-        setShader.Dispatch(setKernel, 1, 1, 1);
-
-        allowRender = true;
-    }
-
-    private void LateUpdate()
-    {
-        if (shouldRefresh)
-        {
-            ExecuteRefresh();
-            shouldRefresh = false;
-        }
+        GraphicsBuffer.CopyCount(transformMatrixBuffer, argumentsBuffer, sizeof(uint));
+        
+        updater.AddRender(this);
     }
 }

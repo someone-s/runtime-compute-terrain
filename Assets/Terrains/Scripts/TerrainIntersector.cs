@@ -159,7 +159,7 @@ public class TerrainIntersector : MonoBehaviour {
             SetIntersectArea();
         }
 
-        computeShader.Dispatch(computeShader.FindKernel("FindIntersect"), 32, 32, 1);
+        computeShader.Dispatch(computeShader.FindKernel("FindIntersect"), 1, 1, 1);
         AsyncGPUReadback.Request(resultBuffer, (readback) =>
         {
             NativeArray<Result> _Results = readback.GetData<Result>();

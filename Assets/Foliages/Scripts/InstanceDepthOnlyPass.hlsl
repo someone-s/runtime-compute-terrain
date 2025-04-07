@@ -25,7 +25,7 @@ Varyings DepthOnlyVertex(Attributes input)
     Varyings output = (Varyings)0;
 
     float3 positionOS = LoadPosition(input.vertexID);
-    float4x4 objectToWorld = _TransformMatrices[input.instanceID * _Jump];
+    float4x4 objectToWorld = _TransformMatrices[input.instanceID];
     float3 positionWS = mul(objectToWorld, float4(positionOS, 1)).xyz;
 
     float xOffset = randomRange(float2(1.0, input.instanceID), -1.0, 1.0);

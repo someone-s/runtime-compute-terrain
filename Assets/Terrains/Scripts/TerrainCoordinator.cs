@@ -10,6 +10,8 @@ using UnityEngine.Rendering;
 public class TerrainCoordinator : MonoBehaviour
 {
     [SerializeField] private GameObject chunkPrefab;
+    [SerializeField] private float lod1Distance = 135f;
+    [SerializeField] private float lod2Distance = 225f;
 
     private List<(int x, int z)> renderedChunks = new();
     private List<(int x, int z)> previousChunks = new();
@@ -36,6 +38,7 @@ public class TerrainCoordinator : MonoBehaviour
         chunkTransform.position = new Vector3(x * area, 0f, z * area);
 
         TerrainController controller = chunkInstance.GetComponent<TerrainController>();
+        controller.Setup();
         controllers.Add((x, z), controller);
 
         return controller;
@@ -82,19 +85,47 @@ public class TerrainCoordinator : MonoBehaviour
                 int zRegion = z + centerZ - renderRange;
 
                 if (GeometryUtility.TestPlanesAABB(frsutumPlanes, 
-                new Bounds(localBounds.center + new Vector3(xRegion * area, 0f, zRegion * area), TerrainController.LocalBounds.size)))
+                new Bounds(localBounds.center + new Vector3(xRegion * area, 0f, zRegion * area), localBounds.size)))
                     renderedChunks.Add((xRegion, zRegion));
             }
 
         foreach ((int x, int z) chunk in previousChunks.Except(renderedChunks))
-            controllers[chunk].SetVisible(false);
+            controllers[chunk].SetHidden();
 
-        foreach ((int x, int z) chunk in renderedChunks.Except(previousChunks))
+        foreach ((int x, int z) chunk in renderedChunks)
         {
             if (!controllers.TryGetValue(chunk, out TerrainController controller))
                 controller = Generate(chunk.x, chunk.z);
 
-            controller.SetVisible(true);
+            int lodLevel = controller.lodLevel;    
+            float distance = Vector3.Distance(controller.worldBound.center, position);
+            bool lodChanged;
+
+            if (distance < lod1Distance)
+            {
+                lodChanged = lodLevel != 0;
+                lodLevel = 0;
+            }
+            else if (distance < lod2Distance)
+            {
+                lodChanged = lodLevel != 1;
+                lodLevel = 1;
+            }
+            else
+            {
+                lodChanged = lodLevel != 2;
+                lodLevel = 2;
+            }
+
+            if (previousChunks.Contains(chunk))
+            {
+                if (lodChanged)
+                    controller.SetLod(lodLevel);
+            }
+            else
+            {
+                controller.SetVisible(lodLevel);
+            }
         }
 
         // Swap without reallocate

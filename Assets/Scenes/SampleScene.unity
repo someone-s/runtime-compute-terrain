@@ -1688,10 +1688,18 @@ PrefabInstance:
     - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: chunkPrefab
       value: 
-      objectReference: {fileID: 2096383619678947609, guid: 614aa2bae76ff1fa1b83b9019cc68999, type: 3}
+      objectReference: {fileID: 2096383619678947609, guid: 795d1b305981ba71ba889f8e91d2b8f3, type: 3}
     - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: renderRange
       value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: lod1Distance
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: lod2Distance
+      value: 135
       objectReference: {fileID: 0}
     - target: {fileID: 9031885650118237956, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: m_Name

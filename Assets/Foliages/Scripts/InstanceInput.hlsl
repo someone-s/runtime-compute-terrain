@@ -35,9 +35,6 @@ float2 LoadStaticLightmapUV(uint index) {
 
 StructuredBuffer<float4x4> _TransformMatrices;
 
-uint _Jump;
-float _JumpScale;
-
 float _WindFrequency;
 float _WindAmplitude;
 

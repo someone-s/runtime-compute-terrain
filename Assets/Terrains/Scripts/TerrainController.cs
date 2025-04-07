@@ -32,7 +32,7 @@ public class TerrainController : MonoBehaviour
         }
     }
     private UnityEvent TerrainChangeInstance = null;
-    public UnityEvent OnTerrainVisible
+    public UnityEvent<int> OnTerrainVisible
     {
         get
         {
@@ -41,7 +41,17 @@ public class TerrainController : MonoBehaviour
             return TerrainVisibleInstance;
         }
     }
-    private UnityEvent TerrainVisibleInstance = null;
+    private UnityEvent<int> TerrainVisibleInstance = null;
+    public UnityEvent<int> OnTerrainLod
+    {
+        get
+        {
+            if (TerrainLodInstance == null)
+                TerrainLodInstance = new();
+            return TerrainLodInstance;
+        }
+    }
+    private UnityEvent<int> TerrainLodInstance = null;
     public UnityEvent OnTerrainHidden
     {
         get
@@ -64,6 +74,7 @@ public class TerrainController : MonoBehaviour
     private UnityEvent<float> DistanceChangeDistance = null;
     #endregion
 
+
     #region Vertices Section
     public static float area => TerrainCoordinator.area;
     private static int meshSize => TerrainCoordinator.meshSize;
@@ -73,7 +84,7 @@ public class TerrainController : MonoBehaviour
     #endregion
 
     #region Config Section
-    private void Setup()
+    internal void Setup()
     {
         if (terrainReady) return;
 
@@ -90,8 +101,10 @@ public class TerrainController : MonoBehaviour
         };
 
         SetupIO();
+        SetupVisual();
 
         terrainReady = true;
+
         OnTerrainReady.Invoke();
 
         OnTerrainChange.Invoke();
@@ -106,7 +119,7 @@ public class TerrainController : MonoBehaviour
         Graphics.CopyBuffer(MeshGenerator.GetVertexReference(), vertexBuffer);
 
         int resetBuffersKernalIndex = configShader.FindKernel("ResetBuffers");
-        configShader.Dispatch(resetBuffersKernalIndex, 32, 32, 1);
+        configShader.Dispatch(resetBuffersKernalIndex, 1, 1, 1);
     }
     #endregion
 
@@ -133,7 +146,7 @@ public class TerrainController : MonoBehaviour
         int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
         configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("_Vertices"), vertexBuffer);
 
-        configShader.Dispatch(resetBuffersKernelIndex, 32, 32, 1);
+        configShader.Dispatch(resetBuffersKernelIndex, 1, 1, 1);
     }
 
     public unsafe void Save(string path)
@@ -146,7 +159,7 @@ public class TerrainController : MonoBehaviour
         int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
         ComputeBuffer exportBuffer = new ComputeBuffer(count, element, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("_Exports"), exportBuffer);
-        configShader.Dispatch(exportBuffersKernelIndex, 32, 32, 1);
+        configShader.Dispatch(exportBuffersKernelIndex, 1, 1, 1);
 
         AsyncGPUReadback.Request(exportBuffer, (AsyncGPUReadbackRequest request) =>
         {
@@ -182,7 +195,7 @@ public class TerrainController : MonoBehaviour
 
         int restoreBuffersKernalIndex = configShader.FindKernel("RestoreBuffers");
         configShader.SetBuffer(restoreBuffersKernalIndex, Shader.PropertyToID("_Exports"), exportBuffer);
-        configShader.Dispatch(restoreBuffersKernalIndex, 32, 32, 1);
+        configShader.Dispatch(restoreBuffersKernalIndex, 1, 1, 1);
 
         exportBuffer.Dispose();
         input.Dispose();
@@ -192,17 +205,30 @@ public class TerrainController : MonoBehaviour
     #endregion
 
     #region Visual Section
+    public int lodLevel { get; private set; }
     private MeshRenderer visualRenderer;
 
-    public void SetVisible(bool visualState)
+    private void SetupVisual()
     {
-        if (visualRenderer == null)
-            visualRenderer = GetComponent<MeshRenderer>();
-        visualRenderer.enabled = visualState;
-        if (visualState)
-            OnTerrainVisible.Invoke();
-        else
-            OnTerrainHidden.Invoke();
+        visualRenderer = GetComponent<MeshRenderer>();
+    }
+
+    public void SetHidden()
+    {
+        visualRenderer.enabled = false;
+        OnTerrainHidden.Invoke();
+    }
+
+    public void SetVisible(int selectedLod)
+    {
+        visualRenderer.enabled = true;
+        OnTerrainVisible.Invoke(selectedLod);
+    }
+
+    public void SetLod(int selectedLod)
+    {
+        lodLevel = selectedLod;
+        OnTerrainLod.Invoke(selectedLod);
     }
     #endregion
 

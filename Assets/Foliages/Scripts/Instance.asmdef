@@ -1,0 +1,16 @@
+{
+    "name": "Instance",
+    "rootNamespace": "",
+    "references": [
+        "GUID:c3e67adad48ad429eae7c7ff407dc461"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
