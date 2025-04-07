@@ -19,6 +19,8 @@ float _SlopeUpper;
 
 float3 _Anchor;
 
+float _Stretch;
+
 AppendStructuredBuffer<float4x4> _TransformMatrices;
 
 float3 LoadTerrainPosition(uint index) {
@@ -119,13 +121,14 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     r = RandomRange(seed, _MinHeight, _MaxHeight);
     seed.x = r;
     float _ScaleY = _Scale * r;
+    float _ScaleH = _Scale * _Stretch;
 
     float4x4 objectTransformMatrix = float4x4
     (
-        _Scale, 0.0,    0.0,   worldPos.x,
-        0.0,   _ScaleY, 0.0,   worldPos.y,
-        0.0,   0.0,    _Scale, worldPos.z,
-        0.0,   0.0,    0.0,   1.0
+        _ScaleH, 0.0,    0.0,     worldPos.x,
+        0.0,    _ScaleY, 0.0,     worldPos.y,
+        0.0,    0.0,     _ScaleH, worldPos.z,
+        0.0,    0.0,     0.0,     1.0
     );
 
     r = RandomRange(seed, 0.0, TWO_PI);

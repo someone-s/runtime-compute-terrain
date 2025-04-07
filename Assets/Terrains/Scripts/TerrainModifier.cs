@@ -154,7 +154,7 @@ public class TerrainModifier : MonoBehaviour
             currentModifyControllers = SetArea(modifyMeshKernelIndex, currentModifyRegion.Value);
         }
 
-        computeShader.Dispatch(modifyMeshKernelIndex, 32, 32, 1);
+        computeShader.Dispatch(modifyMeshKernelIndex, 1, 1, 1);
 
         foreach (TerrainController controller in currentModifyControllers)
             controller.OnTerrainChange.Invoke();
@@ -257,7 +257,7 @@ public class TerrainModifier : MonoBehaviour
 
             TerrainController[] currentProjectController = SetArea(applyModifiersKernelIndex, region);
 
-            computeShader.Dispatch(applyModifiersKernelIndex, 32, 32, 1);
+            computeShader.Dispatch(applyModifiersKernelIndex, 1, 1, 1);
 
             foreach (TerrainController controller in currentProjectController)
                 controller.OnTerrainChange.Invoke();
