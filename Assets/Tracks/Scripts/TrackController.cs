@@ -110,7 +110,7 @@ public class TrackController : MonoBehaviour
 
         computeShader.SetInt(Shader.PropertyToID("_PointCount"), pointCount);
 
-        computeShader.Dispatch(computeShader.FindKernel("UpdateTrack"), 64, 1, 1);
+        computeShader.Dispatch(computeShader.FindKernel("UpdateTrack"), 1, 1, 1);
 
         mesh.bounds = new Bounds((meshMax + meshMin) * 0.5f, meshMax - meshMin + new Vector3(profile.extent, profile.extent, profile.extent));
     }

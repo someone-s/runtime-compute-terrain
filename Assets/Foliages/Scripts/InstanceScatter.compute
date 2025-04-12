@@ -48,27 +48,23 @@ float4 SamplePosition(float2 normalPos) {
     float3 positionBR = LoadTerrainPosition(indexBR);
     float3 positionUL = LoadTerrainPosition(indexUL);
     float3 positionUR = LoadTerrainPosition(indexUR);
-
     float3 positionB = lerp(positionBL, positionBR, offset.x);
     float3 positionU = lerp(positionUL, positionUR, offset.x);
-
     float3 position = lerp(positionB, positionU, offset.y);
 
+
+    float3 normalBL = LoadTerrainNormal(indexBL);
+    float3 normalBR = LoadTerrainNormal(indexBR);
+    float3 normalUL = LoadTerrainNormal(indexUL);
+    float3 normalUR = LoadTerrainNormal(indexUR);
+    float3 normalB = lerp(normalBL, normalBR, offset.x);
+    float3 normalU = lerp(normalUL, normalUR, offset.x);
+    float3 normal = lerp(normalB, normalU, offset.y);
+
     float3 up = float3(0.0, 1.0, 0.0);
-
-    float gradientBL = dot(LoadTerrainNormal(indexBL), up);
-    float minGradient = gradientBL;
-
-    float gradientBR = dot(LoadTerrainNormal(indexBR), up);
-    minGradient = min(minGradient, gradientBR);
-
-    float gradienUL = dot(LoadTerrainNormal(indexUL), up);
-    minGradient = min(minGradient, gradienUL);
-
-    float gradienUR = dot(LoadTerrainNormal(indexUR), up);
-    minGradient = min(minGradient, gradienUR);
+    float gradient = dot(normal, up);
     
-    return float4(position + _Anchor, minGradient);
+    return float4(position + _Anchor, gradient);
 }
 
 float _Scale;
