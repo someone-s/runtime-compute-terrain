@@ -170,6 +170,8 @@ public class InstanceController : MonoBehaviour
     {
         transformMatrixBuffer?.Dispose();
         argumentsBuffer?.Dispose();
+
+        updater.RemoveRender(this);
     }
 
     public void QueueRefresh()
@@ -179,6 +181,9 @@ public class InstanceController : MonoBehaviour
 
     internal void ExecuteRefresh()
     {
+        if (!transformMatrixBuffer.IsValid()) return;
+
+
         float jump;
         float stretch;
 
