@@ -1,0 +1,175 @@
+#pragma kernel Project
+#pragma kernel Clear
+#pragma kernel Convert
+
+uint _Stride;
+uint _PositionOffset;
+
+float4x4 _LocalToWorld;
+float4x4 _WorldToClip;
+uint _NumTriangle;
+ByteAddressBuffer _Vertices;
+ByteAddressBuffer _Indices;
+
+uint2 _Dimensions;
+RWByteAddressBuffer _Depth;
+
+bool OutOfBounds(float3 vCS)
+{
+    return vCS.x < 0.0 || vCS.x > 1.0 || vCS.y < 0.0 || vCS.y > 1.0;
+}
+
+float4 MinMax(float3 aCS, float3 bCS, float3 cCS)
+{
+    float4 result;
+    result.x = min(min(aCS.x, bCS.x), cCS.x);
+    result.y = min(min(aCS.y, bCS.y), cCS.y);
+    result.z = max(max(aCS.x, bCS.x), cCS.x);
+    result.w = max(max(aCS.y, bCS.y), cCS.y);
+
+    return result;
+}
+
+float3 BayCentric(float2 aCS, float2 bCS, float2 cCS, float2 pCS)
+{
+    float2 v0 = bCS - aCS;
+    float2 v1 = cCS - aCS;
+    float2 v2 = pCS - aCS;
+
+    float d00 = dot(v0, v0);
+    float d01 = dot(v0, v1);
+    float d11 = dot(v1, v1);
+    float d20 = dot(v2, v0);
+    float d21 = dot(v2, v1);
+    float denom = d00 * d11 - d01 * d01;
+
+    float v = (d11 * d20 - d01 * d21) / denom;
+    float w = (d00 * d21 - d01 * d20) / denom;
+    float u = 1.0 - v - w;
+
+    return float3(u, v, w);
+
+    // float3 u = cross(
+    //     float3(cPS.x - aPS.x, bPS.x - aPS.x, aPS.x - pPS.x),
+    //     float3(cPS.y - aPS.y, bPS.y - aPS.y, aPS.y - pPS.y)
+    // );
+
+    // if (abs(u.z) < 1.0) 
+    //     return float3(-1.0, 1.0, 1.0);
+    // else
+    //     return float3(1.0 - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
+}
+
+uint EncodeFloatWithOrder(float value)
+{
+    uint uVal = asuint(value);
+    uint mask = -int(uVal >> 31) | 0x80000000;
+    return uVal ^ mask;
+}
+
+void DrawTriangle(uint3 id, float3 aCS, float3 bCS, float3 cCS)
+{
+    float4 boundCS = MinMax(aCS, bCS, cCS);
+    float2 dimensionF = float2(_Dimensions);
+
+    uint2 startPS = uint2(max(float2(0,0), boundCS.xy) * dimensionF);
+    uint2 endPS = min(_Dimensions - uint2(1,1), uint2(boundCS.zw * dimensionF));
+    
+    // _Depth.Store((id.x * 4 + 0) * 4, startPS.x);
+    // _Depth.Store((id.x * 4 + 1) * 4, startPS.y);
+    // _Depth.Store((id.x * 4 + 2) * 4, _Dimensions.x);
+    // _Depth.Store((id.x * 4 + 3) * 4, _Dimensions.y);
+
+    for (uint x = startPS.x; x <= endPS.x; x++)
+    {
+        for (uint y = startPS.y; y <= endPS.y; y++) 
+        {
+            // // neccessary to prevent gaps
+            // float3 bc = BayCentric(aCS.xy, bCS.xy, cCS.xy, (float2(x, y) + float2(0.0, 0.0)) / dimensionF);
+            // if (bc.x < 0.0 || bc.y < 0.0 || bc.z < 0.0)
+            //     bc = BayCentric(aCS.xy, bCS.xy, cCS.xy, (float2(x, y) + float2(0.0, 1.0)) / dimensionF);
+            // if (bc.x < 0.0 || bc.y < 0.0 || bc.z < 0.0)
+            //     bc = BayCentric(aCS.xy, bCS.xy, cCS.xy, (float2(x, y) + float2(1.0, 0.0)) / dimensionF);
+            // if (bc.x < 0.0 || bc.y < 0.0 || bc.z < 0.0)
+            //     bc = BayCentric(aCS.xy, bCS.xy, cCS.xy, (float2(x, y) + float2(1.0, 1.0)) / dimensionF);
+
+            float3 bc = BayCentric(aCS.xy, bCS.xy, cCS.xy, (float2(x, y) + float2(0.5, 0.5)) / dimensionF);
+            if (bc.x < 0.0 || bc.y < 0.0 || bc.z < 0.0) continue;
+
+            float depth = bc.x * aCS.z + bc.y * bCS.z + bc.z * cCS.z;
+            uint encode = EncodeFloatWithOrder(depth);
+            uint base = (y * _Dimensions.x + x) * 3;
+            
+            _Depth.InterlockedMin((base + 0) * 4, encode);
+            _Depth.InterlockedMin((base + 1) * 4, encode);
+            _Depth.InterlockedMax((base + 2) * 4, encode);
+        }
+    }
+
+}
+
+[numthreads(512,1,1)]
+void Project(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumTriangle) return;
+
+    float3 aOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 0) * 4) * _Stride + _PositionOffset));
+    float3 bOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 1) * 4) * _Stride + _PositionOffset));
+    float3 cOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 2) * 4) * _Stride + _PositionOffset));
+
+    float3 aWS = mul(_LocalToWorld, float4(aOS, 1)).xyz;
+    float3 bWS = mul(_LocalToWorld, float4(bOS, 1)).xyz;
+    float3 cWS = mul(_LocalToWorld, float4(cOS, 1)).xyz;
+
+    float3 aCS = mul(_WorldToClip, float4(aWS, 1)).xyz;
+    float3 bCS = mul(_WorldToClip, float4(bWS, 1)).xyz;
+    float3 cCS = mul(_WorldToClip, float4(cWS, 1)).xyz;
+
+
+    if (OutOfBounds(aCS) && OutOfBounds(bCS) && OutOfBounds(cCS)) return;
+
+    // _Depth.Store((id.x * 3 + 0) * 4, EncodeFloatWithOrder(aCS.x));
+    // _Depth.Store((id.x * 3 + 1) * 4, EncodeFloatWithOrder(aCS.y));
+    // _Depth.Store((id.x * 3 + 2) * 4, EncodeFloatWithOrder(aCS.z));
+
+    // _Depth.Store((id.x * 3 + 0) * 4, _Indices.Load((id.x * 3 + 0) * 4));
+    // _Depth.Store((id.x * 3 + 1) * 4, _Indices.Load((id.x * 3 + 1) * 4));
+    // _Depth.Store((id.x * 3 + 2) * 4, _Indices.Load((id.x * 3 + 2) * 4));
+
+    // _Depth.Store((id.x * 3 + 0) * 4, 2);
+    // _Depth.Store((id.x * 3 + 1) * 4, 3);
+    // _Depth.Store((id.x * 3 + 2) * 4, 4);
+
+    
+    DrawTriangle(id, aCS, bCS, cCS);
+}
+
+[numthreads(32,32,1)]
+void Clear(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 253 || id.y >= 253) return;
+
+    uint base = (id.y * 253 + id.x) * 3;
+
+    _Depth.Store((base + 0) * 4, EncodeFloatWithOrder(10000.0));
+    _Depth.Store((base + 1) * 4, EncodeFloatWithOrder(10000.0));
+    _Depth.Store((base + 2) * 4, EncodeFloatWithOrder(-10000.0));
+}
+
+float DecodeFloatWithOrder(uint value)
+{
+    uint mask = ((value >> 31) - 1) | 0x80000000;
+    return asfloat(value ^ mask);
+}
+
+[numthreads(32,32,1)]
+void Convert(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 253 || id.y >= 253) return;
+
+    uint base = (id.y * 253 + id.x) * 3;
+    
+    _Depth.Store((base + 0) * 4, asuint(DecodeFloatWithOrder(_Depth.Load((base + 0) * 4))));
+    _Depth.Store((base + 1) * 4, asuint(DecodeFloatWithOrder(_Depth.Load((base + 1) * 4))));
+    _Depth.Store((base + 2) * 4, asuint(DecodeFloatWithOrder(_Depth.Load((base + 2) * 4))));
+}

@@ -2,6 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
 using System.Runtime.InteropServices;
+using UnityEngine.Rendering;
+using Unity.Mathematics;
+using System.IO;
+using System.Linq;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainModifier : MonoBehaviour
@@ -178,6 +183,9 @@ public class TerrainModifier : MonoBehaviour
     [SerializeField] private Camera maximumCamera;
     private RenderTexture maximumTexture;
 
+    [SerializeField] private ComputeShader projectShader;
+    [SerializeField] private List<MeshFilter> filters;
+    [SerializeField] private GraphicsBuffer projectBuffer;
     [SerializeField] private Shader shader;
 
     [SerializeField] private int projectBatchSize = 1;
@@ -230,6 +238,13 @@ public class TerrainModifier : MonoBehaviour
         maximumCamera.transform.localRotation = Quaternion.Euler(270f, 0f, 0f);
         maximumCamera.targetTexture = maximumTexture;
         maximumCamera.SetReplacementShader(shader, string.Empty);
+
+        projectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, (meshSize * 2 + 1) * (meshSize * 2 + 1), sizeof(float) * 3);
+        int kernel = projectShader.FindKernel("Project");
+        projectShader.SetInts("_Dimensions", (meshSize * 2 + 1), (meshSize * 2 + 1));
+        projectShader.SetBuffer(kernel, "_Depth", projectBuffer);
+        projectShader.SetBuffer(projectShader.FindKernel("Clear"), "_Depth", projectBuffer);
+        projectShader.SetBuffer(projectShader.FindKernel("Convert"), "_Depth", projectBuffer);
     }
 
     public void QueueProject((int x, int z) region)
@@ -240,6 +255,16 @@ public class TerrainModifier : MonoBehaviour
         enabled = true;
     }
 
+    private void T(string s)
+    {
+
+            float[] output = new float[(meshSize * 2 + 1) * (meshSize * 2 + 1) * 3];
+            projectBuffer.GetData(output);
+            string path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments) + "/" + s;
+            Debug.Log(path);
+            File.WriteAllLines(path, output.Select(v => v.ToString()));
+    }
+
     private void ExecuteProject()
     {
         for (int i = 0; i < projectBatchSize && projectQueue.TryDequeue(out (int x, int z) region); i++)
@@ -248,10 +273,29 @@ public class TerrainModifier : MonoBehaviour
             (int x, int z) = region;
 
             cameraRig.localPosition = new Vector3((x + 1) * area, 0f, (z + 1) * area);
-            mandateCamera.Render();
-            minimumCamera.Render();
-            maximumCamera.Render();
+            //mandateCamera.Render();
+            //minimumCamera.Render();
+            //maximumCamera.Render();
 
+            projectShader.Dispatch(projectShader.FindKernel("Clear"), Mathf.CeilToInt((float)(meshSize * 2 + 1) / 32), Mathf.CeilToInt((float)(meshSize * 2 + 1) / 32), 1);
+
+            int kernel = projectShader.FindKernel("Project");
+            projectShader.SetMatrix("_WorldToClip", mandateCamera.projectionMatrix * mandateCamera.worldToCameraMatrix);
+            foreach (var filter in filters)
+            {
+                projectShader.SetMatrix("_LocalToWorld", filter.transform.localToWorldMatrix);
+                projectShader.SetBuffer(kernel, "_Vertices", filter.sharedMesh.GetVertexBuffer(0));
+                projectShader.SetBuffer(kernel, "_Indices", filter.sharedMesh.GetIndexBuffer());
+                projectShader.SetInt("_Stride", filter.sharedMesh.GetVertexBufferStride(0));
+                projectShader.SetInt("_PositionOffset", filter.sharedMesh.GetVertexAttributeOffset(VertexAttribute.Position));
+                int triangleCount = (int)filter.sharedMesh.GetIndexCount(0) / 3;
+                projectShader.SetInt("_NumTriangle", triangleCount);
+                projectShader.Dispatch(kernel, Mathf.CeilToInt(triangleCount / 512), 1, 1);
+            }
+            projectShader.Dispatch(projectShader.FindKernel("Convert"), Mathf.CeilToInt((float)(meshSize * 2 + 1) / 32), Mathf.CeilToInt((float)(meshSize * 2 + 1) / 32), 1);
+
+            if (Keyboard.current.xKey.isPressed)
+                T("temp.txt");
 
             int applyModifiersKernelIndex = computeShader.FindKernel("ApplyModifiers");
 
