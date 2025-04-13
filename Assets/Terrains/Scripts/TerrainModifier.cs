@@ -276,11 +276,14 @@ public class TerrainModifier : MonoBehaviour
             //mandateCamera.Render();
             //minimumCamera.Render();
             //maximumCamera.Render();
+            Vector3 center = new Vector3((x + 1) * area, 50f, (z + 1) * area);
+            float span = area + (area / meshSize * 0.5f);
 
             projectShader.Dispatch(projectShader.FindKernel("Clear"), Mathf.CeilToInt((float)(meshSize * 2 + 1) / 32), Mathf.CeilToInt((float)(meshSize * 2 + 1) / 32), 1);
 
             int kernel = projectShader.FindKernel("Project");
-            projectShader.SetMatrix("_WorldToClip", mandateCamera.projectionMatrix * mandateCamera.worldToCameraMatrix);
+            projectShader.SetMatrix("_WorldToClip", Matrix4x4.Ortho(-span, span, -span, span, 0, 100) * Matrix4x4.Inverse(Matrix4x4.TRS(center, Quaternion.Euler(90f, 0f, 0f), new Vector3(1,1,-1))));
+            //projectShader.SetMatrix("_WorldToClip", mandateCamera.projectionMatrix * mandateCamera.worldToCameraMatrix);
             foreach (var filter in filters)
             {
                 projectShader.SetMatrix("_LocalToWorld", filter.transform.localToWorldMatrix);
