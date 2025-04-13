@@ -1582,6 +1582,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 2100000, guid: 7c7dd60d5bd2e3ee39ccad770cd1e47c, type: 2}
     - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: projectShader
+      value: 
+      objectReference: {fileID: 7200000, guid: f88b128fd07e7b561bf134c801aa647a, type: 3}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: filters.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: meshesMan.Array.size
       value: 2
       objectReference: {fileID: 0}
@@ -1593,6 +1601,30 @@ PrefabInstance:
       propertyPath: meshesMin.Array.size
       value: 4
       objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: 'filters.Array.data[0]'
+      value: 
+      objectReference: {fileID: 605676483}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: 'filters.Array.data[1]'
+      value: 
+      objectReference: {fileID: 661704921}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: 'filters.Array.data[2]'
+      value: 
+      objectReference: {fileID: 1047455050}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: 'filters.Array.data[3]'
+      value: 
+      objectReference: {fileID: 1047455050}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: 'filters.Array.data[4]'
+      value: 
+      objectReference: {fileID: 661704921}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: 'filters.Array.data[5]'
+      value: 
+      objectReference: {fileID: 1722015701}
     - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: 'meshesMan.Array.data[0]'
       value: 
@@ -1688,7 +1720,7 @@ PrefabInstance:
     - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: chunkPrefab
       value: 
-      objectReference: {fileID: 2096383619678947609, guid: 795d1b305981ba71ba889f8e91d2b8f3, type: 3}
+      objectReference: {fileID: 2096383619678947609, guid: 614aa2bae76ff1fa1b83b9019cc68999, type: 3}
     - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: renderRange
       value: 4

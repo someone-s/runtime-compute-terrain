@@ -25,7 +25,7 @@ public class TrackController : MonoBehaviour
     }
     #endregion
     
-    private static int maxSliceCount = 1024;
+    private static int maxSliceCount = 512;
 
     private TrackProfile profile;
     private Mesh mesh;
@@ -40,6 +40,7 @@ public class TrackController : MonoBehaviour
         MeshFilter filter = GetComponent<MeshFilter>();
         mesh = MeshGenerator.GetMesh(profile);
         mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination;
+        mesh.indexBufferTarget |= GraphicsBuffer.Target.Raw;
         filter.sharedMesh = mesh;
         graphicsBuffer = mesh.GetVertexBuffer(0);
 
@@ -207,6 +208,7 @@ public class TrackController : MonoBehaviour
             Mesh mesh = new Mesh();
             mesh.indexFormat = IndexFormat.UInt32;
             mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopySource;
+            mesh.indexBufferTarget |= GraphicsBuffer.Target.Raw;
             mesh.SetVertices(vertices);
             mesh.SetIndices(indices, MeshTopology.Triangles, 0);
             mesh.SetNormals(normals);

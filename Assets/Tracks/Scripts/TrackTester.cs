@@ -77,14 +77,14 @@ public class TrackTester : MonoBehaviour {
     {
         a.GetPositionAndRotation(out Vector3 aPos, out Quaternion aRot);
         b.GetPositionAndRotation(out Vector3 bPos, out Quaternion bRot);
-        if (aPos != aLastPos || bPos != bLastPos || aRot != aLastRot || bRot != bLastRot) {
+        //if (aPos != aLastPos || bPos != bLastPos || aRot != aLastRot || bRot != bLastRot) {
             aLastPos = aPos;
             bLastPos = bPos;
             aLastRot = aRot;
             bLastRot = bRot;
             controller.SetPoints(a.position, a.rotation, b.position, b.rotation);
             controller.QueueRefresh();
-        }
+        //}
 
         
     }

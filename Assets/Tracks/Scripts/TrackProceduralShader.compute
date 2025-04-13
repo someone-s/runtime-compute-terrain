@@ -3,7 +3,7 @@
 #define EPSILON (0.00000001)
 #define DIVIDE9 (0.11111111)
 
-#define MAX_SLICE_SIZE 1024
+#define MAX_SLICE_SIZE 512
 
 ByteAddressBuffer _SourceVertices;
 RWByteAddressBuffer _DestVertices;
