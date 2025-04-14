@@ -179,7 +179,10 @@ public class TerrainModifier : MonoBehaviour
     private int projectClearKernel;
     private int projectConvertKernel;
     [SerializeField] private GraphicsBuffer projectBuffer;
-    [SerializeField] private List<MeshFilter> filters;
+    [SerializeField] private List<MeshFilter> mandateFilters;
+    [SerializeField] private List<MeshFilter> minimumFilters;
+    [SerializeField] private List<MeshFilter> maximumFilters;
+    private List<MeshFilter>[] filters;
 
     private Matrix4x4 projectionMatrix;
     private Quaternion projectionRotation;
@@ -193,6 +196,7 @@ public class TerrainModifier : MonoBehaviour
 
     private void SetupProject() 
     {
+        filters = new[] { mandateFilters, minimumFilters, maximumFilters };
         
         projectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, quadSize * quadSize, sizeof(float) * 3);
 
@@ -252,20 +256,23 @@ public class TerrainModifier : MonoBehaviour
             projectionPosition.z = z * area + projectionHalfPitch;
             projectShader.SetMatrix("_WorldToClip", projectionMatrix * Matrix4x4.Inverse(Matrix4x4.TRS(projectionPosition, projectionRotation, projectionScale)));
 
-            projectShader.SetInt("_Mode", 2);
-            foreach (var filter in filters)
+            for (int m = 1; m <= 3; m++)
             {
-                projectShader.SetMatrix("_LocalToWorld", filter.transform.localToWorldMatrix);
+                projectShader.SetInt("_Mode", m);
+                foreach (var filter in filters[m-1])
+                {
+                    projectShader.SetMatrix("_LocalToWorld", filter.transform.localToWorldMatrix);
 
-                projectShader.SetBuffer(projectExecuteKernel, "_Vertices",       filter.sharedMesh.GetVertexBuffer(0));
-                projectShader.SetInt(                         "_Stride",         filter.sharedMesh.GetVertexBufferStride(0));
-                projectShader.SetInt(                         "_PositionOffset", filter.sharedMesh.GetVertexAttributeOffset(VertexAttribute.Position));
+                    projectShader.SetBuffer(projectExecuteKernel, "_Vertices",       filter.sharedMesh.GetVertexBuffer(0));
+                    projectShader.SetInt(                         "_Stride",         filter.sharedMesh.GetVertexBufferStride(0));
+                    projectShader.SetInt(                         "_PositionOffset", filter.sharedMesh.GetVertexAttributeOffset(VertexAttribute.Position));
 
-                int triangleCount = (int)filter.sharedMesh.GetIndexCount(0) / 3;
-                projectShader.SetBuffer(projectExecuteKernel, "_Indices",     filter.sharedMesh.GetIndexBuffer());
-                projectShader.SetInt(                         "_NumTriangle", triangleCount);
+                    int triangleCount = (int)filter.sharedMesh.GetIndexCount(0) / 3;
+                    projectShader.SetBuffer(projectExecuteKernel, "_Indices",     filter.sharedMesh.GetIndexBuffer());
+                    projectShader.SetInt(                         "_NumTriangle", triangleCount);
 
-                projectShader.Dispatch(projectExecuteKernel, Mathf.CeilToInt(triangleCount / 512), 1, 1);
+                    projectShader.Dispatch(projectExecuteKernel, Mathf.CeilToInt(triangleCount / 512), 1, 1);
+                }
             }
             
             projectShader.Dispatch(projectConvertKernel, Mathf.CeilToInt((float)quadSize / 32), Mathf.CeilToInt((float)quadSize / 32), 1);
