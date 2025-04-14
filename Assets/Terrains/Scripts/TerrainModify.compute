@@ -374,21 +374,21 @@ void ApplyRenderTexture(uint3 id) {
                 float maximum;
                 uint mask = 0;
 
-                if (depth.x == _InvalidMax)
+                if (depth.x == _InvalidMin)
                     mandate = 0.0;
                 else {
                     mask |= MANDATE_BIT;
                     mandate = depth.x;
                 }
 
-                if (depth.y == _InvalidMax)
+                if (depth.y == _InvalidMin)
                     minimum = 0.0;
                 else {
                     mask |= MINIMUM_BIT;
                     minimum = depth.y;
                 }
 
-                if (depth.z == _InvalidMin)
+                if (depth.z == _InvalidMax)
                     maximum = 0.0;
                 else {
                     mask |= MAXIMUM_BIT;

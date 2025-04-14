@@ -86,13 +86,13 @@ void DrawTriangle(uint3 id, float3 aCS, float3 bCS, float3 cCS)
             switch (_Mode)
             {
                 case 1: // Mandate
-                    _Depth.InterlockedMin((base + 0) * 4, encode);
+                    _Depth.InterlockedMax((base + 0) * 4, encode);
                     break;
                 case 2: // Minimum
-                    _Depth.InterlockedMin((base + 1) * 4, encode);
+                    _Depth.InterlockedMax((base + 1) * 4, encode);
                     break;
                 case 3: // Maximum
-                    _Depth.InterlockedMax((base + 2) * 4, encode);
+                    _Depth.InterlockedMin((base + 2) * 4, encode);
                     break;
             }
         }
@@ -133,9 +133,9 @@ void Clear(uint3 id : SV_DispatchThreadID)
 
     uint base = (id.y * _Dimensions.x + id.x) * 3;
 
-    _Depth.Store((base + 0) * 4, EncodeFloatWithOrder(_InvalidMax));
-    _Depth.Store((base + 1) * 4, EncodeFloatWithOrder(_InvalidMax));
-    _Depth.Store((base + 2) * 4, EncodeFloatWithOrder(_InvalidMin));
+    _Depth.Store((base + 0) * 4, EncodeFloatWithOrder(_InvalidMin));
+    _Depth.Store((base + 1) * 4, EncodeFloatWithOrder(_InvalidMin));
+    _Depth.Store((base + 2) * 4, EncodeFloatWithOrder(_InvalidMax));
 }
 
 float DecodeFloatWithOrder(uint value)
