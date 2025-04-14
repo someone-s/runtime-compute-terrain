@@ -27,10 +27,7 @@ public class InstanceUpdater : MonoBehaviour
     private void Update()
     {
         foreach (var controller in renderControllers)
-        {
-            //Debug.Log(controller.transform.position);
             controller.RenderCommand();
-        }
     }
 
     private HashSet<InstanceController> refreshControllers = new();
