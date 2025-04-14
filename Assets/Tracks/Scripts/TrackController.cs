@@ -93,18 +93,18 @@ public class TrackController : MonoBehaviour
                 position = position,
                 rotation = profile.vertical ? quaternion.LookRotation(Vector3.Normalize(new Vector3(tangent.x, 0f, tangent.z)), Vector3.up) : quaternion.LookRotation(tangent, upVector)
             };
-            if (position.x < meshMin.x)
-                meshMin.x = position.x;
-            if (position.y < meshMin.y)
-                meshMin.y = position.y;
-            if (position.z < meshMin.z)
-                meshMin.z = position.z;
-            if (position.x > meshMax.x)
-                meshMax.x = position.x;
-            if (position.y > meshMax.y)
-                meshMax.y = position.y;
-            if (position.z > meshMax.z)
-                meshMax.z = position.z;
+            // if (position.x < meshMin.x)
+            //     meshMin.x = position.x;
+            // if (position.y < meshMin.y)
+            //     meshMin.y = position.y;
+            // if (position.z < meshMin.z)
+            //     meshMin.z = position.z;
+            // if (position.x > meshMax.x)
+            //     meshMax.x = position.x;
+            // if (position.y > meshMax.y)
+            //     meshMax.y = position.y;
+            // if (position.z > meshMax.z)
+            //     meshMax.z = position.z;
             spline.GetPointAtLinearDistance(t, actualSegmentLength, out t);
         }
         pointsBuffer.EndWrite<Point>(pointCount);
@@ -113,7 +113,9 @@ public class TrackController : MonoBehaviour
 
         computeShader.Dispatch(computeShader.FindKernel("UpdateTrack"), 1, 1, 1);
 
-        mesh.bounds = new Bounds((meshMax + meshMin) * 0.5f, meshMax - meshMin + new Vector3(profile.extent, profile.extent, profile.extent));
+        Bounds b = spline.GetBounds();
+        b.Expand(profile.extent);
+        mesh.bounds = b;
     }
 
     public TerrainCoordinator coordinator;
