@@ -1578,16 +1578,52 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: near
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: up.z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: target
+      value: 200
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: offsetX
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: offsetY
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: scale.x
+      value: 100.3968
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: scale.y
+      value: 100.3968
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: scale.z
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: material
       value: 
       objectReference: {fileID: 2100000, guid: 7c7dd60d5bd2e3ee39ccad770cd1e47c, type: 2}
+    - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: modifyShader
+      value: 
+      objectReference: {fileID: 7200000, guid: d93d64336a0404f298e280cb249d93a5, type: 3}
     - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: projectShader
       value: 
       objectReference: {fileID: 7200000, guid: f88b128fd07e7b561bf134c801aa647a, type: 3}
     - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: filters.Array.size
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2246402343811926042, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: meshesMan.Array.size

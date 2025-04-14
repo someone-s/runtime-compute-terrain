@@ -76,8 +76,8 @@ public class TerrainController : MonoBehaviour
 
 
     #region Vertices Section
-    public static float area => TerrainCoordinator.area;
-    private static int meshSize => TerrainCoordinator.meshSize;
+    public const float area = TerrainCoordinator.area;
+    private const int meshSize = TerrainCoordinator.meshSize;
     public GraphicsBuffer vertexBuffer { get; private set; }
     public GraphicsBuffer triangleBuffer { get; private set; }
     public Bounds worldBound { get; private set; }
