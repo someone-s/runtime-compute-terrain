@@ -116,6 +116,40 @@ public class TrackController : MonoBehaviour
         Bounds b = spline.GetBounds();
         b.Expand(profile.extent);
         mesh.bounds = b;
+
+        SubMeshDescriptor descriptor = new SubMeshDescriptor {
+            baseVertex = 0,
+            firstVertex = 0,
+            vertexCount = maxSliceCount * profile.count,
+            indexStart = 0,
+            indexCount = 6 * (maxSliceCount - 1) * (profile.count - 1),
+            topology = MeshTopology.Triangles,
+            bounds = b
+        };
+
+        // int gotPoints = 50; // from compute shader
+        // Bounds bound = new Bounds(); // from compute shader
+        // int vertexCountPerPoint = 5; // from track profile
+
+        // SubMeshDescriptor descriptor = new SubMeshDescriptor {
+        //     baseVertex = 0,
+        //     firstVertex = 0,
+        //     vertexCount = gotPoints * vertexCountPerPoint,
+        //     indexStart = 0,
+        //     indexCount = 6 * (gotPoints - 1) * (vertexCountPerPoint - 1),
+        //     topology = MeshTopology.Triangles,
+        //     bounds = bound
+        // };
+
+        MeshUpdateFlags updateFlags = 
+            MeshUpdateFlags.DontValidateIndices |    // dont check against CPU index buffer
+            MeshUpdateFlags.DontResetBoneBounds |    // dont reset skinned mesh bones bound
+            // MeshUpdateFlags.DontNotifyMeshUsers | // do notify on possible mesh bound change 
+            MeshUpdateFlags.DontRecalculateBounds;   // dont recalculate bounds
+
+        mesh.SetSubMesh(0, descriptor, updateFlags);
+
+        //GetComponent<MeshRenderer>().subMeshStartIndex =
     }
 
     public TerrainCoordinator coordinator;

@@ -253,7 +253,7 @@ public class TerrainModifier : MonoBehaviour
             projectShader.Dispatch(projectClearKernel, Mathf.CeilToInt((float)quadSize / 32), Mathf.CeilToInt((float)quadSize / 32), 1);
 
             projectionPosition.x = x * area - projectionHalfPitch;
-            projectionPosition.z = z * area + projectionHalfPitch;
+            projectionPosition.z = z * area - projectionHalfPitch;
             projectShader.SetMatrix("_WorldToClip", projectionMatrix * Matrix4x4.Inverse(Matrix4x4.TRS(projectionPosition, projectionRotation, projectionScale)));
 
             for (int m = 1; m <= 3; m++)
@@ -270,8 +270,8 @@ public class TerrainModifier : MonoBehaviour
                     int triangleCount = (int)filter.sharedMesh.GetIndexCount(0) / 3;
                     projectShader.SetBuffer(projectExecuteKernel, "_Indices",     filter.sharedMesh.GetIndexBuffer());
                     projectShader.SetInt(                         "_NumTriangle", triangleCount);
-
-                    projectShader.Dispatch(projectExecuteKernel, Mathf.CeilToInt(triangleCount / 512), 1, 1);
+                    
+                    projectShader.Dispatch(projectExecuteKernel, Mathf.CeilToInt(triangleCount / 512f), 1, 1);
                 }
             }
             
