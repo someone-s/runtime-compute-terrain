@@ -119,11 +119,19 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     float _ScaleY = _Scale * r;
     float _ScaleH = _Scale * _Stretch;
 
+    float4x4 scaleMatrix = float4x4
+    (
+        _ScaleH, 0.0,    0.0,     0.0,
+        0.0,    _ScaleY, 0.0,     0.0,
+        0.0,    0.0,     _ScaleH, 0.0,
+        0.0,    0.0,     0.0,     1.0
+    );
+
     float4x4 objectTransformMatrix = float4x4
     (
-        _ScaleH, 0.0,    0.0,     worldPos.x,
-        0.0,    _ScaleY, 0.0,     worldPos.y,
-        0.0,    0.0,     _ScaleH, worldPos.z,
+        1.0, 0.0,    0.0,     worldPos.x,
+        0.0,    1.0, 0.0,     worldPos.y,
+        0.0,    0.0,     1.0, worldPos.z,
         0.0,    0.0,     0.0,     1.0
     );
 
@@ -131,5 +139,5 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     seed.y = r;
     float4x4 randomRotationMatrix = RotationMatrixY(r);
 
-    _TransformMatrices.Append(mul(objectTransformMatrix, randomRotationMatrix));
+    _TransformMatrices.Append(mul(objectTransformMatrix, mul(randomRotationMatrix, scaleMatrix)));
 }
