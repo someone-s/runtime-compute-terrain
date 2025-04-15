@@ -3,110 +3,170 @@
 #define EPSILON (0.00000001)
 #define DIVIDE9 (0.11111111)
 
-#define MAX_SLICE_SIZE 512
+#define THREAD_COUNT 64
 
 ByteAddressBuffer _SourceVertices;
 RWByteAddressBuffer _DestVertices;
 
+uint _MaxPoint;
 uint _SliceSize; // Number of _Points per slice
 
 int _Stride;
 int _PositionOffset;
 int _NormalOffset;
 
-float3 Rotate(float3 source, float4 rotation) {
-    return 2.0 * dot(rotation.xyz, source) * rotation.xyz
-         + (rotation.w * rotation.w - dot(rotation.xyz, rotation.xyz)) * source
-         + 2.0 * rotation.w * cross(rotation.xyz, source);
+float3 _P0;
+float3 _P1;
+float3 _P2;
+float3 _P3;
+
+float3 _US;
+float3 _UE;
+
+float3 EvaluatePosition(float t)
+{
+    float tSquare = t * t;
+    float tCube =  tSquare * t;
+
+    return 
+        _P0 * (-1.0 * tCube + 3.0 * tSquare - 3.0 * t + 1.0)
+      + _P1 * ( 3.0 * tCube - 6.0 * tSquare + 3.0 * t)
+      + _P2 * (-3.0 * tCube + 3.0 * tSquare)
+      + _P3 * (       tCube);
 }
 
-struct Point {
-    float3 position;
-    float4 rotation;
-};
+float3 EvaluateTangent(float t)
+{
+    float tSquare = t * t;
 
-StructuredBuffer<Point> _Points;
-uint _PointCount;
+    return normalize(
+        _P0 * (-3.0 * tSquare +  6.0 * t - 3.0)
+      + _P1 * ( 9.0 * tSquare - 12.0 * t + 3.0)
+      + _P2 * (-9.0 * tSquare +  6.0 * t)
+      + _P3 * ( 3.0 * tSquare));
+}
 
-// this oeprate per section
-[numthreads(MAX_SLICE_SIZE, 1, 1)]
-void UpdateTrack(uint3 id : SV_DispatchThreadID) {
+float3 EvaluateUp(float p)
+{
+    float product = clamp(dot(_US, _UE), -1.0, 1.0);
 
-    uint sliceIndex = id.x;
+    float theta = acos(product) * p;
+    
+    float3 relative = _UE - _US * product;
+    if (length(relative) != 0.0)
+        relative = normalize(relative);
 
-    float3 position = _Points[min(sliceIndex, _PointCount - 1)].position;
-    float4 rotation = _Points[min(sliceIndex, _PointCount - 1)].rotation;
- 
-    for (uint i = 0; i < _SliceSize; i++) {
-        uint locationStart = (sliceIndex * _SliceSize + i) * _Stride;
+    return _US * cos(theta) + relative * sin(theta);
+}
 
-        uint posLocation     = locationStart + _PositionOffset;
-        float3 sourcePos     = asfloat(_SourceVertices.Load3(posLocation));
-        float3 rotatedPos    = Rotate(sourcePos, rotation);
-        float3 translatedPos = rotatedPos + position;
-        _DestVertices.Store3(posLocation, asuint(translatedPos));
+void GetT(float curveLength, uint pointIndex, float segmentLength, out float t, out float traversedDistance)
+{
+    if (pointIndex * segmentLength >= curveLength)
+    {
+        t = 1.0;
+        traversedDistance = curveLength;
+        return;
+    }
+    else
+    {
+        t = 0.0;
+        traversedDistance = 0.0;
+    }
 
-        uint normLocation  = locationStart + _NormalOffset;
-        float3 sourceNorm  = asfloat(_SourceVertices.Load3(normLocation));
-        float3 rotatedNorm = Rotate(sourceNorm, rotation);
-        _DestVertices.Store3(normLocation, asuint(rotatedNorm));
+    float3 beginPoint = _P0;
+
+    for (uint i = 1; i <= pointIndex; i++)
+    {
+        float remainingDistance = segmentLength;
+
+        while (remainingDistance > 0.001)
+        {
+            traversedDistance += remainingDistance;
+            t = traversedDistance / curveLength;
+    
+            if (t > 1.0)
+            {
+                traversedDistance = curveLength;
+                t = 1.0;
+                return;
+            }
+            else if (t < 0.0)
+            {
+                traversedDistance = 0.0;
+                t = 0.0;
+                return;
+            }
+    
+            float3 testPoint = EvaluatePosition(t);
+            float dist = distance(beginPoint, testPoint);
+            remainingDistance = segmentLength - dist;
+        }
     }
 }
 
-// float3 _P0;
-// float3 _P1;
-// float3 _P2;
-// float3 _P3;
+void GetPoint(float curveLength, float pointIndex, float segmentLength, out float3 position, out float3 tangent, out float3 up)
+{
+    float t, traversedDistance;
+    GetT(curveLength, pointIndex, segmentLength, t, traversedDistance);
 
-// float3 EvaluatePosition(float t)
-// {
-//     float tSquare = t * t;
-//     float tCube =  tSquare * t;
+    position = EvaluatePosition(t);
+    tangent = EvaluateTangent(t);
+    up = EvaluateUp(traversedDistance / curveLength);
+}
 
-//     return 
-//         _P0 * (-1.0 * tCube + 3.0 * tSquare - 3.0 * t + 1.0)
-//       + _P1 * ( 3.0 * tCube - 6.0 * tSquare + 3.0 * t)
-//       + _P2 * (-3.0 * tCube + 3.0 * tSquare)
-//       + _P3 * (       tCube);
-// }
+float4x4 LookRotation(float3 tangent, float3 up)
+{
+    float3 right = normalize(cross(tangent, up));
+    float3 adjustedUp = normalize(cross(right, tangent));
 
-// uint _LengthResolution; // <= MAX_SLICE_SIZE
-// RWStructuredBuffer<float> _LengthBuffer; // length of _LengthResolution
-// groupshared float lengthEstimate;
+    return float4x4(
+        right.x, adjustedUp.x, tangent.x, 0.0,
+        right.y, adjustedUp.y, tangent.y, 0.0,
+        right.z, adjustedUp.z, tangent.z, 0.0,
+        0.0,     0.0,           0.0,      1.0
+    );
+}
 
-// float _TargetSpacing;
-// groupshared float actualSpacing;
-// groupshared uint pointCount;
-// groupshared uint pointPerThread;
+float4x4 Translate(float3 position)
+{
+    return float4x4(
+        1.0, 0.0, 0.0, position.x,
+        0.0, 1.0, 0.0, position.y,
+        0.0, 0.0, 1.0, position.z,
+        0.0, 0.0, 0.0, 1.0
+    );
+}
 
-// ByteAddressBuffer<>
+float _ApproxLength;
+float _ActualSpacing;
+uint _PointCount;
+uint _PointPerThread;
 
-// //[numthreads(MAX_SLICE_SIZE, 1, 1)]
-// void TUpdateTrack(uint3 id : SV_DispatchThreadID)
-// {
-//     if (id.x < _LengthResolution)
-//     {
-//         float3 start = EvaluatePosition(float(id.x)     / float(_LengthResolution));
-//         float3 end   = EvaluatePosition(float(id.x + 1) / float(_LengthResolution));
+[numthreads(THREAD_COUNT, 1, 1)]
+void UpdateTrack(uint3 id : SV_DispatchThreadID)
+{
+    for (uint p = id.x * _PointPerThread; p < (id.x + 1) * _PointPerThread && p < _PointCount; p++)
+    {
+        float3 position, tangent, up;
+        GetPoint(_ApproxLength, p, _ActualSpacing, position, tangent, up);
 
-//         _LengthBuffer[id.x] = distance(start, end);
-//     }
+        float4x4 rotation = LookRotation(tangent, up);
+        float4x4 translation = Translate(position);
 
-//     GroupMemoryBarrierWithGroupSync();
+        float4x4 transform = mul(translation, rotation);
 
-//     if (id.x == 0)
-//     {
-//         lengthEstimate = 0;
-//         for (int s = 0; s < _LengthResolution; s++)
-//             lengthEstimate += _LengthBuffer[s];
+        for (uint i = 0; i < _SliceSize; i++) {
+            uint locationStart = (p * _SliceSize + i) * _Stride;
 
-//         float segmentCount = ceil(lengthEstimate / _TargetSpacing);
-//         actualSpacing = lengthEstimate / segmentCount;
-//         pointCount = uint(segmentCount) + 1;
-//         pointPerThread = uint(ceil(float(pointCount) / float(MAX_SLICE_SIZE)));
-//     }
+            uint posLocation     = locationStart + _PositionOffset;
+            float3 sourcePos     = asfloat(_SourceVertices.Load3(posLocation));
+            float3 translatedPos = mul(transform, float4(sourcePos, 1)).xyz;
+            _DestVertices.Store3(posLocation, asuint(translatedPos));
 
-//     GroupMemoryBarrierWithGroupSync();
-
-//     for (int p = id.x * pointPerThread; p < (id.x + 1) * pointPerThread && p < ; i++)
-// }
+            uint normLocation  = locationStart + _NormalOffset;
+            float3 sourceNorm  = asfloat(_SourceVertices.Load3(normLocation));
+            float3 rotatedNorm = mul(transform, float4(sourceNorm, 0)).xyz;
+            _DestVertices.Store3(normLocation, asuint(rotatedNorm));
+        }
+    }
+}
