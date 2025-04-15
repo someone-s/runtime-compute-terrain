@@ -1,0 +1,112 @@
+#pragma kernel UpdateTrack
+
+#define EPSILON (0.00000001)
+#define DIVIDE9 (0.11111111)
+
+#define MAX_SLICE_SIZE 512
+
+ByteAddressBuffer _SourceVertices;
+RWByteAddressBuffer _DestVertices;
+
+uint _SliceSize; // Number of _Points per slice
+
+int _Stride;
+int _PositionOffset;
+int _NormalOffset;
+
+float3 Rotate(float3 source, float4 rotation) {
+    return 2.0 * dot(rotation.xyz, source) * rotation.xyz
+         + (rotation.w * rotation.w - dot(rotation.xyz, rotation.xyz)) * source
+         + 2.0 * rotation.w * cross(rotation.xyz, source);
+}
+
+struct Point {
+    float3 position;
+    float4 rotation;
+};
+
+StructuredBuffer<Point> _Points;
+uint _PointCount;
+
+// this oeprate per section
+[numthreads(MAX_SLICE_SIZE, 1, 1)]
+void UpdateTrack(uint3 id : SV_DispatchThreadID) {
+
+    uint sliceIndex = id.x;
+
+    float3 position = _Points[min(sliceIndex, _PointCount - 1)].position;
+    float4 rotation = _Points[min(sliceIndex, _PointCount - 1)].rotation;
+ 
+    for (uint i = 0; i < _SliceSize; i++) {
+        uint locationStart = (sliceIndex * _SliceSize + i) * _Stride;
+
+        uint posLocation     = locationStart + _PositionOffset;
+        float3 sourcePos     = asfloat(_SourceVertices.Load3(posLocation));
+        float3 rotatedPos    = Rotate(sourcePos, rotation);
+        float3 translatedPos = rotatedPos + position;
+        _DestVertices.Store3(posLocation, asuint(translatedPos));
+
+        uint normLocation  = locationStart + _NormalOffset;
+        float3 sourceNorm  = asfloat(_SourceVertices.Load3(normLocation));
+        float3 rotatedNorm = Rotate(sourceNorm, rotation);
+        _DestVertices.Store3(normLocation, asuint(rotatedNorm));
+    }
+}
+
+// float3 _P0;
+// float3 _P1;
+// float3 _P2;
+// float3 _P3;
+
+// float3 EvaluatePosition(float t)
+// {
+//     float tSquare = t * t;
+//     float tCube =  tSquare * t;
+
+//     return 
+//         _P0 * (-1.0 * tCube + 3.0 * tSquare - 3.0 * t + 1.0)
+//       + _P1 * ( 3.0 * tCube - 6.0 * tSquare + 3.0 * t)
+//       + _P2 * (-3.0 * tCube + 3.0 * tSquare)
+//       + _P3 * (       tCube);
+// }
+
+// uint _LengthResolution; // <= MAX_SLICE_SIZE
+// RWStructuredBuffer<float> _LengthBuffer; // length of _LengthResolution
+// groupshared float lengthEstimate;
+
+// float _TargetSpacing;
+// groupshared float actualSpacing;
+// groupshared uint pointCount;
+// groupshared uint pointPerThread;
+
+// ByteAddressBuffer<>
+
+// [numthreads(MAX_SLICE_SIZE, 1, 1)]
+// void UpdateTrack(uint3 id : SV_DispatchThreadID)
+// {
+//     if (id.x < _LengthResolution)
+//     {
+//         float3 start = EvaluatePosition(float(id.x)     / float(_LengthResolution));
+//         float3 end   = EvaluatePosition(float(id.x + 1) / float(_LengthResolution));
+
+//         _LengthBuffer[id.x] = distance(start, end);
+//     }
+
+//     GroupMemoryBarrierWithGroupSync();
+
+//     if (id.x == 0)
+//     {
+//         lengthEstimate = 0;
+//         for (int s = 0; s < _LengthResolution; s++)
+//             lengthEstimate += _LengthBuffer[s];
+
+//         float segmentCount = ceil(lengthEstimate / _TargetSpacing);
+//         actualSpacing = lengthEstimate / segmentCount;
+//         pointCount = uint(segmentCount) + 1;
+//         pointPerThread = uint(ceil(float(pointCount) / float(MAX_SLICE_SIZE)));
+//     }
+
+//     GroupMemoryBarrierWithGroupSync();
+
+//     for (int p = id.x * pointPerThread; p < (id.x + 1) * pointPerThread && p < ; i++)
+// }

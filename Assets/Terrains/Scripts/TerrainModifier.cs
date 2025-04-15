@@ -252,7 +252,7 @@ public class TerrainModifier : MonoBehaviour
 
             projectShader.Dispatch(projectClearKernel, Mathf.CeilToInt((float)quadSize / 32), Mathf.CeilToInt((float)quadSize / 32), 1);
 
-            projectionPosition.x = x * area + projectionHalfPitch;
+            projectionPosition.x = x * area - projectionHalfPitch;
             projectionPosition.z = z * area + projectionHalfPitch;
             projectShader.SetMatrix("_WorldToClip", projectionMatrix * Matrix4x4.Inverse(Matrix4x4.TRS(projectionPosition, projectionRotation, projectionScale)));
 
