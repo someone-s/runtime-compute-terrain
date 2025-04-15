@@ -81,8 +81,8 @@ void UpdateTrack(uint3 id : SV_DispatchThreadID) {
 
 // ByteAddressBuffer<>
 
-// [numthreads(MAX_SLICE_SIZE, 1, 1)]
-// void UpdateTrack(uint3 id : SV_DispatchThreadID)
+// //[numthreads(MAX_SLICE_SIZE, 1, 1)]
+// void TUpdateTrack(uint3 id : SV_DispatchThreadID)
 // {
 //     if (id.x < _LengthResolution)
 //     {
