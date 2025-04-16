@@ -1,10 +1,7 @@
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter))]
