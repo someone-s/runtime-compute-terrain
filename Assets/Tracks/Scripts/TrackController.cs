@@ -2,29 +2,25 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter))]
-[RequireComponent(typeof(MeshRenderer))]
 public class TrackController : MonoBehaviour
 {
-    [SerializeField] private ComputeShader computeShader;
-    private int updateTrackKernel;
-    private uint threadCount;
     
     private Vector3 p0, p1, p2, p3;
 
-    #region Knot Section
-    public void SetPoints(Vector3 aPos, Quaternion aRot, Vector3 bPos, Quaternion bRot)
-    {
-        p0 = aPos - transform.position;
-        p1 = p0 + aRot * Vector3.forward * Vector3.Distance(aPos, bPos) * 0.5f;
-        p3 = bPos - transform.position;
-        p2 = p3 + bRot * Vector3.forward * Vector3.Distance(aPos, bPos) * 0.5f;
-
-    }
+    #region Event Section
+    public UnityEvent OnTrackChange;
     #endregion
+
     
+    #region Modify Section
+    [SerializeField] private ComputeShader computeShader;
+    private int updateTrackKernel;
+    private uint threadCount;
+
     private static int maxPointCount = 512;
     private static float targetSegmentLength = 1f;
 
@@ -61,8 +57,13 @@ public class TrackController : MonoBehaviour
     }
 
 
-    public void QueueRefresh() 
+    public void QueueRefresh(Vector3 aPos, Quaternion aRot, Vector3 bPos, Quaternion bRot) 
     {
+        p0 = aPos - transform.position;
+        p1 = p0 + aRot * Vector3.forward * Vector3.Distance(aPos, bPos) * 0.5f;
+        p3 = bPos - transform.position;
+        p2 = p3 + bRot * Vector3.forward * Vector3.Distance(aPos, bPos) * 0.5f;
+
         enabled = true;
     }
     private void ExecuteRefresh()
@@ -113,17 +114,15 @@ public class TrackController : MonoBehaviour
         mesh.SetSubMesh(0, descriptor, updateFlags);
     }
 
-    public TerrainCoordinator coordinator;
-
     private void LateUpdate()
     {
-        Bounds oldBounds = mesh.bounds;
         ExecuteRefresh();
-        Bounds newBounds = mesh.bounds;
-        coordinator.Project(Vector3.Min(oldBounds.min, newBounds.min), Vector3.Max(oldBounds.max, newBounds.max));
+        OnTrackChange.Invoke();
         enabled = false;
     }
+    #endregion
 
+    #region Generator Section
     private static class MeshGenerator
     {
         public struct Entry
@@ -228,4 +227,5 @@ public class TrackController : MonoBehaviour
         }
 
     }
+    #endregion
 }

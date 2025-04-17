@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,13 +10,17 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(TerrainModifier), typeof(TerrainIntersector))]
 public class TerrainCoordinator : MonoBehaviour
 {
-    [SerializeField] private GameObject chunkPrefab;
-    [SerializeField] private float lod1Distance = 135f;
-    [SerializeField] private float lod2Distance = 225f;
+    private static TerrainCoordinator instance = null;
+    public static TerrainCoordinator Instance
+    {
+        get {
+            if (instance == null)
+                instance = FindFirstObjectByType<TerrainCoordinator>();
 
-    private List<(int x, int z)> renderedChunks = new();
-    private List<(int x, int z)> previousChunks = new();
-    [SerializeField] private int renderRange = 3;
+            return instance;
+        }
+    }
+
     public const float area = 50f;
     public const int meshSize = 126;
 
@@ -29,6 +34,7 @@ public class TerrainCoordinator : MonoBehaviour
         intersector = GetComponent<TerrainIntersector>();
     }
 
+    #region Creation Section
     private TerrainController Generate(int x, int z)
     {
         GameObject chunkInstance = Instantiate(chunkPrefab);
@@ -43,7 +49,9 @@ public class TerrainCoordinator : MonoBehaviour
 
         return controller;
     }
+    #endregion
 
+    #region Intersect Section
     public void CastRay(Vector3 position, Vector3 direction, Action<Vector3?> callback)
     {
         // Minus 1 for setting center to bottom left of 4 modified terrain pieces
@@ -68,6 +76,16 @@ public class TerrainCoordinator : MonoBehaviour
                 callback(hitPoint.Value);
         });
     }
+    #endregion
+
+    #region Culling Section
+    [SerializeField] private GameObject chunkPrefab;
+    [SerializeField] private float lod1Distance = 135f;
+    [SerializeField] private float lod2Distance = 225f;
+
+    private List<(int x, int z)> renderedChunks = new();
+    private List<(int x, int z)> previousChunks = new();
+    [SerializeField] private int renderRange = 3;
 
     public void UpdateVisual(Vector3 position, Plane[] frsutumPlanes)
     {
@@ -133,7 +151,9 @@ public class TerrainCoordinator : MonoBehaviour
         previousChunks = renderedChunks;
         renderedChunks = temp;
     }
+    #endregion
 
+    #region IO Section
     public void Save(string saveName)
     {
         // Create directory
@@ -203,7 +223,9 @@ public class TerrainCoordinator : MonoBehaviour
             }
         
     }
+    #endregion
 
+    #region Modify Region
     public void ModifyAdd(Vector3 position, float radius, float magnitude)
     {
         float delta = Time.deltaTime * magnitude;
@@ -240,19 +262,85 @@ public class TerrainCoordinator : MonoBehaviour
 
         modifier.QueueModify((centerX, centerZ), new Vector2(position.x - centerX * area, position.z - centerZ * area), radius, parameter, operation);
     }
+    #endregion
 
-    public void Project(Vector3 minPosition, Vector3 maxPosition, bool limitToOne = false)
+    #region Project Region
+    internal void AddProjector(Bounds worldBounds, TerrainProjector projector)
     {
-        (int x, int z) minRegion = (Mathf.FloorToInt(minPosition.x / area), Mathf.FloorToInt(minPosition.z / area));
-        (int x, int z) maxRegion = (Mathf.CeilToInt(maxPosition.x / area) - 1, Mathf.CeilToInt(maxPosition.z / area) - 1);
+        (int x, int z) minRegion = (Mathf.FloorToInt(worldBounds.min.x / area), Mathf.FloorToInt(worldBounds.min.z / area));
+        (int x, int z) maxRegion = (Mathf.CeilToInt(worldBounds.max.x / area), Mathf.CeilToInt(worldBounds.max.z / area));
 
-        modifier.QueueProject(minRegion);
+        for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x); x++)
+            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z); z++) 
+            {
+                if (!controllers.TryGetValue((x, z), out TerrainController controller))
+                    controller = Generate(x, z);
 
-        if (limitToOne)
-            return;
-        
-        for (int x = minRegion.x; x < Mathf.Max(1 + minRegion.x, maxRegion.x); x++)
-            for (int z = minRegion.z; z < Mathf.Max(1 + minRegion.z, maxRegion.z); z++) 
+                controller.projectors.Add(projector);
+            }
+
+        Project(minRegion, maxRegion);
+    }
+
+    internal void UpdateProjector(Bounds oldWorldBounds, Bounds newWorldBounds, TerrainProjector projector)
+    {
+        (int x, int z) oldMinRegion = (Mathf.FloorToInt(oldWorldBounds.min.x / area), Mathf.FloorToInt(oldWorldBounds.min.z / area));
+        (int x, int z) oldMaxRegion = (Mathf.CeilToInt(oldWorldBounds.max.x / area), Mathf.CeilToInt(oldWorldBounds.max.z / area));
+
+        (int x, int z) newMinRegion = (Mathf.FloorToInt(newWorldBounds.min.x / area), Mathf.FloorToInt(newWorldBounds.min.z / area));
+        (int x, int z) newMaxRegion = (Mathf.CeilToInt(newWorldBounds.max.x / area), Mathf.CeilToInt(newWorldBounds.max.z / area));
+
+        (int x, int z) combinedMinRegion = (Mathf.Min(oldMinRegion.x, newMinRegion.x), Mathf.Min(oldMinRegion.z, newMinRegion.z));
+        (int x, int z) combinedMaxRegion = (Mathf.Max(oldMaxRegion.x, newMaxRegion.x), Mathf.Max(oldMaxRegion.z, newMaxRegion.z));
+
+        for (int x = combinedMinRegion.x; x <= combinedMaxRegion.x; x++)
+            for (int z = combinedMinRegion.z; z <= combinedMaxRegion.z; z++) 
+            {
+                bool inOldGrid = x >= oldMinRegion.x && x <= oldMaxRegion.x &&
+                                 z >= oldMinRegion.z && z <= oldMaxRegion.z;
+
+                bool inNewGrid = x >= newMinRegion.x && x <= newMaxRegion.x &&
+                                 z >= newMinRegion.z && z <= newMaxRegion.z;
+
+                bool removeCase = inOldGrid && !inNewGrid;
+                bool addCase = !inOldGrid && inNewGrid;
+
+                if (removeCase || addCase)
+                {
+                    if (!controllers.TryGetValue((x, z), out TerrainController controller))
+                        controller = Generate(x, z);
+
+                    if (removeCase)
+                        controller.projectors.Remove(projector);
+                    else if (addCase)
+                        controller.projectors.Add(projector);
+                }
+            }
+
+        Project(combinedMinRegion, combinedMaxRegion);
+    }
+
+    internal void RemoveProjector(Bounds worldBounds, TerrainProjector projector)
+    {
+        (int x, int z) minRegion = (Mathf.FloorToInt(worldBounds.min.x / area), Mathf.FloorToInt(worldBounds.min.z / area));
+        (int x, int z) maxRegion = (Mathf.CeilToInt(worldBounds.max.x / area), Mathf.CeilToInt(worldBounds.max.z / area));
+
+        for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x); x++)
+            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z); z++) 
+            {
+                if (!controllers.TryGetValue((x, z), out TerrainController controller))
+                    controller = Generate(x, z);
+
+                controller.projectors.Remove(projector);
+            }
+
+        Project(minRegion, maxRegion);
+    }
+
+    private void Project((int x, int z) minRegion, (int x, int z) maxRegion)
+    {   
+        for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x - 1); x++)
+            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z - 1); z++) 
             {
                 if (!controllers.ContainsKey((x, z)))
                     Generate(x, z);
@@ -265,4 +353,5 @@ public class TerrainCoordinator : MonoBehaviour
                 modifier.QueueProject((x, z));
             }
     }
+    #endregion
 }

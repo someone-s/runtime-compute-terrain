@@ -6,74 +6,86 @@ using UnityEngine.Assertions;
 using System.IO;
 using System.IO.Compression;
 using UnityEngine.Events;
+using System.Collections.Generic;
 
-[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+[RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshRenderer))]
 public class TerrainController : MonoBehaviour
 {
-    #region Event Section
-    public bool terrainReady { get; private set; } = false;
-    public UnityEvent OnTerrainReady
-    {
-        get
-        {
-            if (TerrainReadyInstance == null)
-                TerrainReadyInstance = new();
-            return TerrainReadyInstance;
-        }
-    }
-    private UnityEvent TerrainReadyInstance = null;
-    public UnityEvent OnTerrainChange
-    {
-        get
-        {
-            if (TerrainChangeInstance == null)
-                TerrainChangeInstance = new();
-            return TerrainChangeInstance;
-        }
-    }
-    private UnityEvent TerrainChangeInstance = null;
-    public UnityEvent<int> OnTerrainVisible
-    {
-        get
-        {
-            if (TerrainVisibleInstance == null)
-                TerrainVisibleInstance = new();
-            return TerrainVisibleInstance;
-        }
-    }
-    private UnityEvent<int> TerrainVisibleInstance = null;
-    public UnityEvent<int> OnTerrainLod
-    {
-        get
-        {
-            if (TerrainLodInstance == null)
-                TerrainLodInstance = new();
-            return TerrainLodInstance;
-        }
-    }
-    private UnityEvent<int> TerrainLodInstance = null;
-    public UnityEvent OnTerrainHidden
-    {
-        get
-        {
-            if (TerrainHiddenInstance == null)
-                TerrainHiddenInstance = new();
-            return TerrainHiddenInstance;
-        }
-    }
-    private UnityEvent TerrainHiddenInstance = null;
-    public UnityEvent<float> OnDistanceChange
-    {
-        get
-        {
-            if (DistanceChangeDistance == null)
-                DistanceChangeDistance = new();
-            return DistanceChangeDistance;
-        }
-    }
-    private UnityEvent<float> DistanceChangeDistance = null;
+    #region Contributor Section
+    internal HashSet<TerrainProjector> projectors = new();
+    
     #endregion
 
+    #region Event Section
+    public bool terrainReady { get; private set; } = false;
+    public UnityEvent OnTerrainReady;
+    public UnityEvent OnTerrainChange;
+    public UnityEvent<int> OnTerrainVisible;
+    public UnityEvent<int> OnTerrainLod;
+    public UnityEvent OnTerrainHidden;
+    public UnityEvent<float> OnDistanceChange;
+    // public UnityEvent OnTerrainReady
+    // {
+    //     get
+    //     {
+    //         if (TerrainReadyInstance == null)
+    //             TerrainReadyInstance = new();
+    //         return TerrainReadyInstance;
+    //     }
+    // }
+    // private UnityEvent TerrainReadyInstance = null;
+    // public UnityEvent OnTerrainChange
+    // {
+    //     get
+    //     {
+    //         if (TerrainChangeInstance == null)
+    //             TerrainChangeInstance = new();
+    //         return TerrainChangeInstance;
+    //     }
+    // }
+    // private UnityEvent TerrainChangeInstance = null;
+    // public UnityEvent<int> OnTerrainVisible
+    // {
+    //     get
+    //     {
+    //         if (TerrainVisibleInstance == null)
+    //             TerrainVisibleInstance = new();
+    //         return TerrainVisibleInstance;
+    //     }
+    // }
+    // private UnityEvent<int> TerrainVisibleInstance = null;
+    // public UnityEvent<int> OnTerrainLod
+    // {
+    //     get
+    //     {
+    //         if (TerrainLodInstance == null)
+    //             TerrainLodInstance = new();
+    //         return TerrainLodInstance;
+    //     }
+    // }
+    // private UnityEvent<int> TerrainLodInstance = null;
+    // public UnityEvent OnTerrainHidden
+    // {
+    //     get
+    //     {
+    //         if (TerrainHiddenInstance == null)
+    //             TerrainHiddenInstance = new();
+    //         return TerrainHiddenInstance;
+    //     }
+    // }
+    // private UnityEvent TerrainHiddenInstance = null;
+    // public UnityEvent<float> OnDistanceChange
+    // {
+    //     get
+    //     {
+    //         if (DistanceChangeDistance == null)
+    //             DistanceChangeDistance = new();
+    //         return DistanceChangeDistance;
+    //     }
+    // }
+    // private UnityEvent<float> DistanceChangeDistance = null;
+    #endregion
 
     #region Vertices Section
     public const float area = TerrainCoordinator.area;
@@ -232,6 +244,7 @@ public class TerrainController : MonoBehaviour
     }
     #endregion
 
+    #region Generator Section
     public static int VertexBufferStride => MeshGenerator.GetVertexBufferStride();
     public static int VertexPositionAttributeOffset => MeshGenerator.GetVertexPositionAttributeOffset();
     public static int VertexNormalAttributeOffset => MeshGenerator.GetVertexNormalAttributeOffset();
@@ -368,4 +381,5 @@ public class TerrainController : MonoBehaviour
         }
 
     }
+    #endregion
 }
