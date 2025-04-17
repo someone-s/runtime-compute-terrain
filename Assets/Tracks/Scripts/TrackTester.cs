@@ -88,8 +88,7 @@ public class TrackTester : MonoBehaviour {
             bLastPos = bPos;
             aLastRot = aRot;
             bLastRot = bRot;
-            controller.SetPoints(a.position, a.rotation, b.position, b.rotation);
-            controller.QueueRefresh();
+            controller.QueueRefresh(a.position, a.rotation, b.position, b.rotation);
         }
 
         

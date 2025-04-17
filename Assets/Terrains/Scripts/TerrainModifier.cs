@@ -179,10 +179,6 @@ public class TerrainModifier : MonoBehaviour
     private int projectClearKernel;
     private int projectConvertKernel;
     [SerializeField] private GraphicsBuffer projectBuffer;
-    [SerializeField] private List<MeshFilter> mandateFilters;
-    [SerializeField] private List<MeshFilter> minimumFilters;
-    [SerializeField] private List<MeshFilter> maximumFilters;
-    private List<MeshFilter>[] filters;
 
     private Matrix4x4 projectionMatrix;
     private Quaternion projectionRotation;
@@ -195,9 +191,7 @@ public class TerrainModifier : MonoBehaviour
     private Queue<(int x, int z)> projectQueue = new Queue<(int x, int y)>();
 
     private void SetupProject() 
-    {
-        filters = new[] { mandateFilters, minimumFilters, maximumFilters };
-        
+    {   
         projectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, quadSize * quadSize, sizeof(float) * 3);
 
         modifyApplyKernel = modifyShader.FindKernel("ApplyModifiers");
@@ -243,48 +237,58 @@ public class TerrainModifier : MonoBehaviour
             File.WriteAllLines(path, output.Select(v => v.ToString()));
     }
 
+    private HashSet<TerrainProjector> tempProjectors = new();
+    private void PerformProject(TerrainProjector projector)
+    {
+        if (tempProjectors.Contains(projector))
+            return;
+
+        tempProjectors.Add(projector);
+
+        // Make sure _WorldToClip already set before this
+
+        projectShader.SetInt("_Mode", (int)projector.mode);
+
+        projectShader.SetMatrix("_LocalToWorld", projector.currentLocalToWorld);
+
+        projectShader.SetBuffer(projectExecuteKernel, "_Vertices",       projector.filter.sharedMesh.GetVertexBuffer(0));
+        projectShader.SetInt(                         "_Stride",         projector.filter.sharedMesh.GetVertexBufferStride(0));
+        projectShader.SetInt(                         "_PositionOffset", projector.filter.sharedMesh.GetVertexAttributeOffset(VertexAttribute.Position));
+
+        int triangleCount = (int)projector.filter.sharedMesh.GetIndexCount(0) / 3;
+        projectShader.SetBuffer(projectExecuteKernel, "_Indices",     projector.filter.sharedMesh.GetIndexBuffer());
+        projectShader.SetInt(                         "_NumTriangle", triangleCount);
+        
+        projectShader.Dispatch(projectExecuteKernel, Mathf.CeilToInt(triangleCount / 512f), 1, 1);
+    }
+
     private void ExecuteProject()
     {
         for (int i = 0; i < projectBatchSize && projectQueue.TryDequeue(out (int x, int z) region); i++)
         {
 
             (int x, int z) = region;
+            TerrainController[] currentProjectControllers = SetArea(modifyApplyKernel, region);
 
             projectShader.Dispatch(projectClearKernel, Mathf.CeilToInt((float)quadSize / 32), Mathf.CeilToInt((float)quadSize / 32), 1);
 
             projectionPosition.x = x * area - projectionHalfPitch;
             projectionPosition.z = z * area - projectionHalfPitch;
             projectShader.SetMatrix("_WorldToClip", projectionMatrix * Matrix4x4.Inverse(Matrix4x4.TRS(projectionPosition, projectionRotation, projectionScale)));
-
-            for (int m = 1; m <= 3; m++)
-            {
-                projectShader.SetInt("_Mode", m);
-                foreach (var filter in filters[m-1])
-                {
-                    projectShader.SetMatrix("_LocalToWorld", filter.transform.localToWorldMatrix);
-
-                    projectShader.SetBuffer(projectExecuteKernel, "_Vertices",       filter.sharedMesh.GetVertexBuffer(0));
-                    projectShader.SetInt(                         "_Stride",         filter.sharedMesh.GetVertexBufferStride(0));
-                    projectShader.SetInt(                         "_PositionOffset", filter.sharedMesh.GetVertexAttributeOffset(VertexAttribute.Position));
-
-                    int triangleCount = (int)filter.sharedMesh.GetIndexCount(0) / 3;
-                    projectShader.SetBuffer(projectExecuteKernel, "_Indices",     filter.sharedMesh.GetIndexBuffer());
-                    projectShader.SetInt(                         "_NumTriangle", triangleCount);
-                    
-                    projectShader.Dispatch(projectExecuteKernel, Mathf.CeilToInt(triangleCount / 512f), 1, 1);
-                }
-            }
+            
+            tempProjectors.Clear();
+            foreach (TerrainController controller in currentProjectControllers)
+                foreach (TerrainProjector projector in controller.projectors)
+                    PerformProject(projector);
             
             projectShader.Dispatch(projectConvertKernel, Mathf.CeilToInt((float)quadSize / 32), Mathf.CeilToInt((float)quadSize / 32), 1);
 
             if (Keyboard.current.xKey.isPressed && x == -1 && z == -1)
                 T($"temp{x}-{z}.txt");
 
-            TerrainController[] currentProjectController = SetArea(modifyApplyKernel, region);
-
             modifyShader.Dispatch(modifyApplyKernel, 1, 1, 1);
 
-            foreach (TerrainController controller in currentProjectController)
+            foreach (TerrainController controller in currentProjectControllers)
                 controller.OnTerrainChange.Invoke();
         }
     }
