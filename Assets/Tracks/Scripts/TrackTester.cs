@@ -10,8 +10,8 @@ public class TrackTester : MonoBehaviour {
             count = 2,
             points = new Vector3[] 
             { 
-                new Vector3(-0.5f,  0f,   0f),
-                new Vector3( 0.5f,  0f,   0f),
+                new Vector3(-0.75f,  0f,   0f),
+                new Vector3( 0.75f,  0f,   0f),
             },
             normals = new Vector3[] 
             {
@@ -27,8 +27,8 @@ public class TrackTester : MonoBehaviour {
             points = new Vector3[] 
             { 
                 new Vector3(-10f, -5f, 0f),
-                new Vector3(-0.5f, 0f,  0f),
-                new Vector3( 0.5f, 0f,  0f),
+                new Vector3(-0.75f, 0f,  0f),
+                new Vector3( 0.75f, 0f,  0f),
                 new Vector3( 10f, -5f, 0f)
             },
             normals = new Vector3[] 
@@ -47,8 +47,8 @@ public class TrackTester : MonoBehaviour {
             points = new Vector3[] 
             { 
                 new Vector3(-10f,  5f, 0f),
-                new Vector3(-0.5f, 0f, 0f),
-                new Vector3( 0.5f, 0f, 0f),
+                new Vector3(-0.75f, 0f, 0f),
+                new Vector3( 0.75f, 0f, 0f),
                 new Vector3( 10f,  5f, 0f)
             },
             normals = new Vector3[] 

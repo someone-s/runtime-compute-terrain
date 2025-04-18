@@ -78,9 +78,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   scatterShader: {fileID: 7200000, guid: 09d13c5e2d795df12abc6e17b6525bea, type: 3}
-  setShader: {fileID: 7200000, guid: a259e251a88c9426ba1b891fbe05d201, type: 3}
   material: {fileID: 2100000, guid: f5d9ce46ae15d2d2ba6198e6db78d8be, type: 2}
   mesh: {fileID: 2949893962580367973, guid: 25357df313829a924875e720825dd88e, type: 3}
+  castShadow: 0
   density: 2.5
   minHeight: 0.1
   maxHeight: 0.15
@@ -90,8 +90,6 @@ MonoBehaviour:
   windFrequency: 2
   windAmplitude: 0.05
   lod1Divider: 0.5773503
-  lod1Distance: 90
   lod1Scale: 2.25
   lod2Divider: 0.2886751
-  lod2Distance: 180
   lod2Scale: 5.0625

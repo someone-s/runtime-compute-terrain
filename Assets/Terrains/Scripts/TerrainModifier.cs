@@ -3,11 +3,6 @@ using UnityEngine;
 using Unity.Collections;
 using System.Runtime.InteropServices;
 using UnityEngine.Rendering;
-using Unity.Mathematics;
-using System.IO;
-using System.Linq;
-using UnityEngine.InputSystem;
-using System;
 
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainModifier : MonoBehaviour
@@ -221,20 +216,12 @@ public class TerrainModifier : MonoBehaviour
 
     public void QueueProject((int x, int z) region)
     {
+        if (this == null) return;
+
         if (!projectQueue.Contains(region))
             projectQueue.Enqueue(region);
 
         enabled = true;
-    }
-
-    private void T(string s)
-    {
-
-            float[] output = new float[quadSize * quadSize * 3];
-            projectBuffer.GetData(output);
-            string path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments) + "/" + s;
-            Debug.Log(path);
-            File.WriteAllLines(path, output.Select(v => v.ToString()));
     }
 
     private HashSet<TerrainProjector> tempProjectors = new();
@@ -282,9 +269,6 @@ public class TerrainModifier : MonoBehaviour
                     PerformProject(projector);
             
             projectShader.Dispatch(projectConvertKernel, Mathf.CeilToInt((float)quadSize / 32), Mathf.CeilToInt((float)quadSize / 32), 1);
-
-            if (Keyboard.current.xKey.isPressed && x == -1 && z == -1)
-                T($"temp{x}-{z}.txt");
 
             modifyShader.Dispatch(modifyApplyKernel, 1, 1, 1);
 

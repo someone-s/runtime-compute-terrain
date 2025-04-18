@@ -350,7 +350,7 @@ public class TerrainCoordinator : MonoBehaviour
                     Generate(x+1, z+1);
                 if (!controllers.ContainsKey((x, z+1)))
                     Generate(x, z+1);
-                modifier.QueueProject((x, z));
+                modifier?.QueueProject((x, z));
             }
     }
     #endregion

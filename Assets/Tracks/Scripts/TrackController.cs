@@ -86,6 +86,8 @@ public class TrackController : MonoBehaviour
         computeShader.SetVector("_US", Vector3.up);
         computeShader.SetVector("_UE", Vector3.up);
 
+        computeShader.SetInt("_Vertical", profile.vertical ? 1 : 0);
+
         computeShader.Dispatch(updateTrackKernel, 1, 1, 1);
 
         Bounds bounds = new Bounds(p0, Vector3.zero);

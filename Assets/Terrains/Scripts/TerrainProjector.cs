@@ -55,6 +55,6 @@ public class TerrainProjector : MonoBehaviour
     private void OnDestroy()
     {
         if (previousWorldBounds != null)
-            coordinator.RemoveProjector(previousWorldBounds.Value, this);
+            coordinator?.RemoveProjector(previousWorldBounds.Value, this);
     }
 }
