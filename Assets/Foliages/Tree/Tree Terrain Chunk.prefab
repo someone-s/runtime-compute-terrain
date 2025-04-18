@@ -81,22 +81,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   scatterShader: {fileID: 7200000, guid: 09d13c5e2d795df12abc6e17b6525bea, type: 3}
-  setShader: {fileID: 7200000, guid: a259e251a88c9426ba1b891fbe05d201, type: 3}
   material: {fileID: 2100000, guid: f5d9ce46ae15d2d2ba6198e6db78d8be, type: 2}
   mesh: {fileID: 2949893962580367973, guid: 25357df313829a924875e720825dd88e, type: 3}
-  density: 2.5
+  castShadow: 0
+  density: 4
   minHeight: 0.1
   maxHeight: 0.15
   scale: 1
   slopeMinDegree: 0
   slopeMaxDegree: 40
   windFrequency: 2
-  windAmplitude: 0.05
-  lod1Divider: 0.5773503
-  lod1Distance: 90
+  windAmplitude: 0.025
+  lod1Divider: 0.5773504
   lod1Scale: 2.25
   lod2Divider: 0.2886751
-  lod2Distance: 180
   lod2Scale: 5.0625
 --- !u!114 &7820424704870549901
 MonoBehaviour:
@@ -111,20 +109,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   scatterShader: {fileID: 7200000, guid: 09d13c5e2d795df12abc6e17b6525bea, type: 3}
-  setShader: {fileID: 7200000, guid: a259e251a88c9426ba1b891fbe05d201, type: 3}
   material: {fileID: 2100000, guid: e81f6121210239b44802c75f68d6fb57, type: 2}
-  mesh: {fileID: 5099472449193182022, guid: a44c9fdcb671087798c5efc375a2f912, type: 3}
-  density: 0.05
+  mesh: {fileID: 7589089571544170206, guid: c5b1edb5eda7ed32b8de1207a8bd293c, type: 3}
+  castShadow: 1
+  density: 0.25
   minHeight: 1
   maxHeight: 1
-  scale: 0.5
+  scale: 1
   slopeMinDegree: 0
   slopeMaxDegree: 20
   windFrequency: 1.75
   windAmplitude: 0.01
   lod1Divider: 0.7071068
-  lod1Distance: 135
   lod1Scale: 1
   lod2Divider: 0.5
-  lod2Distance: 225
   lod2Scale: 1

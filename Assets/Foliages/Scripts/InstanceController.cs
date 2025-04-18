@@ -14,10 +14,12 @@ public class InstanceController : MonoBehaviour
 
 
     [Header("Instance Setting")]
+    [SerializeField] private bool castShadow = false;
     [SerializeField, Min(0.05f)] private float density = 4;
     [SerializeField] private float minHeight = 1f;
     [SerializeField] private float maxHeight = 2f;
     [SerializeField] private float scale = 2f;
+
 
     [Header("Slope Setting")]
     [SerializeField, Range(0f, 180f)] private float slopeMinDegree = 0f;
@@ -145,7 +147,7 @@ public class InstanceController : MonoBehaviour
         parameters = new RenderParams(material);
         parameters.matProps = properties;
         parameters.worldBounds = controller.worldBound;
-        parameters.shadowCastingMode = ShadowCastingMode.On;
+        parameters.shadowCastingMode = castShadow ? ShadowCastingMode.On : ShadowCastingMode.Off;
         parameters.receiveShadows = true;
 
         meshIndexBuffer = mesh.GetIndexBuffer();

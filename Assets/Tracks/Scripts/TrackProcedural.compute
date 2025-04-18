@@ -23,6 +23,8 @@ float3 _P3;
 float3 _US;
 float3 _UE;
 
+uint _Vertical;
+
 float3 EvaluatePosition(float t)
 {
     float tSquare = t * t;
@@ -149,6 +151,12 @@ void UpdateTrack(uint3 id : SV_DispatchThreadID)
     {
         float3 position, tangent, up;
         GetPoint(_ApproxLength, p, _ActualSpacing, position, tangent, up);
+
+        if (_Vertical == 1)
+        {
+            tangent.y = 0.0;
+            tangent = normalize(tangent);
+        }
 
         float4x4 rotation = LookRotation(tangent, up);
         float4x4 translation = Translate(position);
