@@ -150,9 +150,9 @@ Transform:
   m_Children:
   - {fileID: 726176229}
   - {fileID: 160254231}
-  - {fileID: 333261286}
   - {fileID: 998992867}
   - {fileID: 1563046029}
+  - {fileID: 333261286}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &160254230
@@ -434,7 +434,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileIndex: 2
+  profile: {fileID: 11400000, guid: 719bd8439544cff5698f5b87ef1a8c13, type: 2}
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!114 &333261288
@@ -640,7 +640,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileIndex: 1
+  profile: {fileID: 11400000, guid: 88c7aeaec5c6247828fbc87271bf3fe0, type: 2}
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &605676483
@@ -816,7 +816,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileIndex: 0
+  profile: {fileID: 11400000, guid: 24ac11fbd59149cf4bfe25c875e3fe4f, type: 2}
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &724500689
@@ -1150,7 +1150,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileIndex: 0
+  profile: {fileID: 11400000, guid: 24ac11fbd59149cf4bfe25c875e3fe4f, type: 2}
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!33 &998992869
@@ -1235,7 +1235,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileIndex: 2
+  profile: {fileID: 11400000, guid: 719bd8439544cff5698f5b87ef1a8c13, type: 2}
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &1135332792
@@ -1739,7 +1739,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileIndex: 1
+  profile: {fileID: 11400000, guid: 88c7aeaec5c6247828fbc87271bf3fe0, type: 2}
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!114 &1563046031
