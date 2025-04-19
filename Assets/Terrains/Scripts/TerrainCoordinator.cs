@@ -154,32 +154,32 @@ public class TerrainCoordinator : MonoBehaviour
     #endregion
 
     #region IO Section
-    public void Save(string saveName)
+    public void Save(string saveRoot)
     {
         // Create directory
-        TerrainFiler.CreateSavePath(saveName);
+        TerrainFiler.CreateSavePath(saveRoot);
 
         // Remove files not to be overwritten
-        foreach (((int x, int z) grid, string path) entry in TerrainFiler.GetAllTerrain(saveName))
+        foreach (((int x, int z) grid, string path) entry in TerrainFiler.GetAllTerrain(saveRoot))
             if (!controllers.ContainsKey(entry.grid))
                 File.Delete(entry.path);
 
         // Write new files
         foreach (KeyValuePair<(int x, int z), TerrainController> entry in controllers)
-            entry.Value.Save(TerrainFiler.GetTerrainPath(saveName, entry.Key));
+            entry.Value.Save(TerrainFiler.GetTerrainPath(saveRoot, entry.Key));
 
         AsyncGPUReadback.WaitAllRequests();
 
     }
 
-    public void Load(string saveName)
+    public void Load(string saveRoot)
     {
         // Get all files found
-        ((int x, int z) grid, string path)[] entries = TerrainFiler.GetAllTerrain(saveName);
+        ((int x, int z) grid, string path)[] entries = TerrainFiler.GetAllTerrain(saveRoot);
 
         // Reset all out of bound terrain
         foreach (KeyValuePair<(int x, int z), TerrainController> entry in controllers)
-            if (!TerrainFiler.SavePathExist(saveName, entry.Key))
+            if (!TerrainFiler.SavePathExist(saveRoot, entry.Key))
                 entry.Value.Reset();
 
         if (entries.Length < 1)

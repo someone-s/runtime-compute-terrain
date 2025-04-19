@@ -81,15 +81,15 @@ MonoBehaviour:
   material: {fileID: 2100000, guid: f5d9ce46ae15d2d2ba6198e6db78d8be, type: 2}
   mesh: {fileID: 2949893962580367973, guid: 25357df313829a924875e720825dd88e, type: 3}
   castShadow: 0
-  density: 2.5
+  density: 4
   minHeight: 0.1
   maxHeight: 0.15
   scale: 1
   slopeMinDegree: 0
   slopeMaxDegree: 40
   windFrequency: 2
-  windAmplitude: 0.05
-  lod1Divider: 0.5773503
+  windAmplitude: 0.025
+  lod1Divider: 0.5773504
   lod1Scale: 2.25
   lod2Divider: 0.2886751
   lod2Scale: 5.0625

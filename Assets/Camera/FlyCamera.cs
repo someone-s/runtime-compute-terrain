@@ -1,6 +1,7 @@
 // Credit https://gist.github.com/FreyaHolmer/650ecd551562352120445513efa1d952
 // For testing only
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 [RequireComponent( typeof(Camera) )]
 public class FlyCamera : MonoBehaviour {
@@ -8,70 +9,64 @@ public class FlyCamera : MonoBehaviour {
 	public float accSprintMultiplier = 4; // how much faster you go when "sprinting"
 	public float lookSensitivity = 1; // mouse look sensitivity
 	public float dampingCoefficient = 5; // how quickly you break to a halt after you stop your input
-	public bool focusOnEnable = true; // whether or not to focus and lock cursor immediately on enable
 
 	Vector3 velocity; // current velocity
 
-	static bool Focused {
-		get => Cursor.lockState == CursorLockMode.Locked;
-		set {
-			Cursor.lockState = value ? CursorLockMode.Locked : CursorLockMode.None;
-			Cursor.visible = value == false;
-		}
-	}
-
-	void OnEnable() {
-		if( focusOnEnable ) Focused = true;
-	}
-
-	void OnDisable() => Focused = false;
-
 	void Update() {
-		// Input
-		if( Focused )
-			UpdateInput();
-		else if( Input.GetMouseButtonDown( 0 ) )
-			Focused = true;
+		UpdateInput();
 
 		// Physics
 		velocity = Vector3.Lerp( velocity, Vector3.zero, dampingCoefficient * Time.deltaTime );
 		transform.position += velocity * Time.deltaTime;
 	}
 
+	private Vector3 skew = Vector3.zero;
+	private Vector2 panValue = Vector2.zero;
+	private bool panActive = false;
+
 	void UpdateInput() {
 		// Position
-		velocity += GetAccelerationVector() * Time.deltaTime;
+		velocity += skew * acceleration * Time.deltaTime;
 
 		// Rotation
-		Vector2 mouseDelta = lookSensitivity * new Vector2( Input.GetAxis( "Mouse X" ), -Input.GetAxis( "Mouse Y" ) );
-		Quaternion rotation = transform.rotation;
-		Quaternion horiz = Quaternion.AngleAxis( mouseDelta.x, Vector3.up );
-		Quaternion vert = Quaternion.AngleAxis( mouseDelta.y, Vector3.right );
-		transform.rotation = horiz * rotation * vert;
-
-		// Leave cursor lock
-		if( Input.GetKeyDown( KeyCode.Escape ) )
-			Focused = false;
+		if (panActive)
+		{
+			Vector2 mouseDelta = lookSensitivity * panValue;
+			Quaternion rotation = transform.rotation;
+			Quaternion horiz = Quaternion.AngleAxis( mouseDelta.x, Vector3.up );
+			Quaternion vert = Quaternion.AngleAxis( mouseDelta.y, Vector3.right );
+			transform.rotation = horiz * rotation * vert;
+		}
 	}
 
-	Vector3 GetAccelerationVector() {
-		Vector3 moveInput = default;
+	public void OnMove(InputAction.CallbackContext context)
+	{
+		Vector3 moveInput = Vector3.zero;
 
-		void AddMovement( KeyCode key, Vector3 dir ) {
-			if( Input.GetKey( key ) )
-				moveInput += dir;
+		Vector2 input = context.ReadValue<Vector2>();
+		moveInput += Vector3.forward * input.y;
+		moveInput += Vector3.right * input.x;
+
+		skew = transform.TransformVector(moveInput.normalized);
+	}
+
+	public void OnLook(InputAction.CallbackContext context)
+	{
+		Vector2 input = context.ReadValue<Vector2>();
+		input.y = -input.y;
+		panValue = input;
+	}
+
+	public void OnCrouch(InputAction.CallbackContext context)
+	{
+		bool oldValue = panActive;
+		panActive = context.ReadValueAsButton();
+		if (oldValue != panActive)
+		{
+			if (panActive)
+				Cursor.lockState = CursorLockMode.Locked;
+			else
+				Cursor.lockState = CursorLockMode.None;
 		}
-
-		AddMovement( KeyCode.W, Vector3.forward );
-		AddMovement( KeyCode.S, Vector3.back );
-		AddMovement( KeyCode.D, Vector3.right );
-		AddMovement( KeyCode.A, Vector3.left );
-		AddMovement( KeyCode.Space, Vector3.up );
-		AddMovement( KeyCode.LeftControl, Vector3.down );
-		Vector3 direction = transform.TransformVector( moveInput.normalized );
-
-		if( Input.GetKey( KeyCode.LeftShift ) )
-			return direction * ( acceleration * accSprintMultiplier ); // "sprinting"
-		return direction * acceleration; // "walking"
 	}
 }

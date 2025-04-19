@@ -5,17 +5,13 @@ using UnityEngine;
 
 public static class TerrainFiler
 {
-    private const string application = "TerrainTest";
+    private const string subFolder = "Terrain";
     private static string ToFileName(this (int x, int z) grid) => $"{grid.x}_{grid.z}";
-    private static string ToDirectory(this string saveName) => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        application, saveName);
+    private static string ToDirectory(this string saveRoot) => Path.Combine(saveRoot, subFolder);
 
-    public static ((int x, int z) grid, string path)[] GetAllTerrain(string saveName)
+    public static ((int x, int z) grid, string path)[] GetAllTerrain(string saveRoot)
     {
-        string directory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            application, saveName);
+        string directory = saveRoot.ToDirectory();
 
         if (!Directory.Exists(directory))
             return null;
@@ -45,31 +41,28 @@ public static class TerrainFiler
             .ToArray();
     }
 
-    public static void CreateSavePath(string saveName) 
+    public static void CreateSavePath(string saveRoot) 
     {
-        string directory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                application, saveName);
-        Directory.CreateDirectory(directory);
+        Directory.CreateDirectory(saveRoot.ToDirectory());
     }
 
-    public static bool SavePathExist(string saveName)
+    public static bool SavePathExist(string saveRoot)
     {
-        return Directory.Exists(saveName.ToDirectory());
+        return Directory.Exists(saveRoot.ToDirectory());
     }
 
-    public static bool SavePathExist(string saveName, (int x, int z) grid)
+    public static bool SavePathExist(string saveRoot, (int x, int z) grid)
     {
-        if (!SavePathExist(saveName))
+        if (!SavePathExist(saveRoot))
             return false;
 
-        string fileName = Path.Combine(saveName.ToDirectory(), grid.ToFileName());
+        string fileName = Path.Combine(saveRoot.ToDirectory(), grid.ToFileName());
 
         return File.Exists(fileName);
     }
 
-    public static string GetTerrainPath(string saveName, (int x, int z) grid)
+    public static string GetTerrainPath(string saveRoot, (int x, int z) grid)
     {
-       return Path.Combine(saveName.ToDirectory(), grid.ToFileName());
+       return Path.Combine(saveRoot.ToDirectory(), grid.ToFileName());
     }
 }
