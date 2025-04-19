@@ -1,16 +1,33 @@
+using System.Collections;
+using System.IO;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class SplineTester : MonoBehaviour {
 
-    [SerializeField] private SplineProfile profile;
+    [SerializeField] private string profileName;
     private SplineController controller;
+    private bool canUpdate = false;
 
-    private void Start()
+    private string ProfilePath => Path.Join(FileCoordinator.Instance.ResourceRoot, "Splines", $"{profileName}.glb");
+
+    private IEnumerator Start()
     {
         controller = GetComponent<SplineController>();
-        controller.Setup(profile);
+        Task<SplineProfile?> loadTask = SplineLoader.Get(ProfilePath);
+        yield return new WaitUntil(() => loadTask.IsCompleted || loadTask.IsCompleted);
+        
+        if (!loadTask.IsCompletedSuccessfully) yield break;
+
+        SplineProfile? profile = loadTask.Result;
+        Debug.Log(profile == null);
+        if (profile != null) {
+            controller.Setup(profile.Value);
+            canUpdate = true;
+        }
     }
+    
 
 
     private Vector3 aLastPos, bLastPos;
@@ -18,6 +35,8 @@ public class SplineTester : MonoBehaviour {
     public Transform a, b;
     private void Update()
     {
+        if (!canUpdate) return;
+
         if (Keyboard.current.rKey.isPressed)
             a.position += Vector3.left * Time.deltaTime;
         if (Keyboard.current.qKey.isPressed)

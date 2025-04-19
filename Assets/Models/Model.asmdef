@@ -1,13 +1,10 @@
 {
-    "name": "Spline",
+    "name": "Model",
     "rootNamespace": "",
     "references": [
-        "GUID:d8b63aba1907145bea998dd612889d6b",
-        "GUID:21d1eb854b91ade49bc69a263d12bee2",
-        "GUID:75469ad4d38634e559750d17036d5f7c",
         "GUID:a42927d1d4a3b4cda9b076a7adecb9cc",
-        "GUID:25ace1f7ded6f48c0a8abf5ef590456e",
-        "GUID:0dc40d7d349a209819cea906208c3471"
+        "GUID:6f659d78ae11d7743846a9526105dbbe",
+        "GUID:25ace1f7ded6f48c0a8abf5ef590456e"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
