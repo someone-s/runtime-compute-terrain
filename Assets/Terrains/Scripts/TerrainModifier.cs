@@ -35,8 +35,8 @@ public class TerrainModifier : MonoBehaviour
 
     private void OnDestroy()
     {
-        operationBuffer.Dispose();
-        projectBuffer.Dispose();
+        operationBuffer?.Dispose();
+        projectBuffer?.Dispose();
     }
 
     private TerrainController[] SetArea(int kernelIndex, (int x, int z) region)

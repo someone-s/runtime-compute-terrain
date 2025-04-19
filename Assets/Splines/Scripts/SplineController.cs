@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using Unity.Collections;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Rendering;
@@ -21,9 +18,6 @@ public class SplineController : MonoBehaviour
     private int updateTrackKernel;
     private uint threadCount;
 
-    private static int maxPointCount = 512;
-    private static float targetSegmentLength = 1f;
-
     private SplineProfile profile;
     private Mesh mesh;
     public GraphicsBuffer graphicsBuffer { get; private set; }
@@ -33,7 +27,7 @@ public class SplineController : MonoBehaviour
         profile = profileToUse;
 
         MeshFilter filter = GetComponent<MeshFilter>();
-        mesh = MeshGenerator.GetMesh(profile);
+        mesh = SplineGenerator.GetMesh(profile);
         mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination;
         mesh.indexBufferTarget |= GraphicsBuffer.Target.Raw;
         filter.sharedMesh = mesh;
@@ -43,15 +37,18 @@ public class SplineController : MonoBehaviour
 
         updateTrackKernel = computeShader.FindKernel("UpdateTrack");
 
-        computeShader.SetInt("_MaxPoint", maxPointCount);
-        computeShader.SetInt("_SliceSize", profile.count);
+        computeShader.SetInt("_MaxPoint", profile.maxPointCount);
+        computeShader.SetInt("_SliceSize", profile.continous.Value.mapping.Length);
 
-        computeShader.SetInt("_Stride", MeshGenerator.GetVertexBufferStride(profile));
-        computeShader.SetInt("_PositionOffset", MeshGenerator.GetVertexPositionAttributeOffset(profile));
-        computeShader.SetInt("_NormalOffset", MeshGenerator.GetVertexNormalAttributeOffset(profile));
+        computeShader.SetInt("_Stride", SplineGenerator.GetVertexBufferStride(profile));
+        computeShader.SetInt("_PositionOffset", SplineGenerator.GetVertexPositionAttributeOffset(profile));
+        computeShader.SetInt("_NormalOffset", SplineGenerator.GetVertexNormalAttributeOffset(profile));
+        computeShader.SetInt("_UVOffset", SplineGenerator.GetVertexUVAttributeOffset(profile));
 
-        computeShader.SetBuffer(updateTrackKernel, "_SourceVertices", MeshGenerator.GetReference(profile));
+        computeShader.SetBuffer(updateTrackKernel, "_SourceVertices", SplineGenerator.GetReference(profile));
         computeShader.SetBuffer(updateTrackKernel, "_DestVertices", graphicsBuffer);
+
+        computeShader.SetFloat("_UVStretch", profile.continous.Value.stretch);
 
         computeShader.GetKernelThreadGroupSizes(updateTrackKernel, out threadCount, out _, out _);
     }
@@ -69,7 +66,7 @@ public class SplineController : MonoBehaviour
     private void ExecuteRefresh()
     {
         float approxLength = (Vector3.Distance(p0, p1) + Vector3.Distance(p1, p2) + Vector3.Distance(p2, p3) + Vector3.Distance(p3, p0)) * 0.5f;
-        int segmentCount = Mathf.Min(Mathf.CeilToInt(approxLength / targetSegmentLength), maxPointCount - 1);
+        int segmentCount = Mathf.Min(Mathf.CeilToInt(approxLength / profile.spacing), profile.maxPointCount - 1);
         float actualSpacing = approxLength / segmentCount;
         int pointCount = segmentCount + 1;
 
@@ -94,15 +91,15 @@ public class SplineController : MonoBehaviour
         bounds.Encapsulate(p1);
         bounds.Encapsulate(p2);
         bounds.Encapsulate(p3);
-        bounds.Expand(profile.extent);
+        bounds.Expand(10f);
         mesh.bounds = bounds;
 
         SubMeshDescriptor descriptor = new SubMeshDescriptor {
             baseVertex = 0,
             firstVertex = 0,
-            vertexCount = pointCount * profile.count,
+            vertexCount = segmentCount * profile.continous.Value.mapping.Length,
             indexStart = 0,
-            indexCount = 6 * segmentCount * (profile.count - 1),
+            indexCount = 6 * segmentCount * (profile.continous.Value.mapping.Length - 1),
             topology = MeshTopology.Triangles,
             bounds = bounds
         };
@@ -125,110 +122,5 @@ public class SplineController : MonoBehaviour
     #endregion
 
     #region Generator Section
-    private static class MeshGenerator
-    {
-        public struct Entry
-        {
-            public Mesh prototype;
-            public GraphicsBuffer reference;
-            public int vertexBufferStride;
-            public int vertexPositionAttributeOffset;
-            public int vertexNormalAttributeOffset;
-        }
-
-        private static Dictionary<SplineProfile, Entry> entries = new();
-
-        public static int GetVertexBufferStride(SplineProfile profile)
-        {
-            if (!entries.TryGetValue(profile, out var entry))
-                entry = CreateMesh(profile);
-
-            return entry.vertexBufferStride;
-        }
-
-        public static int GetVertexPositionAttributeOffset(SplineProfile profile)
-        {
-            if (!entries.TryGetValue(profile, out var entry))
-                entry = CreateMesh(profile);
-
-            return entry.vertexPositionAttributeOffset;
-        }
-
-        public static int GetVertexNormalAttributeOffset(SplineProfile profile)
-        {
-            if (!entries.TryGetValue(profile, out var entry))
-                entry = CreateMesh(profile);
-
-            return entry.vertexNormalAttributeOffset;
-        }
-
-        public static Mesh GetMesh(SplineProfile profile)
-        {
-            if (!entries.TryGetValue(profile, out var entry))
-                entry = CreateMesh(profile);
-
-            return Instantiate(entry.prototype);
-
-        }
-
-        public static GraphicsBuffer GetReference(SplineProfile profile)
-        {
-            if (!entries.TryGetValue(profile, out var entry))
-                entry = CreateMesh(profile);
-
-            return entry.reference;
-        }
-
-        private static Entry CreateMesh(SplineProfile profile)
-        {
-            NativeArray<float3> vertices = new NativeArray<float3>(profile.count * maxPointCount, Allocator.Temp);
-            NativeArray<float3> normals = new NativeArray<float3>(profile.count * maxPointCount, Allocator.Temp);
-            for (int s = 0; s < maxPointCount; s++)
-                for (int p = 0; p < profile.count; p++)
-                {
-                    TrackPoint point = profile.points[p];
-                    vertices[s * profile.count + p] = point.position;
-                    normals[s * profile.count + p] = point.normal;
-                }
-
-            NativeArray<int> indices = new NativeArray<int>(6 * (profile.count - 1) * (maxPointCount - 1), Allocator.Temp);
-            for (int s = 0; s < (maxPointCount - 1); s++)
-                for (int p = 0; p < profile.count - 1; p++)
-                {
-                    indices[(s * (profile.count - 1) + p) * 6 + 0] = (s + 0) * profile.count + (p + 0);
-                    indices[(s * (profile.count - 1) + p) * 6 + 1] = (s + 0) * profile.count + (p + 1);
-                    indices[(s * (profile.count - 1) + p) * 6 + 2] = (s + 1) * profile.count + (p + 1);
-                    indices[(s * (profile.count - 1) + p) * 6 + 3] = (s + 1) * profile.count + (p + 1);
-                    indices[(s * (profile.count - 1) + p) * 6 + 4] = (s + 1) * profile.count + (p + 0);
-                    indices[(s * (profile.count - 1) + p) * 6 + 5] = (s + 0) * profile.count + (p + 0);
-                }
-
-
-            Mesh mesh = new Mesh();
-            mesh.indexFormat = IndexFormat.UInt32;
-            mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopySource;
-            mesh.indexBufferTarget |= GraphicsBuffer.Target.Raw;
-            mesh.SetVertices(vertices);
-            mesh.SetIndices(indices, MeshTopology.Triangles, 0);
-            mesh.SetNormals(normals);
-
-            vertices.Dispose();
-            normals.Dispose();
-            indices.Dispose();
-
-            Entry entry = new Entry() {
-                prototype                       = mesh,
-                reference                       = mesh.GetVertexBuffer(0), 
-                vertexBufferStride              = mesh.GetVertexBufferStride(0), 
-                vertexPositionAttributeOffset   = mesh.GetVertexAttributeOffset(VertexAttribute.Position), 
-                vertexNormalAttributeOffset     = mesh.GetVertexAttributeOffset(VertexAttribute.Normal)
-            };
-
-            entries.Add(profile, entry);
-
-            return entry;
-        }
-
-    }
     #endregion
 }

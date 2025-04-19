@@ -14,6 +14,7 @@ uint _SliceSize; // Number of _Points per slice
 int _Stride;
 int _PositionOffset;
 int _NormalOffset;
+int _UVOffset;
 
 float3 _P0;
 float3 _P1;
@@ -24,6 +25,8 @@ float3 _US;
 float3 _UE;
 
 uint _Vertical;
+
+float _UVStretch;
 
 float3 EvaluatePosition(float t)
 {
@@ -149,6 +152,7 @@ void UpdateTrack(uint3 id : SV_DispatchThreadID)
 {
     for (uint p = id.x * _PointPerThread; p < (id.x + 1) * _PointPerThread && p < _PointCount; p++)
     {
+        float travel = _ActualSpacing * p;
         float3 position, tangent, up;
         GetPoint(_ApproxLength, p, _ActualSpacing, position, tangent, up);
 
@@ -175,6 +179,11 @@ void UpdateTrack(uint3 id : SV_DispatchThreadID)
             float3 sourceNorm  = asfloat(_SourceVertices.Load3(normLocation));
             float3 rotatedNorm = mul(transform, float4(sourceNorm, 0)).xyz;
             _DestVertices.Store3(normLocation, asuint(rotatedNorm));
+
+            uint uvLocation = locationStart + _UVOffset;
+            float2 sourceUV  = asfloat(_SourceVertices.Load2(uvLocation));
+            sourceUV.x += travel * _UVStretch;
+            _DestVertices.Store2(uvLocation, asuint(sourceUV));
         }
     }
 }

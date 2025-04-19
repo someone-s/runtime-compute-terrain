@@ -434,7 +434,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profile: {fileID: 11400000, guid: 719bd8439544cff5698f5b87ef1a8c13, type: 2}
+  profileName: 
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!114 &333261288
@@ -640,7 +640,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profile: {fileID: 11400000, guid: 88c7aeaec5c6247828fbc87271bf3fe0, type: 2}
+  profileName: 
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &605676483
@@ -737,6 +737,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13ad4f78270d4f407b7a38a28c3e9c3d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameFolderName: Testing
   OnSaveOrdered:
   - m_PersistentCalls:
       m_Calls:
@@ -767,8 +768,7 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-  folderName: Testing
-  saveName: temp
+  currentSaveName: temp
 --- !u!4 &626255504
 Transform:
   m_ObjectHideFlags: 0
@@ -816,7 +816,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profile: {fileID: 11400000, guid: 24ac11fbd59149cf4bfe25c875e3fe4f, type: 2}
+  profileName: outline
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &724500689
@@ -1150,7 +1150,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profile: {fileID: 11400000, guid: 24ac11fbd59149cf4bfe25c875e3fe4f, type: 2}
+  profileName: 
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!33 &998992869
@@ -1235,7 +1235,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profile: {fileID: 11400000, guid: 719bd8439544cff5698f5b87ef1a8c13, type: 2}
+  profileName: 
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &1135332792
@@ -1739,7 +1739,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profile: {fileID: 11400000, guid: 88c7aeaec5c6247828fbc87271bf3fe0, type: 2}
+  profileName: 
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!114 &1563046031
