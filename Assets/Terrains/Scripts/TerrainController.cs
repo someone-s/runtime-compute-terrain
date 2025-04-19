@@ -25,66 +25,6 @@ public class TerrainController : MonoBehaviour
     public UnityEvent<int> OnTerrainLod;
     public UnityEvent OnTerrainHidden;
     public UnityEvent<float> OnDistanceChange;
-    // public UnityEvent OnTerrainReady
-    // {
-    //     get
-    //     {
-    //         if (TerrainReadyInstance == null)
-    //             TerrainReadyInstance = new();
-    //         return TerrainReadyInstance;
-    //     }
-    // }
-    // private UnityEvent TerrainReadyInstance = null;
-    // public UnityEvent OnTerrainChange
-    // {
-    //     get
-    //     {
-    //         if (TerrainChangeInstance == null)
-    //             TerrainChangeInstance = new();
-    //         return TerrainChangeInstance;
-    //     }
-    // }
-    // private UnityEvent TerrainChangeInstance = null;
-    // public UnityEvent<int> OnTerrainVisible
-    // {
-    //     get
-    //     {
-    //         if (TerrainVisibleInstance == null)
-    //             TerrainVisibleInstance = new();
-    //         return TerrainVisibleInstance;
-    //     }
-    // }
-    // private UnityEvent<int> TerrainVisibleInstance = null;
-    // public UnityEvent<int> OnTerrainLod
-    // {
-    //     get
-    //     {
-    //         if (TerrainLodInstance == null)
-    //             TerrainLodInstance = new();
-    //         return TerrainLodInstance;
-    //     }
-    // }
-    // private UnityEvent<int> TerrainLodInstance = null;
-    // public UnityEvent OnTerrainHidden
-    // {
-    //     get
-    //     {
-    //         if (TerrainHiddenInstance == null)
-    //             TerrainHiddenInstance = new();
-    //         return TerrainHiddenInstance;
-    //     }
-    // }
-    // private UnityEvent TerrainHiddenInstance = null;
-    // public UnityEvent<float> OnDistanceChange
-    // {
-    //     get
-    //     {
-    //         if (DistanceChangeDistance == null)
-    //             DistanceChangeDistance = new();
-    //         return DistanceChangeDistance;
-    //     }
-    // }
-    // private UnityEvent<float> DistanceChangeDistance = null;
     #endregion
 
     #region Vertices Section

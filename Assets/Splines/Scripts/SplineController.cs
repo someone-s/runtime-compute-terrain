@@ -6,7 +6,7 @@ using UnityEngine.Events;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter))]
-public class TrackController : MonoBehaviour
+public class SplineController : MonoBehaviour
 {
     
     private Vector3 p0, p1, p2, p3;
@@ -24,11 +24,11 @@ public class TrackController : MonoBehaviour
     private static int maxPointCount = 512;
     private static float targetSegmentLength = 1f;
 
-    private TrackProfile profile;
+    private SplineProfile profile;
     private Mesh mesh;
     public GraphicsBuffer graphicsBuffer { get; private set; }
     
-    public void Setup(TrackProfile profileToUse)
+    public void Setup(SplineProfile profileToUse)
     {
         profile = profileToUse;
 
@@ -136,9 +136,9 @@ public class TrackController : MonoBehaviour
             public int vertexNormalAttributeOffset;
         }
 
-        private static Dictionary<TrackProfile, Entry> entries = new();
+        private static Dictionary<SplineProfile, Entry> entries = new();
 
-        public static int GetVertexBufferStride(TrackProfile profile)
+        public static int GetVertexBufferStride(SplineProfile profile)
         {
             if (!entries.TryGetValue(profile, out var entry))
                 entry = CreateMesh(profile);
@@ -146,7 +146,7 @@ public class TrackController : MonoBehaviour
             return entry.vertexBufferStride;
         }
 
-        public static int GetVertexPositionAttributeOffset(TrackProfile profile)
+        public static int GetVertexPositionAttributeOffset(SplineProfile profile)
         {
             if (!entries.TryGetValue(profile, out var entry))
                 entry = CreateMesh(profile);
@@ -154,7 +154,7 @@ public class TrackController : MonoBehaviour
             return entry.vertexPositionAttributeOffset;
         }
 
-        public static int GetVertexNormalAttributeOffset(TrackProfile profile)
+        public static int GetVertexNormalAttributeOffset(SplineProfile profile)
         {
             if (!entries.TryGetValue(profile, out var entry))
                 entry = CreateMesh(profile);
@@ -162,7 +162,7 @@ public class TrackController : MonoBehaviour
             return entry.vertexNormalAttributeOffset;
         }
 
-        public static Mesh GetMesh(TrackProfile profile)
+        public static Mesh GetMesh(SplineProfile profile)
         {
             if (!entries.TryGetValue(profile, out var entry))
                 entry = CreateMesh(profile);
@@ -171,7 +171,7 @@ public class TrackController : MonoBehaviour
 
         }
 
-        public static GraphicsBuffer GetReference(TrackProfile profile)
+        public static GraphicsBuffer GetReference(SplineProfile profile)
         {
             if (!entries.TryGetValue(profile, out var entry))
                 entry = CreateMesh(profile);
@@ -179,15 +179,16 @@ public class TrackController : MonoBehaviour
             return entry.reference;
         }
 
-        private static Entry CreateMesh(TrackProfile profile)
+        private static Entry CreateMesh(SplineProfile profile)
         {
             NativeArray<float3> vertices = new NativeArray<float3>(profile.count * maxPointCount, Allocator.Temp);
             NativeArray<float3> normals = new NativeArray<float3>(profile.count * maxPointCount, Allocator.Temp);
             for (int s = 0; s < maxPointCount; s++)
                 for (int p = 0; p < profile.count; p++)
                 {
-                    vertices[s * profile.count + p] = profile.points[p];
-                    normals[s * profile.count + p] = profile.normals[p];
+                    TrackPoint point = profile.points[p];
+                    vertices[s * profile.count + p] = point.position;
+                    normals[s * profile.count + p] = point.normal;
                 }
 
             NativeArray<int> indices = new NativeArray<int>(6 * (profile.count - 1) * (maxPointCount - 1), Allocator.Temp);
