@@ -1,8 +1,9 @@
 using System;
 using UnityEngine;
 
+[CreateAssetMenu(fileName = "Spline Profile", menuName = "Spline/Profile", order = 0)]
 [Serializable]
-public class SplineProfile
+public class SplineProfile : ScriptableObject
 {
     public bool vertical;
     public int count;
