@@ -7,10 +7,12 @@ using UnityEngine.InputSystem;
 public class SplineTester : MonoBehaviour {
 
     [SerializeField] private string profileName;
+    [SerializeField] private bool useInternal = true;
     private SplineController controller;
     private bool canUpdate = false;
 
-    private string ProfilePath => Path.Join(FileCoordinator.Instance.ResourceRoot, "Splines", $"{profileName}.glb");
+    private string ProfilePath => 
+        Path.Join(useInternal ? Application.streamingAssetsPath : FileCoordinator.Instance.ResourceRoot, "Splines", $"{profileName}.glb");
 
     private IEnumerator Start()
     {
@@ -21,7 +23,6 @@ public class SplineTester : MonoBehaviour {
         if (!loadTask.IsCompletedSuccessfully) yield break;
 
         SplineProfile? profile = loadTask.Result;
-        Debug.Log(profile == null);
         if (profile != null) {
             controller.Setup(profile.Value);
             canUpdate = true;

@@ -8,7 +8,9 @@
 ByteAddressBuffer _SourceVertices;
 RWByteAddressBuffer _DestVertices;
 
+
 uint _MaxPoint;
+uint _BaseVertex;
 uint _SliceSize; // Number of _Points per slice
 
 int _Stride;
@@ -64,7 +66,38 @@ float3 EvaluateUp(float p)
     return _US * cos(theta) + relative * sin(theta);
 }
 
-void GetT(float curveLength, uint pointIndex, float segmentLength, out float t, out float traversedDistance)
+void StepT(float curveLength, float travelDistance, inout float3 beginPoint, inout float t, inout float traversedDistance)
+{
+    float remainingDistance = travelDistance;
+    float3 testPoint = beginPoint;
+
+    while (remainingDistance > 0.001)
+    {
+        traversedDistance += remainingDistance;
+        t = traversedDistance / curveLength;
+
+        if (t > 1.0)
+        {
+            traversedDistance = curveLength;
+            t = 1.0;
+            return;
+        }
+        else if (t < 0.0)
+        {
+            traversedDistance = 0.0;
+            t = 0.0;
+            return;
+        }
+
+        testPoint = EvaluatePosition(t);
+        float dist = distance(beginPoint, testPoint);
+        remainingDistance = travelDistance - dist;
+    }
+
+    beginPoint = testPoint;
+}
+
+void GetT(float curveLength, uint pointIndex, float startOffset, float segmentLength, out float t, out float traversedDistance)
 {
     if (pointIndex * segmentLength >= curveLength)
     {
@@ -79,40 +112,16 @@ void GetT(float curveLength, uint pointIndex, float segmentLength, out float t, 
     }
 
     float3 beginPoint = _P0;
+    StepT(curveLength, startOffset, beginPoint, t, traversedDistance);
 
     for (uint i = 1; i <= pointIndex; i++)
-    {
-        float remainingDistance = segmentLength;
-
-        while (remainingDistance > 0.001)
-        {
-            traversedDistance += remainingDistance;
-            t = traversedDistance / curveLength;
-    
-            if (t > 1.0)
-            {
-                traversedDistance = curveLength;
-                t = 1.0;
-                return;
-            }
-            else if (t < 0.0)
-            {
-                traversedDistance = 0.0;
-                t = 0.0;
-                return;
-            }
-    
-            float3 testPoint = EvaluatePosition(t);
-            float dist = distance(beginPoint, testPoint);
-            remainingDistance = segmentLength - dist;
-        }
-    }
+        StepT(curveLength, segmentLength, beginPoint, t, traversedDistance);
 }
 
-void GetPoint(float curveLength, float pointIndex, float segmentLength, out float3 position, out float3 tangent, out float3 up)
+void GetPoint(float curveLength, float pointIndex, float startOffset, float segmentLength, out float3 position, out float3 tangent, out float3 up)
 {
     float t, traversedDistance;
-    GetT(curveLength, pointIndex, segmentLength, t, traversedDistance);
+    GetT(curveLength, pointIndex, startOffset, segmentLength, t, traversedDistance);
 
     position = EvaluatePosition(t);
     tangent = EvaluateTangent(t);
@@ -143,6 +152,7 @@ float4x4 Translate(float3 position)
 }
 
 float _ApproxLength;
+float _StartOffset;
 float _ActualSpacing;
 uint _PointCount;
 uint _PointPerThread;
@@ -152,9 +162,8 @@ void UpdateTrack(uint3 id : SV_DispatchThreadID)
 {
     for (uint p = id.x * _PointPerThread; p < (id.x + 1) * _PointPerThread && p < _PointCount; p++)
     {
-        float travel = _ActualSpacing * p;
         float3 position, tangent, up;
-        GetPoint(_ApproxLength, p, _ActualSpacing, position, tangent, up);
+        GetPoint(_ApproxLength, p, _StartOffset, _ActualSpacing, position, tangent, up);
 
         if (_Vertical == 1)
         {
@@ -168,7 +177,7 @@ void UpdateTrack(uint3 id : SV_DispatchThreadID)
         float4x4 transform = mul(translation, rotation);
 
         for (uint i = 0; i < _SliceSize; i++) {
-            uint locationStart = (p * _SliceSize + i) * _Stride;
+            uint locationStart = (_BaseVertex + p * _SliceSize + i) * _Stride;
 
             uint posLocation     = locationStart + _PositionOffset;
             float3 sourcePos     = asfloat(_SourceVertices.Load3(posLocation));
@@ -182,7 +191,7 @@ void UpdateTrack(uint3 id : SV_DispatchThreadID)
 
             uint uvLocation = locationStart + _UVOffset;
             float2 sourceUV  = asfloat(_SourceVertices.Load2(uvLocation));
-            sourceUV.x += travel * _UVStretch;
+            sourceUV.x += _ActualSpacing * p * _UVStretch;
             _DestVertices.Store2(uvLocation, asuint(sourceUV));
         }
     }

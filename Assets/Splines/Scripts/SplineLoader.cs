@@ -14,10 +14,7 @@ public static class SplineLoader
     {
         var gltfDataAsByteArray = await File.ReadAllBytesAsync(filePath);
         var gltf = new GltfImport();
-        var success = await gltf.Load(
-            gltfDataAsByteArray,
-            new Uri(filePath)  // The URI of the original data is important for resolving relative URIs within the glTF
-            );
+        var success = await gltf.Load(gltfDataAsByteArray);
 
         if (!success) return null;
 
@@ -40,7 +37,7 @@ public static class SplineLoader
         var mesh = gltf.GetMesh(gltfMeshIndex, 0);
 
         var metaData = (gltf.GetSourceNode() as GLTFast.Newtonsoft.Schema.Node)?.extras;
-        
+
         SplineProfile loadedObject;
         if (metaData != null)
         {
@@ -59,7 +56,8 @@ public static class SplineLoader
                 spacing:       metaData.TryGetValue("spacing",          out float spacing)       ? spacing       : 1f,
                 vertical:      metaData.TryGetValue("vertical",         out bool vertical)       ? vertical      : false,
                 maxPointCount: metaData.TryGetValue("maxPointCount",    out int maxPointCount)   ? maxPointCount : 64,
-               continous:      continousSettings
+                extends:       metaData.TryGetValue("extends",          out float extends)       ? extends       : 0f,
+                continous:      continousSettings
             );
         }
         else
@@ -69,7 +67,7 @@ public static class SplineLoader
         return loadedObject;
     }
 
-    public static async Task<SplineProfile?> Get(string filePath, bool reload = false, Action<SplineProfile?> callback = null)
+    public static async Task<SplineProfile?> Get(string filePath, bool reload = false)
     {
         // Check loading first in case reloading
         if (loadingObjects.TryGetValue(filePath, out Task<SplineProfile?> loadingObject))
