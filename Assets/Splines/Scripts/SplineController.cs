@@ -20,6 +20,7 @@ public class SplineController : MonoBehaviour
 
     private SplineProfile profile;
     private Mesh mesh;
+    private SplineGenerator.Entry entry;
     public GraphicsBuffer graphicsBuffer { get; private set; }
     
     public void Setup(SplineProfile profileToUse)
@@ -27,7 +28,13 @@ public class SplineController : MonoBehaviour
         profile = profileToUse;
 
         MeshFilter filter = GetComponent<MeshFilter>();
-        mesh = SplineGenerator.GetMesh(profile);
+        (Mesh instancedMesh, SplineGenerator.Entry sourceEntry) = SplineGenerator.GetMesh(profile);
+        mesh = instancedMesh;
+        entry = sourceEntry;
+        MeshRenderer renderer = GetComponent<MeshRenderer>();
+        if (renderer != null)
+            renderer.SetMaterials(profile.materials);
+
         mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination;
         mesh.indexBufferTarget |= GraphicsBuffer.Target.Raw;
         filter.sharedMesh = mesh;
@@ -38,17 +45,16 @@ public class SplineController : MonoBehaviour
         updateTrackKernel = computeShader.FindKernel("UpdateTrack");
 
         computeShader.SetInt("_MaxPoint", profile.maxPointCount);
-        computeShader.SetInt("_SliceSize", profile.continous.Value.mapping.Length);
 
-        computeShader.SetInt("_Stride", SplineGenerator.GetVertexBufferStride(profile));
-        computeShader.SetInt("_PositionOffset", SplineGenerator.GetVertexPositionAttributeOffset(profile));
-        computeShader.SetInt("_NormalOffset", SplineGenerator.GetVertexNormalAttributeOffset(profile));
-        computeShader.SetInt("_UVOffset", SplineGenerator.GetVertexUVAttributeOffset(profile));
+        computeShader.SetInt("_Stride", entry.vertexBufferStride);
+        computeShader.SetInt("_PositionOffset", entry.vertexPositionAttributeOffset);
+        computeShader.SetInt("_NormalOffset", entry.vertexNormalAttributeOffset);
+        computeShader.SetInt("_UVOffset", entry.vertexUVAttributeOffset);
 
-        computeShader.SetBuffer(updateTrackKernel, "_SourceVertices", SplineGenerator.GetReference(profile));
+        computeShader.SetBuffer(updateTrackKernel, "_SourceVertices", entry.reference);
         computeShader.SetBuffer(updateTrackKernel, "_DestVertices", graphicsBuffer);
 
-        computeShader.SetFloat("_UVStretch", profile.continous.Value.stretch);
+        computeShader.SetInt("_Vertical", profile.vertical ? 1 : 0);
 
         computeShader.GetKernelThreadGroupSizes(updateTrackKernel, out threadCount, out _, out _);
     }
@@ -66,14 +72,13 @@ public class SplineController : MonoBehaviour
     private void ExecuteRefresh()
     {
         float approxLength = (Vector3.Distance(p0, p1) + Vector3.Distance(p1, p2) + Vector3.Distance(p2, p3) + Vector3.Distance(p3, p0)) * 0.5f;
-        int segmentCount = Mathf.Min(Mathf.CeilToInt(approxLength / profile.spacing), profile.maxPointCount - 1);
+        int segmentCount = Mathf.Clamp(Mathf.FloorToInt(approxLength / profile.spacing), 1, profile.maxPointCount - 1);
         float actualSpacing = approxLength / segmentCount;
-        int pointCount = segmentCount + 1;
+        float startOffset = entry.GetStartOffset(actualSpacing);
+        int pointCount = entry.GetActualPointCount(segmentCount);
 
         computeShader.SetFloat("_ApproxLength", approxLength);
         computeShader.SetFloat("_ActualSpacing", actualSpacing);
-        computeShader.SetInt("_PointCount", pointCount);
-        computeShader.SetInt("_PointPerThread", Mathf.CeilToInt((float)pointCount / threadCount));
 
         computeShader.SetVector("_P0", p0);
         computeShader.SetVector("_P1", p1);
@@ -83,34 +88,45 @@ public class SplineController : MonoBehaviour
         computeShader.SetVector("_US", Vector3.up);
         computeShader.SetVector("_UE", Vector3.up);
 
-        computeShader.SetInt("_Vertical", profile.vertical ? 1 : 0);
+        computeShader.SetFloat("_UVStretch", entry.uvStretch);
 
-        computeShader.Dispatch(updateTrackKernel, 1, 1, 1);
+        computeShader.SetFloat("_StartOffset", startOffset);
+        computeShader.SetInt("_PointCount", pointCount);
+        computeShader.SetInt("_PointPerThread", Mathf.CeilToInt((float)pointCount / threadCount));
 
         Bounds bounds = new Bounds(p0, Vector3.zero);
         bounds.Encapsulate(p1);
         bounds.Encapsulate(p2);
         bounds.Encapsulate(p3);
-        bounds.Expand(10f);
+        bounds.Expand(profile.extends);
         mesh.bounds = bounds;
 
-        SubMeshDescriptor descriptor = new SubMeshDescriptor {
-            baseVertex = 0,
-            firstVertex = 0,
-            vertexCount = segmentCount * profile.continous.Value.mapping.Length,
-            indexStart = 0,
-            indexCount = 6 * segmentCount * (profile.continous.Value.mapping.Length - 1),
-            topology = MeshTopology.Triangles,
-            bounds = bounds
-        };
+        for (int s = 0; s < entry.subMeshRanges.Length; s++)
+        {
+            SplineGenerator.SubMeshRange subMeshRange = entry.subMeshRanges[s];
+            computeShader.SetInt("_BaseVertex", subMeshRange.vertexStart);
+            computeShader.SetInt("_SliceSize", subMeshRange.vertexCount);
 
-        MeshUpdateFlags updateFlags = 
-            MeshUpdateFlags.DontValidateIndices |    // dont check against CPU index buffer
-            MeshUpdateFlags.DontResetBoneBounds |    // dont reset skinned mesh bones bound
-            // MeshUpdateFlags.DontNotifyMeshUsers | // do notify on possible mesh bound change 
-            MeshUpdateFlags.DontRecalculateBounds;   // dont recalculate bounds
+            computeShader.Dispatch(updateTrackKernel, 1, 1, 1);
 
-        mesh.SetSubMesh(0, descriptor, updateFlags);
+            SubMeshDescriptor descriptor = new SubMeshDescriptor {
+                baseVertex = 0,
+                firstVertex = subMeshRange.vertexStart,
+                vertexCount = pointCount * subMeshRange.vertexCount,
+                indexStart = subMeshRange.indexStart,
+                indexCount = segmentCount * subMeshRange.indexCount,
+                topology = MeshTopology.Triangles,
+                bounds = bounds
+            };
+
+            MeshUpdateFlags updateFlags = 
+                MeshUpdateFlags.DontValidateIndices |    // dont check against CPU index buffer
+                MeshUpdateFlags.DontResetBoneBounds |    // dont reset skinned mesh bones bound
+                // MeshUpdateFlags.DontNotifyMeshUsers | // do notify on possible mesh bound change 
+                MeshUpdateFlags.DontRecalculateBounds;   // dont recalculate bounds
+
+            mesh.SetSubMesh(s, descriptor, updateFlags);
+        }
     }
 
     private void LateUpdate()

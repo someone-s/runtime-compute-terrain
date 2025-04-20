@@ -434,7 +434,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileName: 
+  profileName: Maximum
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!114 &333261288
@@ -640,7 +640,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileName: 
+  profileName: Minimum
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &605676483
@@ -816,7 +816,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileName: outline
+  profileName: Mandate
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &724500689
@@ -1150,7 +1150,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileName: 
+  profileName: Mandate
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!33 &998992869
@@ -1235,7 +1235,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileName: 
+  profileName: Maximum
   a: {fileID: 986701703}
   b: {fileID: 1369645458}
 --- !u!33 &1135332792
@@ -1739,7 +1739,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0a743cc39af844a86966434b60ed31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileName: 
+  profileName: Minimum
   a: {fileID: 726176229}
   b: {fileID: 160254231}
 --- !u!114 &1563046031
