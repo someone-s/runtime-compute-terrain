@@ -85,6 +85,8 @@ MonoBehaviour:
   minHeight: 0.1
   maxHeight: 0.15
   scale: 1
+  inclusionMask: -1
+  exclusionMask: 8
   slopeMinDegree: 0
   slopeMaxDegree: 40
   windFrequency: 2
