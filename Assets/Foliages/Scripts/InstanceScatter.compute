@@ -13,6 +13,7 @@ uint _TerrainSize;
 int _TerrainStride;
 int _TerrainPositionOffset;
 int _TerrainNormalOffset;
+int _TerrainModifyOffset;
 
 float _SlopeLower;
 float _SlopeUpper;
@@ -29,12 +30,15 @@ float3 LoadTerrainPosition(uint index) {
 float3 LoadTerrainNormal(uint index) {
     return asfloat(_TerrainVertices.Load3(index * _TerrainStride + _TerrainNormalOffset));
 }
+uint LoadTerrainModifyMask(uint index) {
+    return _TerrainVertices.Load(index * _TerrainStride + _TerrainModifyOffset);
+}
 
 uint CalculateTerrainIndex(uint x, uint y) {
     return (y * (_TerrainSize + 1) + x);
 }
 
-float4 SamplePosition(float2 normalPos) {
+void SamplePosition(float2 normalPos, out float3 positionWS, out float gradient, out uint mask) {
     float2 coord = normalPos * ((float)_TerrainSize - EPSILON);
     uint2 anchor = uint2(coord);
     float2 offset = coord - anchor;
@@ -51,7 +55,7 @@ float4 SamplePosition(float2 normalPos) {
     float3 positionB = lerp(positionBL, positionBR, offset.x);
     float3 positionU = lerp(positionUL, positionUR, offset.x);
     float3 position = lerp(positionB, positionU, offset.y);
-
+    positionWS = position + _Anchor;
 
     float3 normalBL = LoadTerrainNormal(indexBL);
     float3 normalBR = LoadTerrainNormal(indexBR);
@@ -62,14 +66,29 @@ float4 SamplePosition(float2 normalPos) {
     float3 normal = lerp(normalB, normalU, offset.y);
 
     float3 up = float3(0.0, 1.0, 0.0);
-    float gradient = dot(normal, up);
-    
-    return float4(position + _Anchor, gradient);
+    gradient = dot(normal, up);
+
+    uint maskB, maskU;
+    if (offset.x < 0.5) {
+        maskB = LoadTerrainModifyMask(indexBL);
+        maskU = LoadTerrainModifyMask(indexUL);
+    }
+    else {
+        maskB = LoadTerrainModifyMask(indexBR);
+        maskU = LoadTerrainModifyMask(indexUR);
+    }
+
+    if (offset.y < 0.5)
+        mask = maskB;
+    else
+        mask = maskU;
 }
 
 float _Scale;
 float _MinHeight;
 float _MaxHeight;
+uint _InclusionMask;
+uint _ExclusionMask;
 
 float RandomRange(float2 seed, float min, float max) {
     float random = frac(sin(dot(seed, float2(12.9898, 78.233)))*43758.5453);
@@ -106,13 +125,20 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     seed.y = r;
     normalPos.y += r;
 
-    float4 result = SamplePosition(normalPos);
+    float3 worldPos;
+    float gradient;
+    uint mask;
+    SamplePosition(normalPos, worldPos, gradient, mask);
     // values goes from 1 to -1 as slope input incrase
     // hence the direction of inequalities
-    if (result.w > _SlopeLower || result.w < _SlopeUpper)
+    if (gradient > _SlopeLower || gradient < _SlopeUpper)
         return;
-         
-    float3 worldPos = result.xyz;
+
+    if (mask & _InclusionMask == 0)
+        return;
+
+    if (mask & _ExclusionMask)
+        return;
 
     r = RandomRange(seed, _MinHeight, _MaxHeight);
     seed.x = r;

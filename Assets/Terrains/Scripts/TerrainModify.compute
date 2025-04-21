@@ -4,6 +4,9 @@
 #define MANDATE_BIT 1
 #define MINIMUM_BIT 2
 #define MAXIMUM_BIT 4
+#define MANDATE_APPLIED_BIT 8
+#define MINIMUM_APPLIED_BIT 16
+#define MAXIMUM_APPLIED_BIT 32
 #define EPSILON 0.00000001
 #define DIVIDE9 0.11111111
 #define DIVIDE25 0.04
@@ -153,13 +156,37 @@ void StoreModify(uint x, uint y, float mandate, float minimum, float maximum, ui
         _VerticesTR.Store4(CalculateModifyIndex(x - _Size, y - _Size), bits);
 
     if (x >= _Size && y <= _Size)
-        _VerticesBR.Store4(CalculateModifyIndex(x - _Size, y       ), bits);
+        _VerticesBR.Store4(CalculateModifyIndex(x - _Size, y        ), bits);
 
     if (x <= _Size && y >= _Size) 
-        _VerticesTL.Store4(CalculateModifyIndex(x       , y - _Size), bits);
+        _VerticesTL.Store4(CalculateModifyIndex(x        , y - _Size), bits);
 
     if (x <= _Size && y <= _Size) 
-        _VerticesBL.Store4(CalculateModifyIndex(x       , y       ), bits);
+        _VerticesBL.Store4(CalculateModifyIndex(x        , y        ), bits);
+}
+uint LoadModifyMask(uint x, uint y) {
+    if (x > _Size && y > _Size)
+        return _VerticesTR.Load(CalculateModifyIndex(x - _Size, y - _Size));
+    else if (x > _Size) 
+        return _VerticesBR.Load(CalculateModifyIndex(x - _Size, y       ));
+    else if (y > _Size) 
+        return _VerticesTL.Load(CalculateModifyIndex(x,        y - _Size));
+    else 
+        return _VerticesBL.Load(CalculateModifyIndex(x,        y       ));
+}
+void StoreModifyMask(uint x, uint y, uint mask) {
+
+    if (x >= _Size && y >= _Size)
+        _VerticesTR.Store(CalculateModifyIndex(x - _Size, y - _Size), mask);
+
+    if (x >= _Size && y <= _Size)
+        _VerticesBR.Store(CalculateModifyIndex(x - _Size, y        ), mask);
+
+    if (x <= _Size && y >= _Size) 
+        _VerticesTL.Store(CalculateModifyIndex(x        , y - _Size), mask);
+
+    if (x <= _Size && y <= _Size) 
+        _VerticesBL.Store(CalculateModifyIndex(x        , y        ), mask);
 }
 
 uint CalculateBaseIndex(uint x, uint y) {
@@ -249,6 +276,16 @@ void ApplyConstraints(uint3 id) {
 
     // Apply Modifiers
     {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < _QuadSize; x++)
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < _QuadSize; y++) {
+                uint mask = LoadModifyMask(x, y) 
+                            & ~MANDATE_APPLIED_BIT 
+                            & ~MINIMUM_APPLIED_BIT 
+                            & ~MAXIMUM_APPLIED_BIT;
+                StoreModifyMask(x, y, mask);
+            }
+    }
+    {
         for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < _QuadSize; x++) {
     
             for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < _QuadSize; y++) {
@@ -257,16 +294,23 @@ void ApplyConstraints(uint3 id) {
                 Modify modify = LoadModify(x, y);
                 float base = LoadBase(x, y);
                 
-                if (modify.mask & MAXIMUM_BIT && base > modify.maximum)
+                if (modify.mask & MAXIMUM_BIT && base > modify.maximum) {
                     base = modify.maximum;
+                    modify.mask |= MAXIMUM_APPLIED_BIT;
+                }
                 
-                if (modify.mask & MINIMUM_BIT && base < modify.minimum)
+                if (modify.mask & MINIMUM_BIT && base < modify.minimum) {
                     base = modify.minimum;
+                    modify.mask |= MINIMUM_APPLIED_BIT;
+                }
     
-                if (modify.mask & MANDATE_BIT)
+                if (modify.mask & MANDATE_BIT) {
                     base = modify.mandate;
+                    modify.mask |= MANDATE_APPLIED_BIT;
+                }
             
                 StoreVertexY(x, y, base);
+                StoreModifyMask(x, y, modify.mask);
             }
         }
     }

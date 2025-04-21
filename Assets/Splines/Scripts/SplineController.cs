@@ -74,7 +74,7 @@ public class SplineController : MonoBehaviour
         float approxLength = (Vector3.Distance(p0, p1) + Vector3.Distance(p1, p2) + Vector3.Distance(p2, p3) + Vector3.Distance(p3, p0)) * 0.5f;
         int segmentCount = Mathf.Clamp(Mathf.FloorToInt(approxLength / profile.spacing), 1, profile.maxPointCount - 1);
         float actualSpacing = approxLength / segmentCount;
-        float startOffset = entry.GetStartOffset(actualSpacing);
+        float startOffset = 0f; //entry.GetStartOffset(actualSpacing);
         int pointCount = entry.GetActualPointCount(segmentCount);
 
         computeShader.SetFloat("_ApproxLength", approxLength);
