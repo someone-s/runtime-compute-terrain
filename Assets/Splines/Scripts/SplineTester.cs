@@ -38,11 +38,6 @@ public class SplineTester : MonoBehaviour {
     {
         if (!canUpdate) return;
 
-        if (Keyboard.current.rKey.isPressed)
-            a.position += Vector3.left * Time.deltaTime;
-        if (Keyboard.current.qKey.isPressed)
-            a.position += Vector3.right * Time.deltaTime;
-
         a.GetPositionAndRotation(out Vector3 aPos, out Quaternion aRot);
         b.GetPositionAndRotation(out Vector3 bPos, out Quaternion bRot);
         if (aPos != aLastPos || bPos != bLastPos || aRot != aLastRot || bRot != bLastRot) {
