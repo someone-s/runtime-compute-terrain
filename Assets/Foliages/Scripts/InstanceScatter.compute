@@ -126,7 +126,7 @@ void Scatter(uint3 id : SV_DispatchThreadID)
         return;
 
     float sumI = 0.0;
-    if (_InclusionMask == ~0)
+    if (_InclusionMask == 0)
         sumI = 1.0;
     else
     {

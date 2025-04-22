@@ -19,8 +19,8 @@ public class InstanceController : MonoBehaviour
     [SerializeField] private float minHeight = 1f;
     [SerializeField] private float maxHeight = 2f;
     [SerializeField] private float scale = 2f;
-    [SerializeField] private int inclusionMask = ~0;
-    [SerializeField] private int exclusionMask = 0;
+    [SerializeField] private TerrainMask inclusionMask = TerrainMask.Unset;
+    [SerializeField] private TerrainMask exclusionMask = TerrainMask.Unset;
 
 
     [Header("Slope Setting")]
@@ -120,8 +120,8 @@ public class InstanceController : MonoBehaviour
         scatterShader.SetVector("_Anchor", controller.transform.position);
         scatterShader.SetFloat("_SlopeLower", Mathf.Sin(Mathf.Deg2Rad * (90f - slopeMinDegree)));
         scatterShader.SetFloat("_SlopeUpper", Mathf.Sin(Mathf.Deg2Rad * (90f - slopeMaxDegree)));
-        scatterShader.SetInt("_InclusionMask", inclusionMask);
-        scatterShader.SetInt("_ExclusionMask", exclusionMask);
+        scatterShader.SetInt("_InclusionMask", (int)inclusionMask);
+        scatterShader.SetInt("_ExclusionMask", (int)exclusionMask);
 
         transformMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Append, resultSize * resultSize, sizeof(float) * 16);
         scatterShader.SetBuffer(scatterKernel, "_TransformMatrices", transformMatrixBuffer);

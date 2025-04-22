@@ -5,15 +5,7 @@ public class TerrainProjector : MonoBehaviour
 {
     [SerializeField] private TerrainCoordinator coordinator;
 
-    public enum ProjectionMode
-    {
-        Unset = 0,
-        Mandate = 1,
-        Minimum = 2,
-        Maximum = 3
-    }
-
-    public ProjectionMode mode = ProjectionMode.Unset;
+    public TerrainMask mode = TerrainMask.Unset;
 
     private Bounds? previousWorldBounds = null;
     internal MeshFilter filter;
