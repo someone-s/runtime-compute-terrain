@@ -126,18 +126,23 @@ void Scatter(uint3 id : SV_DispatchThreadID)
         return;
 
     float sumI = 0.0;
-    if (mask.x & _InclusionMask)
-        sumI += 0.25;
-    if (mask.y & _InclusionMask)
-        sumI += 0.25;
-    if (mask.z & _InclusionMask)
-        sumI += 0.25;
-    if (mask.w & _InclusionMask)
-        sumI += 0.25;
+    if (_InclusionMask == ~0)
+        sumI = 1.0;
+    else
+    {
+        if (mask.x & _InclusionMask)
+            sumI += 0.25;
+        if (mask.y & _InclusionMask)
+            sumI += 0.25;
+        if (mask.z & _InclusionMask)
+            sumI += 0.25;
+        if (mask.w & _InclusionMask)
+            sumI += 0.25;
+    }
 
     r = RandomRange(seed, 0.0, 1.0);
     seed.x = r;
-    if (r < sumI) return;
+    if (r > sumI) return;
     
 
     float sumE = 0.0;
@@ -151,7 +156,7 @@ void Scatter(uint3 id : SV_DispatchThreadID)
         sumE += 0.25;
     r = RandomRange(seed, 0.0, 1.0);
     seed.y = r;
-    if (r > sumE) return;
+    if (r >= sumE) return;
 
     r = RandomRange(seed, _MinHeight, _MaxHeight);
     seed.x = r;
