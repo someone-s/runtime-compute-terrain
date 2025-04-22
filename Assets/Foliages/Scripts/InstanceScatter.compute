@@ -125,12 +125,6 @@ void Scatter(uint3 id : SV_DispatchThreadID)
     if (gradient > _SlopeLower || gradient < _SlopeUpper)
         return;
 
-    // if (mask & _InclusionMask == 0)
-    //     return;
-
-    // if (mask & _ExclusionMask)
-    //     return;
-
     float sumI = 0.0;
     if (mask.x & _InclusionMask)
         sumI += 0.25;
