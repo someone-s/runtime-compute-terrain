@@ -1,43 +1,7 @@
 #pragma kernel FindIntersect
 
-#define EPSILON 0.0000000001
-
-RWByteAddressBuffer _VerticesTL;
-RWByteAddressBuffer _VerticesTR;
-RWByteAddressBuffer _VerticesBL;
-RWByteAddressBuffer _VerticesBR;
-int _Stride;
-int _PositionOffset;
-
-float _Area;
-uint _Size; // i.e. 1000
-
-uint CalculateVertexIndex(uint x, uint y) {
-    return (y * (_Size + 1) + x) * _Stride + _PositionOffset;
-}
-
-float3 LoadVertex(uint x, uint y) {
-    if (x > _Size && y > _Size) {
-        float3 value = asfloat(_VerticesTR.Load3(CalculateVertexIndex(x - _Size, y - _Size)));
-        value.x += _Area;
-        value.z += _Area;
-        return value;
-    }
-    else if (x > _Size) {
-        float3 value = asfloat(_VerticesBR.Load3(CalculateVertexIndex(x - _Size, y)));
-        value.x += _Area;
-        return value;
-    }
-    else if (y > _Size) {
-        float3 value = asfloat(_VerticesTL.Load3(CalculateVertexIndex(x, y - _Size)));
-        value.z += _Area;
-        return value;
-    }
-    else {
-        float3 value = asfloat(_VerticesBL.Load3(CalculateVertexIndex(x, y)));
-        return value;
-    }
-}
+#define QUAD_MODE
+#include "TerrainCommon.hlsl"
 
 // Calculate Intersect Section
 

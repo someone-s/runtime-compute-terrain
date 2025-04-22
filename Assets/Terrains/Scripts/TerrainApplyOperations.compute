@@ -1,0 +1,68 @@
+#pragma kernel ApplyOperations
+
+#include "TerrainApplyCommon.hlsl"
+
+// Modify Mesh Section
+struct Operation {
+    float2 position; // normalized
+    float radius; // normalized
+    float parameter; // arbitary
+    uint type;
+};
+
+StructuredBuffer<Operation> _Operations;
+int _Count; // operation _Count
+
+// this oeprate per vertex
+[numthreads(32, 32, 1)]
+void ApplyOperations(uint3 id : SV_DispatchThreadID) { 
+
+    // Execute Operations
+    for (int o = 0; o < _Count; o++) {
+        Operation operation = _Operations[o];
+
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < _QuadSize; x++) {
+
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < _QuadSize; y++) {
+
+                float3 vertex = LoadVertex(x, y);
+                float2 localPos = vertex.xz;
+
+                float base = LoadBase(x, y);
+
+                float distToCent = distance(operation.position, localPos);
+                
+                if (distToCent <= operation.radius) {
+                    float proportion = 1.0 - distToCent / operation.radius;
+                    
+                    if (operation.type == 1) {
+                        base += operation.parameter * proportion;
+                    }
+                    else if (operation.type == 2) {
+                        base -= operation.parameter * proportion;
+                    }
+                    else if (operation.type == 3) {
+                        base = (1.0 - proportion) * base + proportion * operation.parameter;
+                    }
+                    else if (operation.type == 4) {
+                        float total = 0.0;
+                        for (int dx = -1; dx <= 1; dx++) 
+                            for (int dy = -1; dy <= 1; dy++) 
+                                total += LoadVertex(x + dx, y + dy).y;
+
+                        base = (1.0 - proportion) * base + proportion * total * DIVIDE9;
+                    }
+                }
+                
+                StoreVertexY(x, y, base);
+                StoreBase(x, y, base);
+            }
+        }
+
+        GroupMemoryBarrierWithGroupSync();
+    }
+
+    ApplyConstraints(id);
+
+    ApplyNormals(id);
+}

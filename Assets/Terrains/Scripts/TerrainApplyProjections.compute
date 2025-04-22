@@ -1,0 +1,63 @@
+#pragma kernel ApplyProjections
+
+#include "TerrainApplyCommon.hlsl"
+
+ByteAddressBuffer _Depth; // 0:mandate 1:minimum 2:maximum 3:mandate 4:minimum...
+float _InvalidMin;
+float _InvalidMax;
+
+float3 LoadDepth(uint x, uint y)
+{
+    return asfloat(_Depth.Load3((y * _QuadSize + x) * 3 * FLOAT_SIZE_IN_BYTES));
+}
+
+
+// this oeprate per vertex
+[numthreads(32, 32, 1)]
+void ApplyProjections(uint3 id: SV_DispatchThreadID) {
+
+    {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < _QuadSize; x++) {
+    
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < _QuadSize; y++) {
+                
+                float3 depth = LoadDepth(x, y);
+
+                uint2 index = uint2(x, y);
+                uint2 mirrorIndex = uint2(x, _Size * 2 - y);
+
+                float mandate;
+                float minimum;
+                float maximum;
+                uint mask = 0;
+
+                if (depth.x == _InvalidMin)
+                    mandate = 0.0;
+                else {
+                    mask |= MANDATE_BIT;
+                    mandate = depth.x;
+                }
+
+                if (depth.y == _InvalidMin)
+                    minimum = 0.0;
+                else {
+                    mask |= MINIMUM_BIT;
+                    minimum = depth.y;
+                }
+
+                if (depth.z == _InvalidMax)
+                    maximum = 0.0;
+                else {
+                    mask |= MAXIMUM_BIT;
+                    maximum = depth.z;
+                }
+
+                StoreModify(x, y, mandate, minimum, maximum, mask);
+            }
+        }
+    }
+    
+    ApplyConstraints(id);
+
+    ApplyNormals(id);
+}

@@ -2,52 +2,11 @@
 #pragma kernel RestoreBuffers
 #pragma kernel ExportBuffers
 
-#define FLOAT_SIZE_IN_BYTES 4
-
-uint _Size; // i.e. 1000
-uint _MeshSection; // if _Size is 1000, _MeshSection is 126 ceil((1000 * 2 + 1) / 32)
-
-RWByteAddressBuffer _Vertices;
-int _Stride;
-int _PositionOffset;
-int _BaseOffset;
-int _ModifyOffset;
+#include "TerrainCommon.hlsl"
 
 uint CalculateLogicalIndex(uint x, uint y) {
     return y * (_Size + 1) + x;
 }
-
-uint CalculateVertexIndex(uint x, uint y) {
-    return (y * (_Size + 1) + x) * _Stride + _PositionOffset;
-}
-void StoreVertexY(uint x, uint y, float value) {
-    _Vertices.Store(CalculateVertexIndex(x, y) + FLOAT_SIZE_IN_BYTES, asuint(value));
-}
-
-uint CalculateModifyIndex(uint x, uint y) {
-    return (y * (_Size + 1) + x) * _Stride + _ModifyOffset;
-}
-void StoreModify(uint x, uint y, float mandate, float minimum, float maximum, uint mask) {
-
-    uint4 bits;
-    bits.x = mask;
-    bits.y = asuint(mandate);
-    bits.z = asuint(minimum);
-    bits.w = asuint(maximum);
-
-    _Vertices.Store4(CalculateModifyIndex(x, y), bits);
-}
-
-uint CalculateBaseIndex(uint x, uint y) {
-    return (y * (_Size + 1) + x) * _Stride + _BaseOffset;
-}
-float LoadBase(uint x, uint y) {
-        return asfloat(_Vertices.Load(CalculateBaseIndex(x, y)));
-}
-void StoreBase(uint x, uint y, float value) {
-        _Vertices.Store(CalculateBaseIndex(x, y), asuint(value));
-}
-
 
 // this oeprate per vertex
 [numthreads(32, 32, 1)]

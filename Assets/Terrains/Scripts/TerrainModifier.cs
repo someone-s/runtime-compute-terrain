@@ -20,14 +20,6 @@ public class TerrainModifier : MonoBehaviour
     {
         coordinator = GetComponent<TerrainCoordinator>();
 
-        modifyShader = Instantiate(modifyShader);
-
-
-        modifyShader.SetFloat("_Area", area);
-        modifyShader.SetInt("_Size", meshSize);
-        modifyShader.SetInt("_QuadSize", quadSize);
-        modifyShader.SetInt("_MeshSection", Mathf.CeilToInt(quadSize / 32f));
-
         SetupModify();
 
         SetupProject();
@@ -39,31 +31,41 @@ public class TerrainModifier : MonoBehaviour
         projectBuffer?.Dispose();
     }
 
-    private TerrainController[] SetArea(int kernelIndex, (int x, int z) region)
+    private void SetupShader(ref ComputeShader shader, int kernelIndex)
+    {
+        shader = Instantiate(shader);
+
+        shader.SetFloat("_Area", area);
+        shader.SetInt("_Size", meshSize);
+        shader.SetInt("_QuadSize", quadSize);
+        shader.SetInt("_MeshSection", Mathf.CeilToInt(quadSize / 32f));
+    }
+
+    private TerrainController[] SetArea(ComputeShader shader, int kernelIndex, (int x, int z) region)
     {
 
-        modifyShader.SetInt("_Stride", TerrainController.VertexBufferStride);
-        modifyShader.SetInt("_PositionOffset", TerrainController.VertexPositionAttributeOffset);
-        modifyShader.SetInt("_NormalOffset", TerrainController.VertexNormalAttributeOffset);
-        modifyShader.SetInt("_BaseOffset", TerrainController.VertexBaseAttributeOffset);
-        modifyShader.SetInt("_ModifyOffset", TerrainController.VertexModifyAttributeOffset);
+        shader.SetInt("_Stride", TerrainController.VertexBufferStride);
+        shader.SetInt("_PositionOffset", TerrainController.VertexPositionAttributeOffset);
+        shader.SetInt("_NormalOffset", TerrainController.VertexNormalAttributeOffset);
+        shader.SetInt("_BaseOffset", TerrainController.VertexBaseAttributeOffset);
+        shader.SetInt("_ModifyOffset", TerrainController.VertexModifyAttributeOffset);
 
         TerrainController[] controllers = new TerrainController[4];
         
         TerrainController controllerBL = coordinator.controllers[region];
-        modifyShader.SetBuffer(kernelIndex, "_VerticesBL", controllerBL.vertexBuffer);
+        shader.SetBuffer(kernelIndex, "_VerticesBL", controllerBL.vertexBuffer);
         controllers[0] = controllerBL;
 
         TerrainController controllerBR = coordinator.controllers[(region.x + 1, region.z)];
-        modifyShader.SetBuffer(kernelIndex, "_VerticesBR", controllerBR.vertexBuffer);
+        shader.SetBuffer(kernelIndex, "_VerticesBR", controllerBR.vertexBuffer);
         controllers[1] = controllerBR;
 
         TerrainController controllerTL = coordinator.controllers[(region.x, region.z + 1)];
-        modifyShader.SetBuffer(kernelIndex, "_VerticesTL", controllerTL.vertexBuffer);
+        shader.SetBuffer(kernelIndex, "_VerticesTL", controllerTL.vertexBuffer);
         controllers[2] = controllerTL;
 
         TerrainController controllerTR = coordinator.controllers[(region.x + 1, region.z + 1)];
-        modifyShader.SetBuffer(kernelIndex, "_VerticesTR", controllerTR.vertexBuffer);
+        shader.SetBuffer(kernelIndex, "_VerticesTR", controllerTR.vertexBuffer);
         controllers[3] = controllerTR;
 
         return controllers;
@@ -78,9 +80,8 @@ public class TerrainModifier : MonoBehaviour
     
     [Header("Modify Section")]
     [SerializeField] private int modifyBufferCount = 50;
-    [SerializeField] private ComputeShader modifyShader;
-    private int modifyMeshKernel;
-    private int modifyApplyKernel;
+    [SerializeField] private ComputeShader applyOperationsShader;
+    private int applyOperationsKernel;
 
     private Queue<((int x, int z) region, Operation operation)> operationQueue = new Queue<((int x, int z) region, Operation operation)>();
 
@@ -103,10 +104,11 @@ public class TerrainModifier : MonoBehaviour
 
     private void SetupModify()
     {
-        modifyMeshKernel = modifyShader.FindKernel("ModifyMesh");
+        applyOperationsKernel = applyOperationsShader.FindKernel("ApplyOperations");
+        SetupShader(ref applyOperationsShader, applyOperationsKernel);
         
         operationBuffer = new ComputeBuffer(modifyBufferCount, sizeof(float) * 4 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        modifyShader.SetBuffer(modifyMeshKernel, "_Operations", operationBuffer);
+        applyOperationsShader.SetBuffer(applyOperationsKernel, "_Operations", operationBuffer);
     }
 
     public void QueueModify((int x, int y) region, Vector2 normalPosition, float normalRadius, float operationParameter, OperationType operationType)
@@ -150,15 +152,15 @@ public class TerrainModifier : MonoBehaviour
 
         operationBuffer.EndWrite<Operation>(index);
 
-        modifyShader.SetInt("_Count", index);
+        applyOperationsShader.SetInt("_Count", index);
 
         if (targetRegion != currentModifyRegion)
         {
             currentModifyRegion = targetRegion;
-            currentModifyControllers = SetArea(modifyMeshKernel, currentModifyRegion.Value);
+            currentModifyControllers = SetArea(applyOperationsShader, applyOperationsKernel, currentModifyRegion.Value);
         }
 
-        modifyShader.Dispatch(modifyMeshKernel, 1, 1, 1);
+        applyOperationsShader.Dispatch(applyOperationsKernel, 1, 1, 1);
 
         foreach (TerrainController controller in currentModifyControllers)
             controller.OnTerrainChange.Invoke();
@@ -169,6 +171,8 @@ public class TerrainModifier : MonoBehaviour
     #region Project Section
 
     [Header("Project Section")]
+    [SerializeField] private ComputeShader applyProjectionsShader;
+    private int applyProjectionsKernel;
     [SerializeField] private ComputeShader projectShader;
     private int projectExecuteKernel;
     private int projectClearKernel;
@@ -189,15 +193,18 @@ public class TerrainModifier : MonoBehaviour
     {   
         projectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, quadSize * quadSize, sizeof(float) * 3);
 
-        modifyApplyKernel = modifyShader.FindKernel("ApplyModifiers");
+        applyProjectionsKernel = applyProjectionsShader.FindKernel("ApplyProjections");
+        SetupShader(ref applyProjectionsShader, applyProjectionsKernel);
 
-        modifyShader.SetBuffer(modifyApplyKernel, "_Depth", projectBuffer);
-        modifyShader.SetFloat("_InvalidMin", -1000000000);
-        modifyShader.SetFloat("_InvalidMax",  1000000000);
+        applyProjectionsShader.SetBuffer(applyProjectionsKernel, "_Depth", projectBuffer);
+        applyProjectionsShader.SetFloat("_InvalidMin", -1000000000);
+        applyProjectionsShader.SetFloat("_InvalidMax",  1000000000);
         
         projectExecuteKernel = projectShader.FindKernel("Project");
         projectClearKernel = projectShader.FindKernel("Clear");
         projectConvertKernel = projectShader.FindKernel("Convert");
+
+        projectShader = Instantiate(projectShader);
 
         projectShader.SetFloat("_InvalidMin", -1000000000);
         projectShader.SetFloat("_InvalidMax",  1000000000);
@@ -255,7 +262,7 @@ public class TerrainModifier : MonoBehaviour
         {
 
             (int x, int z) = region;
-            TerrainController[] currentProjectControllers = SetArea(modifyApplyKernel, region);
+            TerrainController[] currentProjectControllers = SetArea(applyProjectionsShader, applyProjectionsKernel, region);
 
             projectShader.Dispatch(projectClearKernel, Mathf.CeilToInt((float)quadSize / 32), Mathf.CeilToInt((float)quadSize / 32), 1);
 
@@ -270,7 +277,7 @@ public class TerrainModifier : MonoBehaviour
             
             projectShader.Dispatch(projectConvertKernel, Mathf.CeilToInt((float)quadSize / 32), Mathf.CeilToInt((float)quadSize / 32), 1);
 
-            modifyShader.Dispatch(modifyApplyKernel, 1, 1, 1);
+            applyProjectionsShader.Dispatch(applyProjectionsKernel, 1, 1, 1);
 
             foreach (TerrainController controller in currentProjectControllers)
                 controller.OnTerrainChange.Invoke();
