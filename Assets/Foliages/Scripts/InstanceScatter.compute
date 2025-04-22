@@ -38,7 +38,7 @@ uint CalculateTerrainIndex(uint x, uint y) {
     return (y * (_TerrainSize + 1) + x);
 }
 
-void SamplePosition(float2 normalPos, out float3 positionWS, out float gradient, out uint mask) {
+void SamplePosition(float2 normalPos, out float3 positionWS, out float gradient, out uint4 mask) {
     float2 coord = normalPos * ((float)_TerrainSize - EPSILON);
     uint2 anchor = uint2(coord);
     float2 offset = coord - anchor;
@@ -68,20 +68,11 @@ void SamplePosition(float2 normalPos, out float3 positionWS, out float gradient,
     float3 up = float3(0.0, 1.0, 0.0);
     gradient = dot(normal, up);
 
-    uint maskB, maskU;
-    if (offset.x < 0.5) {
-        maskB = LoadTerrainModifyMask(indexBL);
-        maskU = LoadTerrainModifyMask(indexUL);
-    }
-    else {
-        maskB = LoadTerrainModifyMask(indexBR);
-        maskU = LoadTerrainModifyMask(indexUR);
-    }
-
-    if (offset.y < 0.5)
-        mask = maskB;
-    else
-        mask = maskU;
+    uint maskBL = LoadTerrainModifyMask(indexBL);
+    uint maskUL = LoadTerrainModifyMask(indexUL);
+    uint maskBR = LoadTerrainModifyMask(indexBR);
+    uint maskUR = LoadTerrainModifyMask(indexUR);
+    mask = uint4(maskBL, maskBR, maskUL, maskUR);
 }
 
 float _Scale;
@@ -127,18 +118,46 @@ void Scatter(uint3 id : SV_DispatchThreadID)
 
     float3 worldPos;
     float gradient;
-    uint mask;
+    uint4 mask;
     SamplePosition(normalPos, worldPos, gradient, mask);
     // values goes from 1 to -1 as slope input incrase
     // hence the direction of inequalities
     if (gradient > _SlopeLower || gradient < _SlopeUpper)
         return;
 
-    if (mask & _InclusionMask == 0)
-        return;
+    // if (mask & _InclusionMask == 0)
+    //     return;
 
-    if (mask & _ExclusionMask)
-        return;
+    // if (mask & _ExclusionMask)
+    //     return;
+
+    float sumI = 0.0;
+    if (mask.x & _InclusionMask)
+        sumI += 0.25;
+    if (mask.y & _InclusionMask)
+        sumI += 0.25;
+    if (mask.z & _InclusionMask)
+        sumI += 0.25;
+    if (mask.w & _InclusionMask)
+        sumI += 0.25;
+
+    r = RandomRange(seed, 0.0, 1.0);
+    seed.x = r;
+    if (r < sumI) return;
+    
+
+    float sumE = 0.0;
+    if (!(mask.x & _ExclusionMask))
+        sumE += 0.25;
+    if (!(mask.y & _ExclusionMask))
+        sumE += 0.25;
+    if (!(mask.z & _ExclusionMask))
+        sumE += 0.25;
+    if (!(mask.w & _ExclusionMask))
+        sumE += 0.25;
+    r = RandomRange(seed, 0.0, 1.0);
+    seed.y = r;
+    if (r > sumE) return;
 
     r = RandomRange(seed, _MinHeight, _MaxHeight);
     seed.x = r;
