@@ -234,10 +234,10 @@ public class TerrainModifier : MonoBehaviour
     private HashSet<TerrainProjector> tempProjectors = new();
     private void PerformProject(TerrainProjector projector)
     {
-        if (tempProjectors.Contains(projector))
-            return;
-
+        if (tempProjectors.Contains(projector)) return;
         tempProjectors.Add(projector);
+
+        if (projector.mode == TerrainMask.Unset) return;
 
         // Make sure _WorldToClip already set before this
 
