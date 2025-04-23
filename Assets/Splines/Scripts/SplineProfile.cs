@@ -1,5 +1,16 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+
+[Serializable]
+public struct SplineDescription
+{
+    public string type;
+    public string name;
+    public bool isInternal;
+}
+
+public enum SplineType { Project, Visual }
 
 public readonly struct SplineProfile
 {

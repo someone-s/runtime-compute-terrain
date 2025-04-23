@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6bbc13ac8a66cf248167a0125efebf3, type: 3}
+  m_Name: Spline Type Table
+  m_EditorClassIdentifier: 
+  typePrefabs:
+  - {fileID: 539382537695122910, guid: 1135889ea82bbeb85aede84f2735c786, type: 3}
+  - {fileID: 539382537695122910, guid: 1055d843a4623f875a7be1c155ee95c0, type: 3}
+  - {fileID: 539382537695122910, guid: ba343c58999118772bb194ec09ab56c5, type: 3}
+  - {fileID: 539382537695122910, guid: d0490678bddba24dab998a38a1d62674, type: 3}
+  - {fileID: 539382537695122910, guid: 209dda71a423551ecb2e1bb10da7c6bd, type: 3}

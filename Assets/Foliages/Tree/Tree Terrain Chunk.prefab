@@ -119,7 +119,7 @@ MonoBehaviour:
   maxHeight: 1
   scale: 1
   inclusionMask: 0
-  exclusionMask: 56
+  exclusionMask: 120
   slopeMinDegree: 0
   slopeMaxDegree: 20
   windFrequency: 1.75

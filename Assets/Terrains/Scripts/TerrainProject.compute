@@ -2,7 +2,8 @@
 #pragma kernel Clear
 #pragma kernel Convert
 
-#define EPSILON 0.00000001
+#include "TerrainMaskCommon.hlsl"
+#define EPSILON 0.0000000001
 
 float _InvalidMin;
 float _InvalidMax;
@@ -10,16 +11,22 @@ float _InvalidMax;
 uint _Stride;
 uint _PositionOffset;
 
+#define FLOAT_SIZE_IN_BYTES 4
 float4x4 _LocalToWorld;
 float4x4 _WorldToClip;
 uint _NumTriangle;
 ByteAddressBuffer _Vertices;
 ByteAddressBuffer _Indices;
 
+#define MASK_POS    0
+#define MANDATE_POS 1
+#define MINIMUM_POS 2
+#define MAXIMUM_POS 3
+#define ELEMENT_STRIDE 4
+#define ELEMENT_BYTES 4
 uint2 _Dimensions;
-RWByteAddressBuffer _Depth;
-
-uint _Mode; // 1 for Mandate, 2 for Minimum, 3 for Maximum
+RWByteAddressBuffer _Depth; // 0 is mask, 1 for mandate depth, 2 for minimum depth, 3 for maximum dpeth
+uint _Mode;
 
 bool OutOfBounds(float3 vCS)
 {
@@ -81,20 +88,39 @@ void DrawTriangle(uint3 id, float3 aCS, float3 bCS, float3 cCS)
 
             float depth = bc.x * aCS.z + bc.y * bCS.z + bc.z * cCS.z;
             uint encode = EncodeFloatWithOrder(depth);
-            uint base = (y * _Dimensions.x + x) * 3;
-            
-            switch (_Mode)
+            uint base = (y * _Dimensions.x + x) * ELEMENT_STRIDE;
+
+            // switch (_Mode)
+            // {
+            //     case 1: // Mandate
+            //         _Depth.InterlockedMax((base + MANDATE_POS) * ELEMENT_BYTES, encode);
+            //         break;
+            //     case 2: // Minimum
+            //         _Depth.InterlockedMax((base + MINIMUM_POS) * ELEMENT_BYTES, encode);
+            //         break;
+            //     case 4: // Maximum
+            //         _Depth.InterlockedMin((base + MAXIMUM_POS) * ELEMENT_BYTES, encode);
+            //         break;
+            // }
+
+            //uint base = (y * _Dimensions.x + x) * ELEMENT_STRIDE;
+            uint mask = _Mode & ~RESERVED_BITS;
+            if (_Mode & MANDATE_BIT)
             {
-                case 1: // Mandate
-                    _Depth.InterlockedMax((base + 0) * 4, encode);
-                    break;
-                case 2: // Minimum
-                    _Depth.InterlockedMax((base + 1) * 4, encode);
-                    break;
-                case 3: // Maximum
-                    _Depth.InterlockedMin((base + 2) * 4, encode);
-                    break;
+                _Depth.InterlockedMax((base + MANDATE_POS) * ELEMENT_BYTES, encode);
+                mask |= MANDATE_BIT;
             }
+            if (_Mode & MINIMUM_BIT)
+            {
+                _Depth.InterlockedMax((base + MINIMUM_POS) * ELEMENT_BYTES, encode);
+                mask |= MINIMUM_BIT;
+            }
+            if (_Mode & MAXIMUM_BIT)
+            {
+                _Depth.InterlockedMin((base + MAXIMUM_POS) * ELEMENT_BYTES, encode);
+                mask |= MAXIMUM_BIT;
+            }
+            _Depth.InterlockedOr((base + MASK_POS) * ELEMENT_BYTES, mask);
         }
     }
 
@@ -105,9 +131,9 @@ void Project(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _NumTriangle) return;
 
-    float3 aOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 0) * 4) * _Stride + _PositionOffset));
-    float3 bOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 1) * 4) * _Stride + _PositionOffset));
-    float3 cOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 2) * 4) * _Stride + _PositionOffset));
+    float3 aOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 0) * FLOAT_SIZE_IN_BYTES) * _Stride + _PositionOffset));
+    float3 bOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 1) * FLOAT_SIZE_IN_BYTES) * _Stride + _PositionOffset));
+    float3 cOS = asfloat(_Vertices.Load3(_Indices.Load((id.x * 3 + 2) * FLOAT_SIZE_IN_BYTES) * _Stride + _PositionOffset));
 
     float3 aWS = mul(_LocalToWorld, float4(aOS, 1)).xyz;
     float3 bWS = mul(_LocalToWorld, float4(bOS, 1)).xyz;
@@ -131,11 +157,18 @@ void Clear(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _Dimensions.x || id.y >= _Dimensions.x) return;
 
-    uint base = (id.y * _Dimensions.x + id.x) * 3;
+    uint base = (id.y * _Dimensions.x + id.x) * ELEMENT_STRIDE;
 
-    _Depth.Store((base + 0) * 4, EncodeFloatWithOrder(_InvalidMin));
-    _Depth.Store((base + 1) * 4, EncodeFloatWithOrder(_InvalidMin));
-    _Depth.Store((base + 2) * 4, EncodeFloatWithOrder(_InvalidMax));
+    _Depth.Store((base + MASK_POS)    * ELEMENT_BYTES, 0);
+    _Depth.Store((base + MANDATE_POS) * ELEMENT_BYTES, EncodeFloatWithOrder(_InvalidMin));
+    _Depth.Store((base + MINIMUM_POS) * ELEMENT_BYTES, EncodeFloatWithOrder(_InvalidMin));
+    _Depth.Store((base + MAXIMUM_POS) * ELEMENT_BYTES, EncodeFloatWithOrder(_InvalidMax));
+
+    // uint base = (id.y * _Dimensions.x + id.x) * ELEMENT_STRIDE;
+    // _Depth.Store((base + MASK_POS)    * ELEMENT_BYTES, 0);
+    // _Depth.Store((base + MANDATE_POS) * ELEMENT_BYTES, EncodeFloatWithOrder(_InvalidMin));
+    // _Depth.Store((base + MINIMUM_POS) * ELEMENT_BYTES, EncodeFloatWithOrder(_InvalidMin));
+    // _Depth.Store((base + MAXIMUM_POS) * ELEMENT_BYTES, EncodeFloatWithOrder(_InvalidMax));
 }
 
 float DecodeFloatWithOrder(uint value)
@@ -149,9 +182,16 @@ void Convert(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _Dimensions.x || id.y >= _Dimensions.y) return;
 
-    uint base = (id.y * _Dimensions.x + id.x) * 3;
+    uint base = (id.y * _Dimensions.x + id.x) * ELEMENT_STRIDE;
+
+    // mask is kept the same
+    _Depth.Store((base + MANDATE_POS) * ELEMENT_BYTES, asuint(DecodeFloatWithOrder(_Depth.Load((base + MANDATE_POS) * ELEMENT_BYTES))));
+    _Depth.Store((base + MINIMUM_POS) * ELEMENT_BYTES, asuint(DecodeFloatWithOrder(_Depth.Load((base + MINIMUM_POS) * ELEMENT_BYTES))));
+    _Depth.Store((base + MAXIMUM_POS) * ELEMENT_BYTES, asuint(DecodeFloatWithOrder(_Depth.Load((base + MAXIMUM_POS) * ELEMENT_BYTES))));
+    //uint base = (id.y * _Dimensions.x + id.x) * ELEMENT_STRIDE;
     
-    _Depth.Store((base + 0) * 4, asuint(DecodeFloatWithOrder(_Depth.Load((base + 0) * 4))));
-    _Depth.Store((base + 1) * 4, asuint(DecodeFloatWithOrder(_Depth.Load((base + 1) * 4))));
-    _Depth.Store((base + 2) * 4, asuint(DecodeFloatWithOrder(_Depth.Load((base + 2) * 4))));
+    // mask is kept the same
+    // _Depth.Store((base + MANDATE_POS) * ELEMENT_BYTES, asuint(DecodeFloatWithOrder(_Depth.Load((base + MANDATE_POS) * ELEMENT_BYTES))));
+    // _Depth.Store((base + MINIMUM_POS) * ELEMENT_BYTES, asuint(DecodeFloatWithOrder(_Depth.Load((base + MINIMUM_POS) * ELEMENT_BYTES))));
+    // _Depth.Store((base + MAXIMUM_POS) * ELEMENT_BYTES, asuint(DecodeFloatWithOrder(_Depth.Load((base + MAXIMUM_POS) * ELEMENT_BYTES))));
 }
