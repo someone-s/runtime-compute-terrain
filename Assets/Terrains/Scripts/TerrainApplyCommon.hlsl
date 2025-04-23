@@ -1,5 +1,6 @@
 #define QUAD_MODE
 #include "TerrainCommon.hlsl"
+#include "TerrainMaskCommon.hlsl"
 
 void ApplyNormals(uint3 id) {
 
@@ -76,7 +77,12 @@ void ApplyConstraints(uint3 id) {
                 float3 vertex = LoadVertex(x, y);
                 Modify modify = LoadModify(x, y);
                 float base = LoadBase(x, y);
-                
+
+                modify.mask = modify.mask
+                            & ~MANDATE_APPLIED_BIT 
+                            & ~MINIMUM_APPLIED_BIT 
+                            & ~MAXIMUM_APPLIED_BIT;
+
                 if (modify.mask & MAXIMUM_BIT && base > modify.maximum) {
                     base = modify.maximum;
                     modify.mask |= MAXIMUM_APPLIED_BIT;

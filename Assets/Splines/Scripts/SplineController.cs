@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Rendering;
@@ -8,12 +9,8 @@ public class SplineController : MonoBehaviour
     
     private Vector3 p0, p1, p2, p3;
 
-    #region Event Section
     public UnityEvent OnTrackChange;
-    #endregion
 
-    
-    #region Modify Section
     [SerializeField] private ComputeShader computeShader;
     private int updateTrackKernel;
     private uint threadCount;
@@ -22,7 +19,21 @@ public class SplineController : MonoBehaviour
     private Mesh mesh;
     private SplineGenerator.Entry entry;
     public GraphicsBuffer graphicsBuffer { get; private set; }
+
+    private bool setupComplete = false;
+    private bool renderQueued = false;
     
+    public void QueueSetup(MonoBehaviour runner, SplineDescription description)
+    {
+        IEnumerator loadingRoutine = SplineLoader.GetCoroutine(
+            description,
+            (profileToUse) => {
+                if (profileToUse != null) 
+                    Setup(profileToUse.Value);
+            });
+
+        runner.StartCoroutine(loadingRoutine);
+    }
     public void Setup(SplineProfile profileToUse)
     {
         profile = profileToUse;
@@ -57,6 +68,10 @@ public class SplineController : MonoBehaviour
         computeShader.SetInt("_Vertical", profile.vertical ? 1 : 0);
 
         computeShader.GetKernelThreadGroupSizes(updateTrackKernel, out threadCount, out _, out _);
+        
+        setupComplete = true;
+        if (renderQueued)
+            enabled = true;
     }
 
 
@@ -67,7 +82,10 @@ public class SplineController : MonoBehaviour
         p3 = bPos - transform.position;
         p2 = p3 + bRot * Vector3.forward * Vector3.Distance(aPos, bPos) * 0.5f;
 
-        enabled = true;
+        if (setupComplete)
+            enabled = true;
+        else
+            renderQueued = true;
     }
     private void ExecuteRefresh()
     {
@@ -94,7 +112,7 @@ public class SplineController : MonoBehaviour
         computeShader.SetInt("_PointCount", pointCount);
         computeShader.SetInt("_PointPerThread", Mathf.CeilToInt((float)pointCount / threadCount));
 
-        Bounds bounds = new Bounds(p0, Vector3.zero);
+        Bounds bounds = new(p0, Vector3.zero);
         bounds.Encapsulate(p1);
         bounds.Encapsulate(p2);
         bounds.Encapsulate(p3);
@@ -131,12 +149,12 @@ public class SplineController : MonoBehaviour
 
     private void LateUpdate()
     {
-        ExecuteRefresh();
-        OnTrackChange.Invoke();
-        enabled = false;
-    }
-    #endregion
+        if (setupComplete)
+        {
+            ExecuteRefresh();
+            OnTrackChange.Invoke();
+            enabled = false;
+        }
 
-    #region Generator Section
-    #endregion
+    }
 }

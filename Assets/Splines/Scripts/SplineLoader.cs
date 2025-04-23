@@ -4,11 +4,49 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using UnityEngine;
 using GltfImport = GLTFast.Newtonsoft.GltfImport;
+using System.Collections;
 
 public static class SplineLoader
 {
     private static Dictionary<string, SplineProfile> loadedObjects = new();
     private static Dictionary<string, Task<SplineProfile?>> loadingObjects = new();
+
+    public static IEnumerator GetCoroutine(SplineDescription description, Action<SplineProfile?> callback, bool reload = false)
+    {
+        Task<SplineProfile?> loadTask = Get(description, reload);
+        yield return new WaitUntil(() => loadTask.IsCompleted || loadTask.IsCompleted);
+        
+        if (!loadTask.IsCompletedSuccessfully) yield break;
+        
+        callback?.Invoke(loadTask.Result);
+    }
+    public static async Task<SplineProfile?> Get(SplineDescription description, bool reload = false)
+    {
+        string filePath = Path.Join(
+            description.isInternal ? 
+                Application.streamingAssetsPath : 
+                FileCoordinator.Instance.ResourceRoot, 
+            "Splines", 
+            $"{description.name}.glb");
+        
+        return await Get(filePath, reload);
+    }
+    public static async Task<SplineProfile?> Get(string filePath, bool reload = false)
+    {
+        // Check loading first in case reloading
+        if (loadingObjects.TryGetValue(filePath, out Task<SplineProfile?> loadingObject))
+            return await loadingObject;
+
+        // No reload, item exist
+        if (!reload && loadedObjects.TryGetValue(filePath, out SplineProfile loadedObject))
+            return loadedObject;
+
+        // reload or item not exist
+        Task<SplineProfile?> loadTask = Load(filePath);
+        loadingObjects.Add(filePath, loadTask);
+
+        return await loadTask;
+    }
 
     private static async Task<SplineProfile?> Load(string filePath)
     {
@@ -65,22 +103,5 @@ public static class SplineLoader
 
         loadedObjects.Add(filePath, loadedObject);
         return loadedObject;
-    }
-
-    public static async Task<SplineProfile?> Get(string filePath, bool reload = false)
-    {
-        // Check loading first in case reloading
-        if (loadingObjects.TryGetValue(filePath, out Task<SplineProfile?> loadingObject))
-            return await loadingObject;
-
-        // No reload, item exist
-        if (!reload && loadedObjects.TryGetValue(filePath, out SplineProfile loadedObject))
-            return loadedObject;
-
-        // reload or item not exist
-        Task<SplineProfile?> loadTask = Load(filePath);
-        loadingObjects.Add(filePath, loadTask);
-
-        return await loadTask;
     }
 }

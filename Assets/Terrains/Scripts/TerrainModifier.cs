@@ -191,7 +191,7 @@ public class TerrainModifier : MonoBehaviour
 
     private void SetupProject() 
     {   
-        projectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, quadSize * quadSize, sizeof(float) * 3);
+        projectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, quadSize * quadSize, sizeof(float) * 4);
 
         applyProjectionsKernel = applyProjectionsShader.FindKernel("ApplyProjections");
         SetupShader(ref applyProjectionsShader, applyProjectionsKernel);
@@ -211,7 +211,7 @@ public class TerrainModifier : MonoBehaviour
         projectShader.SetInts("_Dimensions", quadSize, quadSize);
         
         projectShader.SetBuffer(projectExecuteKernel, "_Depth", projectBuffer);
-        projectShader.SetBuffer(projectClearKernel, "_Depth", projectBuffer);
+        projectShader.SetBuffer(projectClearKernel,   "_Depth", projectBuffer);
         projectShader.SetBuffer(projectConvertKernel, "_Depth", projectBuffer);
 
         projectionMatrix = Matrix4x4.Ortho(-1f, 1f, -1f, 1f, -1f, 1f);
