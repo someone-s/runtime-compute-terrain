@@ -29,6 +29,7 @@ public class TerrainController : MonoBehaviour
     #region Vertices Section
     public const float area = TerrainCoordinator.area;
     private const int meshSize = TerrainCoordinator.meshSize;
+    public Mesh mesh;
     public GraphicsBuffer vertexBuffer { get; private set; }
     public GraphicsBuffer triangleBuffer { get; private set; }
     public Bounds worldBound { get; private set; }
@@ -40,7 +41,7 @@ public class TerrainController : MonoBehaviour
         if (terrainReady) return;
 
         MeshFilter filter = GetComponent<MeshFilter>();
-        Mesh mesh = TerrainGenerator.GetMesh();
+        mesh = TerrainGenerator.GetMesh();
         mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination;
         mesh.indexBufferTarget |= GraphicsBuffer.Target.Raw;
         filter.sharedMesh = mesh;
@@ -72,6 +73,14 @@ public class TerrainController : MonoBehaviour
         int resetBuffersKernalIndex = configShader.FindKernel("ResetBuffers");
         configShader.Dispatch(resetBuffersKernalIndex, 1, 1, 1);
     }
+
+    private void OnDestroy()
+    {
+        Destroy(mesh);
+        vertexBuffer.Dispose();
+        triangleBuffer.Dispose();
+        Destroy(configShader);
+    }
     #endregion
 
     #region IO Section
@@ -100,7 +109,7 @@ public class TerrainController : MonoBehaviour
         configShader.Dispatch(resetBuffersKernelIndex, 1, 1, 1);
     }
 
-    public unsafe void Save(string path)
+    public unsafe AsyncGPUReadbackRequest Save(string path)
     {
 
         int count = (meshSize + 1) * (meshSize + 1);
@@ -112,7 +121,7 @@ public class TerrainController : MonoBehaviour
         configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("_Exports"), exportBuffer);
         configShader.Dispatch(exportBuffersKernelIndex, 1, 1, 1);
 
-        AsyncGPUReadback.Request(exportBuffer, (AsyncGPUReadbackRequest request) =>
+        return AsyncGPUReadback.Request(exportBuffer, (AsyncGPUReadbackRequest request) =>
         {
             Assert.IsFalse(request.hasError, "Error in TerrainController readback");
 
