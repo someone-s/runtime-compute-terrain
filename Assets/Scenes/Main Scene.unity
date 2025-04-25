@@ -1108,7 +1108,7 @@ MonoBehaviour:
   - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 626255503}
-        m_TargetAssemblyTypeName: SaveCoordinator, Save
+        m_TargetAssemblyTypeName: FileCoordinator, File
         m_MethodName: Save
         m_Mode: 0
         m_Arguments:
@@ -1116,7 +1116,7 @@ MonoBehaviour:
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
-          m_StringArgument: 
+          m_StringArgument: TestSave
           m_BoolArgument: 0
         m_CallState: 2
     m_ActionId: e2235415-e312-4982-bc9f-a9f355b3937e
@@ -1124,7 +1124,7 @@ MonoBehaviour:
   - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 626255503}
-        m_TargetAssemblyTypeName: SaveCoordinator, Save
+        m_TargetAssemblyTypeName: FileCoordinator, File
         m_MethodName: Load
         m_Mode: 0
         m_Arguments:
@@ -1132,7 +1132,7 @@ MonoBehaviour:
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
-          m_StringArgument: 
+          m_StringArgument: TestSave
           m_BoolArgument: 0
         m_CallState: 2
     m_ActionId: 13b447ad-9ce6-4cf9-8489-90eed228f26f
