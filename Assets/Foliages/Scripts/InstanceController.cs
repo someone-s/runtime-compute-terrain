@@ -177,7 +177,7 @@ public class InstanceController : MonoBehaviour
         transformMatrixBuffer?.Dispose();
         argumentsBuffer?.Dispose();
 
-        updater.RemoveRender(this);
+        updater?.RemoveRender(this);
     }
 
     public void QueueRefresh()
