@@ -11,6 +11,7 @@ struct Request {
     float3 origin;
     float3 direction;
     uint id;
+    uint useBase;
 };
 StructuredBuffer<Request> _Requests;
 int _Count; // request _Count
@@ -91,6 +92,14 @@ void FindIntersect(uint3 id : SV_DispatchThreadID, uint gid : SV_GroupIndex) {
                 float3 vertex1  = LoadVertex(x + 1,  y);
                 float3 vertex2  = LoadVertex(x,      y + 1);
                 float3 vertex3  = LoadVertex(x + 1,  y + 1);
+                
+                if (request.useBase == 1)
+                {
+                    vertex0.y  = LoadBase(x,      y);
+                    vertex1.y  = LoadBase(x + 1,  y);
+                    vertex2.y  = LoadBase(x,      y + 1);
+                    vertex3.y  = LoadBase(x + 1,  y + 1);
+                }
 
                 // RayTriangleIntersect(vertex0, vertex3, vertex1);
                 // RayTriangleIntersect(vertex0, vertex2, vertex3);

@@ -52,7 +52,7 @@ public class TerrainCoordinator : MonoBehaviour
     #endregion
 
     #region Intersect Section
-    public void CastRay(Vector3 position, Vector3 direction, Action<Vector3?> callback)
+    public void CastRay(Vector3 position, Vector3 direction, bool useBase, Action<Vector3?> callback)
     {
         // Minus 1 for setting center to bottom left of 4 modified terrain pieces
         int centerX = Mathf.RoundToInt(position.x / area) - 1;
@@ -68,7 +68,7 @@ public class TerrainCoordinator : MonoBehaviour
         Vector3 translatedPosition = position;
         translatedPosition.x -= centerX * area;
         translatedPosition.z -= centerZ * area;
-        intersector.QueueIntersect((centerX, centerZ), translatedPosition, direction, (Vector3? hitPoint) =>
+        intersector.QueueIntersect((centerX, centerZ), translatedPosition, direction, useBase, (Vector3? hitPoint) =>
         {
             if (hitPoint is null)
                 callback(null);
