@@ -8,6 +8,12 @@ using System;
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainIntersector : MonoBehaviour {
 
+    private class Instance
+    {
+        public ComputeShader shader;
+        public ComputeBuffer requestBuffer;
+        public ComputeBuffer resultBuffer;
+    }
 
     // General state
     private static int bufferCount = 10;
@@ -17,55 +23,70 @@ public class TerrainIntersector : MonoBehaviour {
     private TerrainCoordinator coordinator;
 
     #region Configuration Region
-    private (int x, int z)? currentRegion = null;
+    //private (int x, int z)? currentRegion = null;
 
     private void Start()
     {
         coordinator = GetComponent<TerrainCoordinator>();
 
-        computeShader = Instantiate(computeShader);
 
-        int findIntersectKernelIndex = computeShader.FindKernel("FindIntersect");
-
-        computeShader.SetFloat(Shader.PropertyToID("_Area"), area);
-        computeShader.SetInt(Shader.PropertyToID("_Size"), meshSize);
-        computeShader.SetInt(Shader.PropertyToID("_IntersectSection"), Mathf.CeilToInt(((float)meshSize * 2) / 32f));
-
-        requestBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 6 + sizeof(uint), ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_Requests"), requestBuffer);
-
-        resultBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 3 + sizeof(uint) * 2, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_Results"), resultBuffer);
     }
 
     private void OnDestroy()
     {
-        resultBuffer.Dispose();
+        foreach (var instance in instances)
+        {
+            instance.requestBuffer.Dispose();
+            instance.resultBuffer.Dispose();
+        }
     }
 
-    private void SetIntersectArea() {
-        int findIntersectKernelIndex = computeShader.FindKernel("FindIntersect");
+    private Instance CreateInstance()
+    {
+        ComputeShader shader = Instantiate(computeShader);
 
-        computeShader.SetInt(Shader.PropertyToID("_Stride"), TerrainController.VertexBufferStride);
-        computeShader.SetInt(Shader.PropertyToID("_PositionOffset"), TerrainController.VertexPositionAttributeOffset);
+        int findIntersectKernelIndex = shader.FindKernel("FindIntersect");
 
-        GraphicsBuffer meshBL = coordinator.controllers[currentRegion.Value].vertexBuffer;
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_VerticesBL"), meshBL);
+        shader.SetFloat("_Area", area);
+        shader.SetInt("_Size", meshSize);
+        shader.SetInt("_IntersectSection", Mathf.CeilToInt(meshSize * 2 / 32f));
 
-        GraphicsBuffer meshBR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z)].vertexBuffer;
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_VerticesBR"), meshBR);
+        ComputeBuffer requestBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 6 + sizeof(uint) * 2, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        shader.SetBuffer(findIntersectKernelIndex, "_Requests", requestBuffer);
 
-        GraphicsBuffer meshTL = coordinator.controllers[(currentRegion.Value.x    , currentRegion.Value.z + 1)].vertexBuffer;
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_VerticesTL"), meshTL);
+        ComputeBuffer resultBuffer = new ComputeBuffer(bufferCount, sizeof(float) * 3 + sizeof(uint) * 2, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
+        shader.SetBuffer(findIntersectKernelIndex, "_Results", resultBuffer);
 
-        GraphicsBuffer meshTR = coordinator.controllers[(currentRegion.Value.x + 1, currentRegion.Value.z + 1)].vertexBuffer;
-        computeShader.SetBuffer(findIntersectKernelIndex, Shader.PropertyToID("_VerticesTR"), meshTR);
+        return new Instance
+        {
+            shader = shader,
+            requestBuffer = requestBuffer,
+            resultBuffer = resultBuffer
+        };
+    }
 
+    private void SetIntersectArea(Instance instance, (int x, int z) targetRegion) {
+        int findIntersectKernelIndex = instance.shader.FindKernel("FindIntersect");
+
+        instance.shader.SetInt("_Stride", TerrainController.VertexBufferStride);
+        instance.shader.SetInt("_PositionOffset", TerrainController.VertexPositionAttributeOffset);
+        instance.shader.SetInt("_BaseOffset", TerrainController.VertexBaseAttributeOffset);
+
+        GraphicsBuffer meshBL = coordinator.controllers[targetRegion].vertexBuffer;
+        instance.shader.SetBuffer(findIntersectKernelIndex, "_VerticesBL", meshBL);
+
+        GraphicsBuffer meshBR = coordinator.controllers[(targetRegion.x + 1, targetRegion.z)].vertexBuffer;
+        instance.shader.SetBuffer(findIntersectKernelIndex, "_VerticesBR", meshBR);
+
+        GraphicsBuffer meshTL = coordinator.controllers[(targetRegion.x    , targetRegion.z + 1)].vertexBuffer;
+        instance.shader.SetBuffer(findIntersectKernelIndex, "_VerticesTL", meshTL);
+
+        GraphicsBuffer meshTR = coordinator.controllers[(targetRegion.x + 1, targetRegion.z + 1)].vertexBuffer;
+        instance.shader.SetBuffer(findIntersectKernelIndex, "_VerticesTR", meshTR);
     }
     #endregion
 
     #region Operation Region
-    private ComputeBuffer requestBuffer;
     private Queue<((int x, int y) region, Request operation)> requestQueue = new Queue<((int x, int y) region, Request operation)>(bufferCount);
     
     [StructLayout(LayoutKind.Sequential)]
@@ -74,9 +95,8 @@ public class TerrainIntersector : MonoBehaviour {
         public Vector3 rayOrigin { get; set; }
         public Vector3 rayDirection { get; set; }
         public uint requestID { get; set; }
+        public uint useBase { get; set; }
     }
-
-    private ComputeBuffer resultBuffer;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Result
@@ -107,9 +127,11 @@ public class TerrainIntersector : MonoBehaviour {
         }
     }
     
+    private Stack<Instance> instances = new();
+
     private Dictionary<uint, Action<Vector3?>> callbacks = new Dictionary<uint, Action<Vector3?>>(bufferCount);
 
-    public void QueueIntersect((int x, int y) region, Vector3 origin, Vector3 direction, Action<Vector3?> callback)
+    public void QueueIntersect((int x, int y) region, Vector3 origin, Vector3 direction, bool useBase, Action<Vector3?> callback)
     {
         uint requestID = IndexManager.GetIndex();
 
@@ -119,7 +141,8 @@ public class TerrainIntersector : MonoBehaviour {
             {
                 rayOrigin = origin,
                 rayDirection = direction,
-                requestID = requestID
+                requestID = requestID,
+                useBase = useBase ? 1u : 0u
             }
         ));
 
@@ -133,9 +156,12 @@ public class TerrainIntersector : MonoBehaviour {
         if (!requestQueue.TryDequeue(out ((int x, int y) region, Request request) first))
             return;
 
-        NativeArray<Request> requestDestination = requestBuffer.BeginWrite<Request>(0, bufferCount);
+        if (!instances.TryPop(out Instance instance))
+            instance = CreateInstance();
 
-        (int x, int y) targetRegion = first.region;
+        NativeArray<Request> requestDestination = instance.requestBuffer.BeginWrite<Request>(0, bufferCount);
+
+        (int x, int z) targetRegion = first.region;
         requestDestination[0] = first.request;
 
         int index = 1;
@@ -150,44 +176,46 @@ public class TerrainIntersector : MonoBehaviour {
             requestDestination[index] = follow.request;
         }
 
-        requestBuffer.EndWrite<Request>(index);
+        instance.requestBuffer.EndWrite<Request>(index);
 
-        computeShader.SetInt(Shader.PropertyToID("_Count"), index);
+        instance.shader.SetInt(Shader.PropertyToID("_Count"), index);
 
-        if (targetRegion != currentRegion) {
-            currentRegion = targetRegion;
-            SetIntersectArea();
-        }
+        SetIntersectArea(instance, targetRegion);
 
-        computeShader.Dispatch(computeShader.FindKernel("FindIntersect"), 1, 1, 1);
-        AsyncGPUReadback.Request(resultBuffer, (readback) =>
+        instance.shader.Dispatch(instance.shader.FindKernel("FindIntersect"), 1, 1, 1);
+        AsyncGPUReadback.Request(instance.resultBuffer, index * instance.resultBuffer.stride, 0, (readback) =>
         {
-            NativeArray<Result> _Results = readback.GetData<Result>();
-            for (int r = 0; r < index; r++)
+            NativeArray<Result> results = readback.GetData<Result>();
+            for (int r = 0; r < results.Length; r++)
             {
-                Result result = _Results[r];
+                Result result = results[r];
+
                 if (!callbacks.Remove(result.requestID, out Action<Vector3?> callback))
-                    return;
+                    continue;
 
                 IndexManager.ReturnIndex(result.requestID);
 
                 if (result.hit == 1)
                 {
                     Vector3 globalPosition = result.position;
-                    globalPosition.x += currentRegion.Value.x * area;
-                    globalPosition.z += currentRegion.Value.z * area;
+                    globalPosition.x += targetRegion.x * area;
+                    globalPosition.z += targetRegion.z * area;
                     callback(globalPosition);
                 }
                 else
                     callback(null);
             }
-            _Results.Dispose();
+            results.Dispose();
+
+            instances.Push(instance);
         });
     }
     private void LateUpdate()
     {
-        ExecuteIntersect();
+        while (requestQueue.Count > 0)
+            ExecuteIntersect();
 
+        if (requestQueue.Count <= 0)
         enabled = false;
     }
     #endregion

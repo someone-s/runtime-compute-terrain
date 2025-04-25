@@ -54,9 +54,10 @@ public class TerrainCaster : MonoBehaviour {
     private void Update()
     {
         Ray ray = mainCamera.ScreenPointToRay(mousePosition);
-        coordinator.CastRay(mainCamera.transform.position, ray.direction, (Vector3? result) => {
+        coordinator.CastRay(mainCamera.transform.position, ray.direction, false, (Vector3? result) => {
             if (result is null)
                 return;
+                
             target = result.Value;
         });
 
