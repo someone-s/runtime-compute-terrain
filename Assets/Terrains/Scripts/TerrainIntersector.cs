@@ -4,6 +4,7 @@ using Unity.Collections;
 using System.Runtime.InteropServices;
 using UnityEngine.Rendering;
 using System;
+using System.Linq;
 
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainIntersector : MonoBehaviour {
@@ -23,8 +24,6 @@ public class TerrainIntersector : MonoBehaviour {
     private TerrainCoordinator coordinator;
 
     #region Configuration Region
-    //private (int x, int z)? currentRegion = null;
-
     private void Start()
     {
         coordinator = GetComponent<TerrainCoordinator>();
@@ -87,7 +86,7 @@ public class TerrainIntersector : MonoBehaviour {
     #endregion
 
     #region Operation Region
-    private Queue<((int x, int y) region, Request operation)> requestQueue = new Queue<((int x, int y) region, Request operation)>(bufferCount);
+    private List<((int x, int y) region, Request request)> requestQueue = new(bufferCount);
     
     [StructLayout(LayoutKind.Sequential)]
     private struct Request
@@ -135,7 +134,7 @@ public class TerrainIntersector : MonoBehaviour {
     {
         uint requestID = IndexManager.GetIndex();
 
-        requestQueue.Enqueue((
+        requestQueue.Add((
             region,
             new Request
             {
@@ -153,8 +152,8 @@ public class TerrainIntersector : MonoBehaviour {
 
     private void ExecuteIntersect()
     {
-        if (!requestQueue.TryDequeue(out ((int x, int y) region, Request request) first))
-            return;
+        ((int x, int y) region, Request request) first = requestQueue[0];
+        requestQueue.RemoveAtSwapBack(0);
 
         if (!instances.TryPop(out Instance instance))
             instance = CreateInstance();
@@ -164,16 +163,21 @@ public class TerrainIntersector : MonoBehaviour {
         (int x, int z) targetRegion = first.region;
         requestDestination[0] = first.request;
 
-        int index = 1;
-        for (; index < bufferCount; index++) {
-            if (!requestQueue.TryPeek(out ((int x, int y) region, Request request) follow))
-                break;
-
-            if (follow.region != targetRegion)
-                break;
-
-            requestQueue.Dequeue();
-            requestDestination[index] = follow.request;
+        int index = 1, i = 0;
+        for (; i < requestQueue.Count && index < bufferCount;)
+        {
+            if (requestQueue[i].region != targetRegion)
+            {
+                // keeps index same
+                i++;
+            }
+            else
+            {
+                requestDestination[index] = requestQueue[i].request;
+                requestQueue.RemoveAtSwapBack(i);
+                index++;
+                // keeps i same
+            }
         }
 
         instance.requestBuffer.EndWrite<Request>(index);
