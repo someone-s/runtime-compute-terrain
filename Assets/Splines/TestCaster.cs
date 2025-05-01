@@ -10,7 +10,7 @@ public class TestCaster : MonoBehaviour
         foreach (var t in transforms)
         {
             Transform t2 = t;
-            TerrainCoordinator.Instance.CastRay(t.position + Vector3.up * 1000f, Vector3.down, false, (Vector3? res) => {
+            TerrainCoordinator.Instance.CastRay(t.position + Vector3.up * 1000f, Vector3.down, 1000f, false, (Vector3? res) => {
                 if (res == null) return;
                 t2.position = res.Value;
             });
