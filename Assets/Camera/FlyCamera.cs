@@ -26,7 +26,7 @@ public class FlyCamera : MonoBehaviour {
 
 	void UpdateInput() {
 		// Position
-		velocity += skew * acceleration * Time.deltaTime;
+		velocity += acceleration * Time.deltaTime * skew;
 
 		// Rotation
 		if (panActive)

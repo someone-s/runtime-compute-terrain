@@ -54,7 +54,7 @@ public class TerrainCaster : MonoBehaviour {
     private void Update()
     {
         Ray ray = mainCamera.ScreenPointToRay(mousePosition);
-        coordinator.CastRay(mainCamera.transform.position, ray.direction, false, (Vector3? result) => {
+        coordinator.CastRay(mainCamera.transform.position, ray.direction, 50f, false, (Vector3? result) => {
             if (result is null)
                 return;
                 
@@ -88,7 +88,7 @@ public class TerrainCaster : MonoBehaviour {
     }
 
     private void LateUpdate()
-    {
+    {   
         float distance = Vector3.Distance(cursorObject.position, target);
         cursorObject.position = Vector3.MoveTowards(cursorObject.position, target, distance * distance / 4f);
     }
