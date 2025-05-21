@@ -1,0 +1,188 @@
+#pragma kernel SetupRound
+#pragma kernel FindIntersect
+
+#include "TerrainCommon.hlsl"
+
+// Per batch variable
+uint _Count;
+
+// Per tile variable
+float3 _Anchor;
+
+struct Request {
+    float3 origin;
+    float3 direction;
+    float range;
+    uint useBase;
+};
+StructuredBuffer<Request> _Request;
+
+struct Result {
+    float3 origin;
+    float3 position;
+    uint hit;
+};
+RWStructuredBuffer<Result> _Result;
+
+RWByteAddressBuffer _MinT;
+
+// See Moller-Trumbore intersetion on Wikipedia
+float4 RayTriangleIntersect(float3 origin, float3 direction, float3 edge1, float3 edge2, float3 s) {
+
+    float4 output = float4(0.0, 0.0, 0.0, -1.0);
+
+    float3 rayCrossE2 = cross(direction, edge2);
+    float det = dot(edge1, rayCrossE2);
+
+    // Not parrallel
+    if (!(det > -EPSILON && det < EPSILON)) {
+
+        float invDet = 1.0 / det;
+        float u = invDet * dot(s, rayCrossE2);
+    
+        
+        if (!((u < 0.0 && abs(u) > EPSILON) || (u > 1 && abs(u - 1) > EPSILON))) {
+
+            float3 sCrossE1 = cross(s, edge1);
+            float v = invDet * dot(direction, sCrossE1);
+        
+            if (!((v < 0.0 && abs(v) > EPSILON) || (u + v > 1.0 && abs(u + v - 1.0) > EPSILON))) {
+
+                float t = invDet * dot(edge2, sCrossE1);
+                
+                // Positive intersection only
+                if (t > EPSILON)
+                    output = float4(origin + direction * t, t);
+            }
+        }
+    }
+
+    return output;
+}
+
+float4 RayQuadIntersect(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float3 vertex3) {
+    float3 edgeA = vertex1 - vertex0;
+    float3 edgeB = vertex3 - vertex0;
+    float3 edgeC = vertex2 - vertex0;
+    float3 s = origin - vertex0;
+    float4 test = RayTriangleIntersect(origin, direction, edgeB, edgeA, s);
+    return test.w >= 0.0 ? test : RayTriangleIntersect(origin, direction, edgeC, edgeB, s);
+}
+
+// Perform this before any FindIntersect
+// Dispatch by the ceil(rays / 64)
+[numthreads(64, 1, 1)]
+void SetupRound(uint3 id : SV_DispatchThreadID)
+{
+    uint ray = id.x;
+
+    if (ray >= _Count)
+        return;
+    
+    // reset minT
+    _MinT.Store(ray * 4, asint(0x7fffffff));
+
+    _Result[ray].hit = 0;
+}
+
+// Perform this on all tiles, dont SetupRound between each tile
+// Each group handles one ray, dispatch by rays
+// Dispatch tiles sequentially
+[numthreads(32, 32, 1)]
+void FindIntersect(uint3 id : SV_GroupThreadID, uint3 gid : SV_GroupID) {
+
+    uint2 gridPos = id.xy;
+    uint ray = gid.x;
+
+    Request request = _Request[ray];
+
+    float3 start = request.origin;
+    float3 end = request.origin + request.direction * request.range;
+    float2 globalMin = min(start.xz, end.xz);
+    float2 globalMax = max(start.xz, end.xz);
+
+    uint2 localMin = max(0,     uint2(floor((globalMin - _Anchor.xz) / _Area * _Size)));
+    uint2 localMax = min(_Size, uint2(ceil( (globalMax - _Anchor.xz) / _Area * _Size)));
+
+    uint2 count = localMax - localMin + 1;
+
+    uint2 gridStart = localMin;
+    uint2 gridSpan = uint2(ceil(float2(count) / 32.0));
+
+    float3 localOrigin = request.origin - _Anchor;
+
+    float3 localBest;
+    uint localMinT = asuint(0x7fffffff);
+
+    for (uint x = gridStart.x + gridPos.x * gridSpan.x; 
+        x < gridStart.x + (gridPos.x + 1) * gridSpan.x && x < _Size - 1; 
+        x++)
+    {
+        for (uint y = gridStart.y + gridPos.y * gridSpan.y; 
+            y < gridStart.y + (gridPos.y + 1) * gridSpan.y && y < _Size - 1; 
+            y++)
+        {
+
+            float3 vertex0  = LoadVertex(x,      y);
+            float3 vertex1  = LoadVertex(x + 1,  y);
+            float3 vertex2  = LoadVertex(x,      y + 1);
+            float3 vertex3  = LoadVertex(x + 1,  y + 1);
+            
+            if (request.useBase == 1)
+            {
+                vertex0.y  = LoadBase(x,      y);
+                vertex1.y  = LoadBase(x + 1,  y);
+                vertex2.y  = LoadBase(x,      y + 1);
+                vertex3.y  = LoadBase(x + 1,  y + 1);
+            }
+
+            float4 result = RayQuadIntersect(localOrigin, request.direction, vertex0, vertex1, vertex2, vertex3);
+            // result.w is distance from origin
+            if (result.w < 0.0)
+                continue;
+            
+            // See jeremyong.com f32-interlocked-min-max part 2
+            // asint bit cast only works when float >= 0.0
+            uint newT = asuint(result.w);
+            if (newT < localMinT) {
+                localMinT = newT;
+                localBest = result.xyz;
+                _MinT.InterlockedMin(ray * 4, localMinT);
+            }
+        }
+    }
+
+    // Sync all to when all group competed with their min T value
+    GroupMemoryBarrierWithGroupSync();
+
+    uint minT = _MinT.Load(ray * 4);
+    
+    // If no intersect at all, first thread sets result to no hit value
+    if (minT == asuint(0x7fffffff)) {
+        // Leave the result to any previously set value
+        // The hit value is set to 0 initially
+    }
+    // Only the threads with exact matching t assign result value
+    // Fine if multiple threads hit since result will be the same
+    else if (minT == localMinT) {
+        if (_Result[ray].hit == 1)
+        {
+            // Have hit from another tile
+            float priorBest = distance(_Result[ray].origin, _Result[ray].position);
+            float currentBest = distance(request.origin, _Anchor + localBest);
+
+            // Only update if new result is closer to origin
+            if (currentBest < priorBest)
+            {
+                _Result[ray].origin = request.origin;
+                _Result[ray].position = _Anchor + localBest;
+            }
+        }
+        else
+        {
+            _Result[ray].hit = 1;
+            _Result[ray].origin = request.origin;
+            _Result[ray].position = _Anchor + localBest;
+        }
+    }
+}
