@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using UnityEngine.Rendering;
 using System;
 using System.Linq;
+using System.Drawing;
 
 [RequireComponent(typeof(TerrainCoordinator))]
 public class TerrainSingleIntersector : MonoBehaviour
@@ -45,8 +46,8 @@ public class TerrainSingleIntersector : MonoBehaviour
 
     }
 
-    private BufferPool requestBufferPool = new(() => new ComputeBuffer(1, sizeof(float) * 9 + sizeof(uint) * 5, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates));
-    private BufferPool resultBufferPool = new(() => new ComputeBuffer(1, sizeof(float) * 6 + sizeof(uint) * 1, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates));
+    private BufferPool requestBufferPool = new(() => new ComputeBuffer(1, GPURequest.size, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates));
+    private BufferPool resultBufferPool = new(() => new ComputeBuffer(1, Result.size, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates));
 
 
     private class BufferPool
@@ -109,6 +110,8 @@ public class TerrainSingleIntersector : MonoBehaviour
         public uint gridStartZ;
         public uint gridSpanX;
         public uint gridSpanZ;
+
+        public const int size = sizeof(float) * 9 + sizeof(uint) * 5;
     }
 
 
@@ -137,7 +140,7 @@ public class TerrainSingleIntersector : MonoBehaviour
         enabled = true;
     }
     #endregion
-    
+
     #region Result Region
 
     [StructLayout(LayoutKind.Sequential)]
@@ -146,6 +149,8 @@ public class TerrainSingleIntersector : MonoBehaviour
         public Vector3 rayOrigin;
         public Vector3 rayHitPoint;
         public uint hit;
+
+        public const int size = sizeof(float) * 6 + sizeof(uint) * 1;
     }
 
     private class ResultGroup
