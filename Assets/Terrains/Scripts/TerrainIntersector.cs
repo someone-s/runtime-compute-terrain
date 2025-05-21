@@ -10,77 +10,91 @@ using System.Linq;
 public class TerrainIntersector : MonoBehaviour
 {
 
-    private class Instance
-    {
-        public int findIntersectKernel;
-        public ComputeShader shader;
-        public ComputeBuffer requestBuffer;
-        public ComputeBuffer resultBuffer;
-    }
-
-    // General state
-    private static int bufferCount = 10;
+    #region Configuration Region
     private const float area = TerrainCoordinator.area;
     private const int meshSize = TerrainCoordinator.meshSize;
-    [SerializeField] private ComputeShader computeShader;
-    private TerrainCoordinator coordinator;
 
-    #region Configuration Region
+    [SerializeField] private ComputeShader computeShader;
+    private int findIntersectKernel;
+    private TerrainCoordinator coordinator;
     private void Start()
     {
         coordinator = GetComponent<TerrainCoordinator>();
 
-
+        SetupShader();
     }
 
     private void OnDestroy()
     {
-        foreach (var instance in instances)
-        {
-            instance.requestBuffer.Dispose();
-            instance.resultBuffer.Dispose();
-        }
+        requestBufferPool.DestroyBuffers();
+        resultBufferPool.DestroyBuffers();
     }
 
-    private Instance CreateInstance()
+    private void SetupShader()
     {
-        ComputeShader shader = Instantiate(computeShader);
+        computeShader = Instantiate(computeShader);
 
-        int findIntersectKernel = shader.FindKernel("FindIntersect");
+        findIntersectKernel = computeShader.FindKernel("FindIntersect");
 
-        shader.SetFloat("_Area", area);
-        shader.SetInt("_Size", meshSize);
+        computeShader.SetFloat("_Area", area);
+        computeShader.SetInt("_Size", meshSize);
 
-        shader.SetInt("_Stride", TerrainController.VertexBufferStride);
-        shader.SetInt("_PositionOffset", TerrainController.VertexPositionAttributeOffset);
-        shader.SetInt("_BaseOffset", TerrainController.VertexBaseAttributeOffset);
+        computeShader.SetInt("_Stride", TerrainController.VertexBufferStride);
+        computeShader.SetInt("_PositionOffset", TerrainController.VertexPositionAttributeOffset);
+        computeShader.SetInt("_BaseOffset", TerrainController.VertexBaseAttributeOffset);
 
-        ComputeBuffer requestBuffer = new ComputeBuffer(1, sizeof(float) * 9 + sizeof(uint) * 5, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        shader.SetBuffer(findIntersectKernel, "_Request", requestBuffer);
+    }
 
-        ComputeBuffer resultBuffer = new ComputeBuffer(1, sizeof(float) * 6 + sizeof(uint) * 1, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        shader.SetBuffer(findIntersectKernel, "_Result", resultBuffer);
+    private BufferPool requestBufferPool = new(() => new ComputeBuffer(1, sizeof(float) * 9 + sizeof(uint) * 5, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates));
+    private BufferPool resultBufferPool = new(() => new ComputeBuffer(1, sizeof(float) * 6 + sizeof(uint) * 1, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates));
 
-        return new Instance
+
+    private class BufferPool
+    {
+        private Func<ComputeBuffer> constructor;
+        public BufferPool(Func<ComputeBuffer> constructor)
         {
-            findIntersectKernel = findIntersectKernel,
-            shader = shader,
-            requestBuffer = requestBuffer,
-            resultBuffer = resultBuffer
-        };
+            this.constructor = constructor;
+        }
+
+        public List<ComputeBuffer> buffers = new();
+        public Stack<ComputeBuffer> unusedBuffers = new();
+
+        public ComputeBuffer GetBuffer()
+        {
+            if (!unusedBuffers.TryPop(out ComputeBuffer buffer))
+            {
+                buffer = constructor();
+                buffers.Add(buffer);
+            }
+
+            return buffer;
+        }
+
+        public void ReturnBuffer(ComputeBuffer buffer)
+        {
+            unusedBuffers.Push(buffer);
+        }
+
+        public void DestroyBuffers()
+        {
+            foreach (var buffer in buffers)
+                buffer.Dispose();
+        }
     }
     #endregion
 
-    #region Operation Region
-    private List<(CPURequest, GPURequest)> requestQueue = new(bufferCount);
+    #region Request Region
+    private List<(CPURequest, GPURequest)> requestQueue = new();
 
     private struct CPURequest
     {
-        public uint id;
         public float minX;
         public float minZ;
         public float maxX;
         public float maxZ;
+
+        public Action<Vector3?> callback;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -97,67 +111,20 @@ public class TerrainIntersector : MonoBehaviour
         public uint gridSpanZ;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Result
-    {
-        public Vector3 rayOrigin;
-        public Vector3 rayHitPoint;
-        public uint hit;
-    }
-
-    private static class IndexManager
-    {
-        private static uint lastIndex = 0;
-        private static Stack<uint> freeIndices = new Stack<uint>(bufferCount);
-
-        public static uint GetIndex()
-        {
-            if (freeIndices.TryPop(out uint existingValue))
-            {
-                return existingValue;
-            }
-            else
-            {
-                uint newValue = lastIndex;
-                lastIndex++;
-                return newValue;
-            }
-        }
-
-        public static void ReturnIndex(uint recycle)
-        {
-            freeIndices.Push(recycle);
-        }
-    }
-
-    private Stack<Instance> instances = new();
-
-    private Dictionary<uint, Action<Vector3?>> callbacks = new(bufferCount);
-
-    private Dictionary<uint, List<OngoingProcess>> processes = new(bufferCount);
-    
-    private struct OngoingProcess
-    {
-        public uint id;
-        public Instance instance;
-        public AsyncGPUReadbackRequest readback;
-    }
 
     public void QueueIntersect(Vector3 position, Vector3 direction, float range, bool useBase, Action<Vector3?> callback)
     {
         Vector3 start = position;
         Vector3 end = position + direction * range;
 
-        uint requestID = IndexManager.GetIndex();
-
         requestQueue.Add((
             new CPURequest
             {
-                id = requestID,
                 minX = Mathf.Min(start.x, end.x),
                 minZ = Mathf.Min(start.z, end.z),
                 maxX = Mathf.Max(start.x, end.x),
-                maxZ = Mathf.Max(start.z, end.z)
+                maxZ = Mathf.Max(start.z, end.z),
+                callback = callback
             },
             new GPURequest
             {
@@ -167,10 +134,100 @@ public class TerrainIntersector : MonoBehaviour
             }
         ));
 
-        callbacks.Add(requestID, callback);
-
         enabled = true;
     }
+    #endregion
+    
+    #region Result Region
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Result
+    {
+        public Vector3 rayOrigin;
+        public Vector3 rayHitPoint;
+        public uint hit;
+    }
+
+    private class ResultGroup
+    {
+        private static List<ResultGroup> ongoingReadbackGroups = new();
+        private static Stack<ResultGroup> unusedReadbackGroups = new();
+        public static bool AnyOngoing => ongoingReadbackGroups.Count > 0;
+        public static ResultGroup GetReadbackGroup(Action<Vector3?> callback)
+        {
+            if (unusedReadbackGroups.TryPop(out ResultGroup readbackGroup))
+                readbackGroup.readbacks.Clear();
+            else
+                readbackGroup = new();
+
+            ongoingReadbackGroups.Add(readbackGroup);
+
+            readbackGroup.callback = callback;
+
+            return readbackGroup;
+        }
+
+        public struct ReadbackEntry
+        {
+            public ComputeBuffer requestBuffer;
+            public ComputeBuffer resultBuffer;
+            public AsyncGPUReadbackRequest readbackRequest;
+        }
+        private List<ReadbackEntry> readbacks = new();
+        public void AddEntry(ComputeBuffer requestBuffer, ComputeBuffer resultBuffer, AsyncGPUReadbackRequest readbackRequest)
+        {
+            readbacks.Add(new ReadbackEntry()
+            {
+                requestBuffer = requestBuffer,
+                resultBuffer = resultBuffer,
+                readbackRequest = readbackRequest
+            });
+        }
+        
+        private Action<Vector3?> callback;
+
+        public static void EvaluateGroups(Action<ComputeBuffer> returnRequestBuffer, Action<ComputeBuffer> returnResultBuffer)
+        {
+            for (int i = 0; i < ongoingReadbackGroups.Count; i++)
+            {
+                ResultGroup readbackGroup = ongoingReadbackGroups[i];
+
+                if (!readbackGroup.readbacks.All(entry => entry.readbackRequest.done))
+                    continue;
+
+                float minDistance = float.MaxValue;
+                Vector3? globalHit = null;
+                foreach (ReadbackEntry entry in readbackGroup.readbacks)
+                {
+                    if (!entry.readbackRequest.hasError)
+                    {
+                        NativeArray<Result> resultArray = entry.readbackRequest.GetData<Result>();
+                        Result result = resultArray[0];
+                        resultArray.Dispose();
+
+                        if (result.hit == 1)
+                        {
+                            float distance = Vector3.Distance(result.rayOrigin, result.rayHitPoint);
+                            if (distance < minDistance)
+                                globalHit = result.rayHitPoint;
+                        }
+                    }
+
+                    returnRequestBuffer(entry.requestBuffer);
+                    returnResultBuffer(entry.resultBuffer);
+                   
+                }
+
+                readbackGroup.callback?.Invoke(globalHit);
+
+                ongoingReadbackGroups.RemoveAtSwapBack(i);
+                i--; // make sure next check is same index
+                unusedReadbackGroups.Push(readbackGroup);
+            }
+
+        }
+    }
+
 
     private void ExecuteIntersects()
     {
@@ -187,8 +244,7 @@ public class TerrainIntersector : MonoBehaviour
         int regionMaxX = Mathf.FloorToInt(cRequest.maxX / area);
         int regionMaxZ = Mathf.FloorToInt(cRequest.maxZ / area);
 
-        List<OngoingProcess> process = new();
-        processes[cRequest.id] = process;
+        ResultGroup readbackGroup = ResultGroup.GetReadbackGroup(cRequest.callback);
 
         Vector3 globalRayOrigin = gRequest.rayOrigin;
         for (int regionX = regionMinX; regionX <= regionMaxX; regionX++)
@@ -204,9 +260,6 @@ public class TerrainIntersector : MonoBehaviour
 
                 gRequest.rayAnchor = new(anchorX, 0f, anchorZ);
 
-                if (!instances.TryPop(out Instance instance))
-                    instance = CreateInstance();
-
                 int localMinX = Mathf.Max(0, Mathf.FloorToInt((cRequest.minX - anchorX) / area * meshSize));
                 int localMinZ = Mathf.Max(0, Mathf.FloorToInt((cRequest.minZ - anchorZ) / area * meshSize));
                 int localMaxX = Mathf.Min(meshSize, Mathf.CeilToInt((cRequest.maxX - anchorX) / area * meshSize));
@@ -219,81 +272,32 @@ public class TerrainIntersector : MonoBehaviour
                 gRequest.gridStartZ = (uint)localMinZ;
                 gRequest.gridSpanX = (uint)Mathf.CeilToInt((float)countX / 32);
                 gRequest.gridSpanZ = (uint)Mathf.CeilToInt((float)countZ / 32);
-                
-                NativeArray<GPURequest> requestDestination = instance.requestBuffer.BeginWrite<GPURequest>(0, 1);
+
+                ComputeBuffer requestBuffer = requestBufferPool.GetBuffer();
+                NativeArray<GPURequest> requestDestination = requestBuffer.BeginWrite<GPURequest>(0, 1);
                 requestDestination[0] = gRequest;
-                instance.requestBuffer.EndWrite<GPURequest>(1);
+                requestBuffer.EndWrite<GPURequest>(1);
+                computeShader.SetBuffer(findIntersectKernel, "_Request", requestBuffer);
+
+                ComputeBuffer resultBuffer = resultBufferPool.GetBuffer();
+                computeShader.SetBuffer(findIntersectKernel, "_Result", resultBuffer);
 
                 GraphicsBuffer mesh = controller.vertexBuffer;
-                instance.shader.SetBuffer(instance.findIntersectKernel, "_Vertices", mesh);
+                computeShader.SetBuffer(findIntersectKernel, "_Vertices", mesh);
 
-                instance.shader.Dispatch(instance.findIntersectKernel, 1, 1, 1);
+                computeShader.Dispatch(findIntersectKernel, 1, 1, 1);
 
-                process.Add(new() {
-                    instance = instance,
-                    readback = AsyncGPUReadback.Request(instance.resultBuffer,  1 * instance.resultBuffer.stride, 0)
-                });
+                readbackGroup.AddEntry(requestBuffer, resultBuffer, AsyncGPUReadback.Request(resultBuffer));
             }
     }
 
-    List<uint> removeIDs = new();
-    private void ConsumeIntersects()
-    {
-        removeIDs.Clear();
-
-        foreach (var entry in processes)
-        {
-            bool allDone = true;
-            foreach (var process in entry.Value)
-                if (!process.readback.done)
-                {
-                    allDone = false;
-                    break;
-                }
-            if (!allDone)
-                continue;
-
-            float minDistance = float.MaxValue;
-            Vector3? globalHit = null;
-            foreach (var process in entry.Value)
-            {
-                if (!process.readback.hasError)
-                {
-                    NativeArray<Result> results = process.readback.GetData<Result>();
-                    Result result = results[0];
-
-                    if (result.hit == 1)
-                    {
-                        float distance = Vector3.Distance(result.rayOrigin, result.rayHitPoint);
-                        if (distance < minDistance)
-                            globalHit = result.rayHitPoint;
-                    }
-
-                    results.Dispose();
-                }
-
-                instances.Push(process.instance);
-            }
-        
-            if (callbacks.Remove(entry.Key, out Action<Vector3?> callback))
-                callback(globalHit);
-
-            IndexManager.ReturnIndex(entry.Key);
-
-            removeIDs.Add(entry.Key);
-        }
-
-        foreach (var id in removeIDs)
-            processes.Remove(id);
-    }
-    
     private void LateUpdate()
     {
-        ConsumeIntersects();
+        ResultGroup.EvaluateGroups(requestBufferPool.ReturnBuffer, resultBufferPool.ReturnBuffer);
 
         ExecuteIntersects();
 
-        if (processes.Count <= 0)
+        if (!ResultGroup.AnyOngoing)
             enabled = false;
     }
     #endregion
