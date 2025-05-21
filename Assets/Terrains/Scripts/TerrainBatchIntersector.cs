@@ -69,7 +69,7 @@ public class TerrainBatchIntersector : MonoBehaviour
 
             // Expand buffer table
             unusedBuffers.TryAdd(actualSize, new());
-                    
+
             // Get buffer of good size
             if (!unusedBuffers[actualSize].TryPop(out ComputeBuffer buffer))
             {
@@ -118,7 +118,14 @@ public class TerrainBatchIntersector : MonoBehaviour
         public const int size = sizeof(float) * 6 + sizeof(uint) * 1;
     }
 
-    public void ExecuteIntersect(Bounds bounds, int count, ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer)
+    public void GetBuffer(int minSize, out ComputeBuffer requestBuffer, out ComputeBuffer minTBuffer, out ComputeBuffer resultBuffer)
+    {
+        requestBuffer = requestBufferPool.GetBuffer(minSize);
+        minTBuffer = minTBufferPool.GetBuffer(minSize);
+        resultBuffer = resultBufferPool.GetBuffer(minSize);
+    }
+
+    public void ExecuteBuffer(Bounds bounds, int count, ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer)
     {
 
         computeShader.SetInt("_Count", count);
@@ -149,6 +156,13 @@ public class TerrainBatchIntersector : MonoBehaviour
 
                 computeShader.Dispatch(findIntersectKernel, count, 1, 1);
             }
+    }
+
+    public void ReturnBuffer(ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer)
+    {
+        requestBufferPool.ReturnBuffer(requestBuffer);
+        minTBufferPool.ReturnBuffer(minTBuffer);
+        resultBufferPool.ReturnBuffer(resultBuffer);
     }
     #endregion
 
