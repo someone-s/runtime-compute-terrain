@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 
-[RequireComponent(typeof(TerrainModifier), typeof(TerrainIntersector))]
+[RequireComponent(typeof(TerrainModifier), typeof(TerrainSingleIntersector))]
 public class TerrainCoordinator : MonoBehaviour
 {
     private static TerrainCoordinator instance = null;
@@ -25,13 +25,13 @@ public class TerrainCoordinator : MonoBehaviour
     public const int meshSize = 126;
 
     internal TerrainModifier modifier;
-    internal TerrainIntersector intersector;
+    internal TerrainSingleIntersector intersector;
     internal Dictionary<(int x, int z), TerrainController> controllers = new();
 
     private void Start()
     {
         modifier = GetComponent<TerrainModifier>();
-        intersector = GetComponent<TerrainIntersector>();
+        intersector = GetComponent<TerrainSingleIntersector>();
     }
 
     #region Creation Section

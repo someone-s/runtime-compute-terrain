@@ -7,7 +7,7 @@ using System;
 using System.Linq;
 
 [RequireComponent(typeof(TerrainCoordinator))]
-public class TerrainIntersector : MonoBehaviour
+public class TerrainSingleIntersector : MonoBehaviour
 {
 
     #region Configuration Region
