@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2246402343811926042}
   - component: {fileID: 5947181190290359038}
   - component: {fileID: 7047757095585420289}
+  - component: {fileID: 7971080539842728772}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -95,3 +96,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cursorObject: {fileID: 0}
   currentMode: 0
+--- !u!114 &7971080539842728772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9031885650118237956}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5de112f9dc4f2cd0ea91aaa187533890, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeShader: {fileID: 7200000, guid: 017fb917abb85f60192275b5b0d0b69c, type: 3}

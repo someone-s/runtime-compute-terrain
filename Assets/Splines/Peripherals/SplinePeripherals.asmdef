@@ -1,0 +1,17 @@
+{
+    "name": "SplinePeripherals",
+    "rootNamespace": "",
+    "references": [
+        "GUID:c3e67adad48ad429eae7c7ff407dc461",
+        "GUID:6a79f47d0b10209b4a5a01816bc0d357"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

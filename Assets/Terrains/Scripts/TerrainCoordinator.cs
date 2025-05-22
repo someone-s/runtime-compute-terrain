@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,7 +12,8 @@ public class TerrainCoordinator : MonoBehaviour
     private static TerrainCoordinator instance = null;
     public static TerrainCoordinator Instance
     {
-        get {
+        get
+        {
             if (instance == null)
                 instance = FindFirstObjectByType<TerrainCoordinator>();
 
@@ -25,13 +25,15 @@ public class TerrainCoordinator : MonoBehaviour
     public const int meshSize = 126;
 
     internal TerrainModifier modifier;
-    internal TerrainSingleIntersector intersector;
+    internal TerrainSingleIntersector singleIntersector;
+    internal TerrainBatchIntersector batchIntersector;
     internal Dictionary<(int x, int z), TerrainController> controllers = new();
 
     private void Start()
     {
         modifier = GetComponent<TerrainModifier>();
-        intersector = GetComponent<TerrainSingleIntersector>();
+        singleIntersector = GetComponent<TerrainSingleIntersector>();
+        batchIntersector = GetComponent<TerrainBatchIntersector>();
     }
 
     #region Creation Section
@@ -52,16 +54,15 @@ public class TerrainCoordinator : MonoBehaviour
     #endregion
 
     #region Intersect Section
-    public void CastRay(Vector3 position, Vector3 direction, float range, bool useBase, Action<Vector3?> callback)
-    {
-        intersector.QueueIntersect(position, direction, range, useBase, (Vector3? hitPoint) =>
-        {
-            if (hitPoint is null)
-                callback(null);
-            else
-                callback(hitPoint.Value);
-        });
-    }
+    public void CastSingleRay(Vector3 position, Vector3 direction, float range, bool useBase, Action<Vector3?> callback) =>
+        singleIntersector.QueueIntersect(position, direction, range, useBase, callback);
+
+    public void GetBatchBuffer(int minSize, out ComputeBuffer requestBuffer, out ComputeBuffer minTBuffer, out ComputeBuffer resultBuffer) =>
+        batchIntersector.GetBuffer(minSize, out requestBuffer, out minTBuffer, out resultBuffer);
+    public void CastBatchRay(Bounds bounds, int count, ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer) =>
+        batchIntersector.ExecuteBuffer(bounds, count, requestBuffer, minTBuffer, resultBuffer);
+    internal void ReturnBatchBufferUnsafe(ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer) =>
+        batchIntersector.ReturnBuffer(requestBuffer, minTBuffer, resultBuffer);
     #endregion
 
     #region Culling Section
@@ -88,7 +89,7 @@ public class TerrainCoordinator : MonoBehaviour
                 int xRegion = x + centerX - renderRange;
                 int zRegion = z + centerZ - renderRange;
 
-                if (GeometryUtility.TestPlanesAABB(frsutumPlanes, 
+                if (GeometryUtility.TestPlanesAABB(frsutumPlanes,
                 new Bounds(localBounds.center + new Vector3(xRegion * area, 0f, zRegion * area), localBounds.size)))
                     renderedChunks.Add((xRegion, zRegion));
             }
@@ -101,7 +102,7 @@ public class TerrainCoordinator : MonoBehaviour
             if (!controllers.TryGetValue(chunk, out TerrainController controller))
                 controller = Generate(chunk.x, chunk.z);
 
-            int lodLevel = controller.lodLevel;    
+            int lodLevel = controller.lodLevel;
             float distance = Vector3.Distance(controller.worldBound.center, position);
             bool lodChanged;
 
@@ -173,10 +174,10 @@ public class TerrainCoordinator : MonoBehaviour
 
         (int x, int z) minGrid = entries[0].grid;
         (int x, int z) maxGrid = entries[0].grid;
-        
+
         // Load files
         foreach (((int x, int z) grid, string path) entry in entries)
-        {           
+        {
             if (entry.grid.x < minGrid.x)
                 minGrid.x = entry.grid.x;
             if (entry.grid.z < minGrid.z)
@@ -190,24 +191,24 @@ public class TerrainCoordinator : MonoBehaviour
             if (!controllers.TryGetValue(entry.grid, out TerrainController controller))
                 controller = Generate(entry.grid.x, entry.grid.z);
 
-            controller.Load(entry.path);  
+            controller.Load(entry.path);
         }
 
         for (int x = minGrid.x; x < Mathf.Max(1 + minGrid.x, maxGrid.x); x++)
-            for (int z = minGrid.z; z < Mathf.Max(1 + minGrid.z, maxGrid.z); z++) 
+            for (int z = minGrid.z; z < Mathf.Max(1 + minGrid.z, maxGrid.z); z++)
             {
                 if (!controllers.ContainsKey((x, z)))
                     Generate(x, z);
-                if (!controllers.ContainsKey((x+1, z)))
-                    Generate(x+1, z);
-                if (!controllers.ContainsKey((x+1, z+1)))
-                    Generate(x+1, z+1);
-                if (!controllers.ContainsKey((x, z+1)))
-                    Generate(x, z+1);
+                if (!controllers.ContainsKey((x + 1, z)))
+                    Generate(x + 1, z);
+                if (!controllers.ContainsKey((x + 1, z + 1)))
+                    Generate(x + 1, z + 1);
+                if (!controllers.ContainsKey((x, z + 1)))
+                    Generate(x, z + 1);
 
                 modifier.QueueProject((x, z));
             }
-        
+
     }
     #endregion
 
@@ -257,7 +258,7 @@ public class TerrainCoordinator : MonoBehaviour
         (int x, int z) maxRegion = (Mathf.CeilToInt(worldBounds.max.x / area), Mathf.CeilToInt(worldBounds.max.z / area));
 
         for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x); x++)
-            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z); z++) 
+            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z); z++)
             {
                 if (!controllers.TryGetValue((x, z), out TerrainController controller))
                     controller = Generate(x, z);
@@ -280,7 +281,7 @@ public class TerrainCoordinator : MonoBehaviour
         (int x, int z) combinedMaxRegion = (Mathf.Max(oldMaxRegion.x, newMaxRegion.x), Mathf.Max(oldMaxRegion.z, newMaxRegion.z));
 
         for (int x = combinedMinRegion.x; x <= combinedMaxRegion.x; x++)
-            for (int z = combinedMinRegion.z; z <= combinedMaxRegion.z; z++) 
+            for (int z = combinedMinRegion.z; z <= combinedMaxRegion.z; z++)
             {
                 bool inOldGrid = x >= oldMinRegion.x && x <= oldMaxRegion.x &&
                                  z >= oldMinRegion.z && z <= oldMaxRegion.z;
@@ -312,7 +313,7 @@ public class TerrainCoordinator : MonoBehaviour
         (int x, int z) maxRegion = (Mathf.CeilToInt(worldBounds.max.x / area), Mathf.CeilToInt(worldBounds.max.z / area));
 
         for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x); x++)
-            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z); z++) 
+            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z); z++)
             {
                 if (!controllers.TryGetValue((x, z), out TerrainController controller))
                     controller = Generate(x, z);
@@ -324,20 +325,35 @@ public class TerrainCoordinator : MonoBehaviour
     }
 
     private void Project((int x, int z) minRegion, (int x, int z) maxRegion)
-    {   
+    {
         for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x - 1); x++)
-            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z - 1); z++) 
+            for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z - 1); z++)
             {
                 if (!controllers.ContainsKey((x, z)))
                     Generate(x, z);
-                if (!controllers.ContainsKey((x+1, z)))
-                    Generate(x+1, z);
-                if (!controllers.ContainsKey((x+1, z+1)))
-                    Generate(x+1, z+1);
-                if (!controllers.ContainsKey((x, z+1)))
-                    Generate(x, z+1);
+                if (!controllers.ContainsKey((x + 1, z)))
+                    Generate(x + 1, z);
+                if (!controllers.ContainsKey((x + 1, z + 1)))
+                    Generate(x + 1, z + 1);
+                if (!controllers.ContainsKey((x, z + 1)))
+                    Generate(x, z + 1);
                 modifier?.QueueProject((x, z));
             }
     }
     #endregion
+}
+
+public static class TerrainCoordinatorExtension
+{
+    public static void ReturnBatchBuffer(this TerrainCoordinator coordinator, ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer)
+    {
+        if (coordinator != null)
+            coordinator.ReturnBatchBufferUnsafe(requestBuffer, minTBuffer, resultBuffer);
+        else
+        {
+            requestBuffer?.Dispose();
+            minTBuffer?.Dispose();
+            resultBuffer?.Dispose();
+        }
+    }
 }

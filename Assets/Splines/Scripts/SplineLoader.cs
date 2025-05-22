@@ -88,6 +88,16 @@ public static class SplineLoader
                 );
             }
 
+            SplineProfile.CastSettings? castSettings = null;
+            if (metaData.TryGetValue("cast", out bool cast) && cast)
+            {
+                castSettings = new SplineProfile.CastSettings(
+                    origin:    metaData.TryGetValue("castOrigin",    out float[] origin)    ? new(origin[0],    origin[1],    origin[2])    : Vector3.zero,
+                    direction: metaData.TryGetValue("castDirection", out float[] direction) ? new(direction[0], direction[1], direction[2]) : Vector3.up,
+                    maxOffset: metaData.TryGetValue("castMaxOffset", out float maxOffset)   ? maxOffset : 1f
+                );
+            }
+
             loadedObject = new SplineProfile(
                 mesh:          mesh,
                 materials:     materialList,
@@ -95,7 +105,8 @@ public static class SplineLoader
                 vertical:      metaData.TryGetValue("vertical",         out bool vertical)       ? vertical      : false,
                 maxPointCount: metaData.TryGetValue("maxPointCount",    out int maxPointCount)   ? maxPointCount : 64,
                 extends:       metaData.TryGetValue("extends",          out float extends)       ? extends       : 0f,
-                continous:      continousSettings
+                continous:     continousSettings,
+                cast:          castSettings
             );
         }
         else
