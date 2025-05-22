@@ -158,7 +158,7 @@ public class TerrainBatchIntersector : MonoBehaviour
             }
     }
 
-    public void ReturnBuffer(ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer)
+    internal void ReturnBufferUnsafe(ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer)
     {
         requestBufferPool.ReturnBuffer(requestBuffer);
         minTBufferPool.ReturnBuffer(minTBuffer);
@@ -166,4 +166,21 @@ public class TerrainBatchIntersector : MonoBehaviour
     }
     #endregion
 
+}
+
+public static class TerrainBatchIntersectorExtension
+{
+    public static void ReturnBuffer(this TerrainBatchIntersector intersector, ComputeBuffer requestBuffer, ComputeBuffer minTBuffer, ComputeBuffer resultBuffer)
+    {
+        if (intersector != null)
+        {
+            intersector.ReturnBufferUnsafe(requestBuffer, minTBuffer, resultBuffer);
+        }
+        else
+        {
+            requestBuffer?.Dispose();
+            minTBuffer?.Dispose();
+            resultBuffer?.Dispose();
+        }
+    }
 }

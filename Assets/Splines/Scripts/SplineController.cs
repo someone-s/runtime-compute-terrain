@@ -12,9 +12,15 @@ public class SplineController : MonoBehaviour
     public UnityEvent OnTrackChange;
 
     [SerializeField] private ComputeShader computeShader;
+    private int calculatePointKernel;
     private int updateTrackKernel;
     private uint threadCount;
+    private ComputeBuffer transformBuffer;
 
+    public ISplineCaster splineCaster;
+    private int calculateRayKernel;
+    private int offsetByRayKernel;
+    
     private SplineProfile profile;
     private Mesh mesh;
     private SplineGenerator.Entry entry;
@@ -22,6 +28,7 @@ public class SplineController : MonoBehaviour
 
     private bool setupComplete = false;
     private bool renderQueued = false;
+    
     
     public void QueueSetup(MonoBehaviour runner, SplineDescription description)
     {
@@ -53,19 +60,44 @@ public class SplineController : MonoBehaviour
 
         computeShader = Instantiate(computeShader);
 
-        updateTrackKernel = computeShader.FindKernel("UpdateTrack");
+        // Common Parameters
+        transformBuffer = new ComputeBuffer(profile.maxPointCount, sizeof(float) * 4 * 4, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
 
-        computeShader.SetInt("_MaxPoint", profile.maxPointCount);
-
-        computeShader.SetInt("_Stride", entry.vertexBufferStride);
-        computeShader.SetInt("_PositionOffset", entry.vertexPositionAttributeOffset);
-        computeShader.SetInt("_NormalOffset", entry.vertexNormalAttributeOffset);
-        computeShader.SetInt("_UVOffset", entry.vertexUVAttributeOffset);
-
-        computeShader.SetBuffer(updateTrackKernel, "_SourceVertices", entry.reference);
-        computeShader.SetBuffer(updateTrackKernel, "_DestVertices", graphicsBuffer);
-
+        // CalculatePoint Parameters
+        calculatePointKernel = computeShader.FindKernel("CalculatePoint");
+        computeShader.SetBuffer(calculatePointKernel, "_Transforms", transformBuffer);
         computeShader.SetInt("_Vertical", profile.vertical ? 1 : 0);
+
+        if (profile.cast.HasValue)
+        {
+            SplineProfile.CastSettings castSettings = profile.cast.Value;
+
+            splineCaster = GetComponent<ISplineCaster>();
+            splineCaster.Setup(profile.maxPointCount, out ComputeBuffer castRequestBuffer, out ComputeBuffer castResultBuffer);
+
+            // CalculateRay Parameters
+            calculateRayKernel = computeShader.FindKernel("CalculateRay");
+            computeShader.SetBuffer(calculateRayKernel, "_Transforms", transformBuffer);
+            computeShader.SetBuffer(calculateRayKernel, "_Request",    castRequestBuffer);
+            computeShader.SetVector("_CastOrigin",    castSettings.origin);
+            computeShader.SetVector("_CastDirection", castSettings.direction);
+            computeShader.SetFloat("_CastMaxOffset",  castSettings.maxOffset);
+            
+            // OffsetByRay Parameters
+            offsetByRayKernel = computeShader.FindKernel("OffsetByRay");
+            computeShader.SetBuffer(offsetByRayKernel, "_Transforms", transformBuffer);
+            computeShader.SetBuffer(offsetByRayKernel, "_Result",     castResultBuffer);
+        }
+
+        // UpdateTrack Parameters
+            updateTrackKernel = computeShader.FindKernel("UpdateTrack");
+        computeShader.SetBuffer(updateTrackKernel, "_Transforms",     transformBuffer);
+        computeShader.SetBuffer(updateTrackKernel, "_SourceVertices", entry.reference);
+        computeShader.SetBuffer(updateTrackKernel, "_DestVertices",   graphicsBuffer);
+        computeShader.SetInt("_Stride",         entry.vertexBufferStride);
+        computeShader.SetInt("_PositionOffset", entry.vertexPositionAttributeOffset);
+        computeShader.SetInt("_NormalOffset",   entry.vertexNormalAttributeOffset);
+        computeShader.SetInt("_UVOffset",       entry.vertexUVAttributeOffset);
 
         computeShader.GetKernelThreadGroupSizes(updateTrackKernel, out threadCount, out _, out _);
         
@@ -74,8 +106,14 @@ public class SplineController : MonoBehaviour
             enabled = true;
     }
 
+    private void OnDestroy()
+    {
+        transformBuffer?.Dispose();
 
-    public void QueueRefresh(Vector3 aPos, Quaternion aRot, Vector3 bPos, Quaternion bRot) 
+        splineCaster?.Release();
+    }
+
+    public void QueueRefresh(Vector3 aPos, Quaternion aRot, Vector3 bPos, Quaternion bRot)
     {
         p0 = aPos - transform.position;
         p1 = p0 + aRot * Vector3.forward * Vector3.Distance(aPos, bPos) * 0.5f;
@@ -95,22 +133,23 @@ public class SplineController : MonoBehaviour
         float startOffset = 0f; //entry.GetStartOffset(actualSpacing);
         int pointCount = entry.GetActualPointCount(segmentCount);
 
-        computeShader.SetFloat("_ApproxLength", approxLength);
-        computeShader.SetFloat("_ActualSpacing", actualSpacing);
+        // Common Parameters
+        computeShader.SetInt("_PointCount", pointCount);
+        int groupCount = Mathf.CeilToInt((float)pointCount / threadCount);
 
+        // CalculatePoint Parameters
+        computeShader.SetFloat("_ApproxLength",  approxLength);
+        computeShader.SetFloat("_ActualSpacing", actualSpacing);
         computeShader.SetVector("_P0", p0);
         computeShader.SetVector("_P1", p1);
         computeShader.SetVector("_P2", p2);
         computeShader.SetVector("_P3", p3);
-
         computeShader.SetVector("_US", Vector3.up);
         computeShader.SetVector("_UE", Vector3.up);
-
-        computeShader.SetFloat("_UVStretch", entry.uvStretch);
-
         computeShader.SetFloat("_StartOffset", startOffset);
-        computeShader.SetInt("_PointCount", pointCount);
-        computeShader.SetInt("_PointPerThread", Mathf.CeilToInt((float)pointCount / threadCount));
+        
+        // CalculatePoint Dispatch
+        computeShader.Dispatch(calculatePointKernel, groupCount, 1, 1);
 
         Bounds bounds = new(p0, Vector3.zero);
         bounds.Encapsulate(p1);
@@ -119,32 +158,45 @@ public class SplineController : MonoBehaviour
         bounds.Expand(profile.extends);
         mesh.bounds = bounds;
 
-        for (int s = 0; s < entry.subMeshRanges.Length; s++)
+        if (profile.cast.HasValue)
         {
-            SplineGenerator.SubMeshRange subMeshRange = entry.subMeshRanges[s];
-            computeShader.SetInt("_BaseVertex", subMeshRange.vertexStart);
-            computeShader.SetInt("_SliceSize", subMeshRange.vertexCount);
+            computeShader.Dispatch(calculateRayKernel, groupCount, 1, 1);
 
-            computeShader.Dispatch(updateTrackKernel, 1, 1, 1);
+            splineCaster.Cast(bounds, pointCount);
 
-            SubMeshDescriptor descriptor = new SubMeshDescriptor {
-                baseVertex = 0,
-                firstVertex = subMeshRange.vertexStart,
-                vertexCount = pointCount * subMeshRange.vertexCount,
-                indexStart = subMeshRange.indexStart,
-                indexCount = segmentCount * subMeshRange.indexCount,
-                topology = MeshTopology.Triangles,
-                bounds = bounds
-            };
-
-            MeshUpdateFlags updateFlags = 
-                MeshUpdateFlags.DontValidateIndices |    // dont check against CPU index buffer
-                MeshUpdateFlags.DontResetBoneBounds |    // dont reset skinned mesh bones bound
-                // MeshUpdateFlags.DontNotifyMeshUsers | // do notify on possible mesh bound change 
-                MeshUpdateFlags.DontRecalculateBounds;   // dont recalculate bounds
-
-            mesh.SetSubMesh(s, descriptor, updateFlags);
+            computeShader.Dispatch(offsetByRayKernel, groupCount, 1, 1);
         }
+        
+        // UpdateTrack Parameters
+        computeShader.SetFloat("_UVStretch", entry.uvStretch);
+
+        for (int s = 0; s < entry.subMeshRanges.Length; s++)
+            {
+                SplineGenerator.SubMeshRange subMeshRange = entry.subMeshRanges[s];
+                computeShader.SetInt("_BaseVertex", subMeshRange.vertexStart);
+                computeShader.SetInt("_SliceSize",  subMeshRange.vertexCount);
+
+                computeShader.Dispatch(updateTrackKernel, groupCount, 1, 1);
+
+                SubMeshDescriptor descriptor = new SubMeshDescriptor
+                {
+                    baseVertex = 0,
+                    firstVertex = subMeshRange.vertexStart,
+                    vertexCount = pointCount * subMeshRange.vertexCount,
+                    indexStart = subMeshRange.indexStart,
+                    indexCount = segmentCount * subMeshRange.indexCount,
+                    topology = MeshTopology.Triangles,
+                    bounds = bounds
+                };
+
+                MeshUpdateFlags updateFlags =
+                    MeshUpdateFlags.DontValidateIndices |    // dont check against CPU index buffer
+                    MeshUpdateFlags.DontResetBoneBounds |    // dont reset skinned mesh bones bound
+                                                             // MeshUpdateFlags.DontNotifyMeshUsers | // do notify on possible mesh bound change 
+                    MeshUpdateFlags.DontRecalculateBounds;   // dont recalculate bounds
+
+                mesh.SetSubMesh(s, descriptor, updateFlags);
+            }
     }
 
     private void LateUpdate()

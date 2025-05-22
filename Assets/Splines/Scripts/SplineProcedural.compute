@@ -1,3 +1,6 @@
+#pragma kernel CalculatePoint
+#pragma kernel CalculateRay
+#pragma kernel OffsetByRay
 #pragma kernel UpdateTrack
 
 #define EPSILON (0.00000001)
@@ -5,18 +8,7 @@
 
 #define THREAD_COUNT 64
 
-ByteAddressBuffer _SourceVertices;
-RWByteAddressBuffer _DestVertices;
-
-
-uint _MaxPoint;
-uint _BaseVertex;
-uint _SliceSize; // Number of _Points per slice
-
-int _Stride;
-int _PositionOffset;
-int _NormalOffset;
-int _UVOffset;
+uint _PointCount;
 
 float3 _P0;
 float3 _P1;
@@ -27,8 +19,6 @@ float3 _US;
 float3 _UE;
 
 uint _Vertical;
-
-float _UVStretch;
 
 float3 EvaluatePosition(float t)
 {
@@ -154,45 +144,123 @@ float4x4 Translate(float3 position)
 float _ApproxLength;
 float _StartOffset;
 float _ActualSpacing;
-uint _PointCount;
-uint _PointPerThread;
 
+RWStructuredBuffer<float4x4> _Transforms;
+
+// Dispatch with group (ceil((float)_PointCount / THREAD_COUNT), 1, 1)
+[numthreads(THREAD_COUNT, 1, 1)]
+void CalculatePoint(uint3 id : SV_DispatchThreadID)
+{
+    uint p = id.x;
+    if (p >= _PointCount)
+        return;
+
+    float3 position, tangent, up;
+    GetPoint(_ApproxLength, p, _StartOffset, _ActualSpacing, position, tangent, up);
+
+    if (_Vertical == 1)
+    {
+        tangent.y = 0.0;
+        tangent = normalize(tangent);
+    }
+
+    float4x4 rotation = LookRotation(tangent, up);
+    float4x4 translation = Translate(position);
+
+    _Transforms[p] = mul(translation, rotation);
+}
+
+float3 _CastOrigin;
+float3 _CastDirection;
+float  _CastMaxOffset;
+
+struct Request {
+    float3 origin;
+    float3 direction;
+    float range;
+    uint useBase;
+};
+RWStructuredBuffer<Request> _Request;
+
+// Dispatch with group (ceil((float)_PointCount / THREAD_COUNT), 1, 1)
+[numthreads(THREAD_COUNT, 1, 1)]
+void CalculateRay(uint3 id : SV_DispatchThreadID)
+{
+    uint p = id.x;
+    if (p >= _PointCount)
+        return;
+
+    float4x4 transform = _Transforms[p];
+
+    _Request[p].origin    = mul(transform, float4(_CastOrigin,    1)).xyz;
+    _Request[p].direction = mul(transform, float4(_CastDirection, 0)).xyz;
+    _Request[p].range     = _CastMaxOffset;
+    _Request[p].useBase   = 0;
+}
+
+struct Result {
+    float3 origin;
+    float3 position;
+    uint hit;
+};
+StructuredBuffer<Result> _Result;
+
+// Dispatch with group (ceil((float)_PointCount / THREAD_COUNT), 1, 1)
+[numthreads(THREAD_COUNT, 1, 1)]
+void OffsetByRay(uint3 id : SV_DispatchThreadID)
+{
+    uint p = id.x;
+    if (p >= _PointCount)
+        return;
+
+    if (_Result[p].hit != 1)
+        return;
+
+    float3 worldOffset = _Result[p].position - _Result[p].origin;
+    float4x4 translation = Translate(worldOffset);
+    float4x4 original = _Transforms[p];
+    _Transforms[p] = mul(translation, original);
+}
+
+int _Stride;
+int _PositionOffset;
+int _NormalOffset;
+int _UVOffset;
+
+float _UVStretch;
+
+uint _BaseVertex;
+uint _SliceSize; // Number of _Points per slice
+
+ByteAddressBuffer _SourceVertices;
+RWByteAddressBuffer _DestVertices;
+
+// Dispatch with group (ceil((float)_PointCount / THREAD_COUNT), 1, 1)
 [numthreads(THREAD_COUNT, 1, 1)]
 void UpdateTrack(uint3 id : SV_DispatchThreadID)
 {
-    for (uint p = id.x * _PointPerThread; p < (id.x + 1) * _PointPerThread && p < _PointCount; p++)
-    {
-        float3 position, tangent, up;
-        GetPoint(_ApproxLength, p, _StartOffset, _ActualSpacing, position, tangent, up);
+    uint p = id.x;
+    if (p >= _PointCount)
+        return;
 
-        if (_Vertical == 1)
-        {
-            tangent.y = 0.0;
-            tangent = normalize(tangent);
-        }
+    float4x4 transform = _Transforms[p];
 
-        float4x4 rotation = LookRotation(tangent, up);
-        float4x4 translation = Translate(position);
+    for (uint i = 0; i < _SliceSize; i++) {
+        uint locationStart = (_BaseVertex + p * _SliceSize + i) * _Stride;
 
-        float4x4 transform = mul(translation, rotation);
+        uint posLocation     = locationStart + _PositionOffset;
+        float3 sourcePos     = asfloat(_SourceVertices.Load3(posLocation));
+        float3 translatedPos = mul(transform, float4(sourcePos, 1)).xyz;
+        _DestVertices.Store3(posLocation, asuint(translatedPos));
 
-        for (uint i = 0; i < _SliceSize; i++) {
-            uint locationStart = (_BaseVertex + p * _SliceSize + i) * _Stride;
+        uint normLocation  = locationStart + _NormalOffset;
+        float3 sourceNorm  = asfloat(_SourceVertices.Load3(normLocation));
+        float3 rotatedNorm = mul(transform, float4(sourceNorm, 0)).xyz;
+        _DestVertices.Store3(normLocation, asuint(rotatedNorm));
 
-            uint posLocation     = locationStart + _PositionOffset;
-            float3 sourcePos     = asfloat(_SourceVertices.Load3(posLocation));
-            float3 translatedPos = mul(transform, float4(sourcePos, 1)).xyz;
-            _DestVertices.Store3(posLocation, asuint(translatedPos));
-
-            uint normLocation  = locationStart + _NormalOffset;
-            float3 sourceNorm  = asfloat(_SourceVertices.Load3(normLocation));
-            float3 rotatedNorm = mul(transform, float4(sourceNorm, 0)).xyz;
-            _DestVertices.Store3(normLocation, asuint(rotatedNorm));
-
-            uint uvLocation = locationStart + _UVOffset;
-            float2 sourceUV  = asfloat(_SourceVertices.Load2(uvLocation));
-            sourceUV.x += _ActualSpacing * p * _UVStretch;
-            _DestVertices.Store2(uvLocation, asuint(sourceUV));
-        }
+        uint uvLocation = locationStart + _UVOffset;
+        float2 sourceUV  = asfloat(_SourceVertices.Load2(uvLocation));
+        sourceUV.x += _ActualSpacing * p * _UVStretch;
+        _DestVertices.Store2(uvLocation, asuint(sourceUV));
     }
 }

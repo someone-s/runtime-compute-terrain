@@ -23,21 +23,23 @@ public readonly struct SplineProfile
     public readonly float extends;
 
     public readonly ContinousSettings? continous;
-        
+
+    public readonly CastSettings? cast;
 
 
     public SplineProfile(
-        Mesh mesh, 
-        List<Material> materials, 
+        Mesh mesh,
+        List<Material> materials,
         float spacing = 1f,
-        bool vertical = false, 
-        int maxPointCount = 64, 
+        bool vertical = false,
+        int maxPointCount = 64,
         float extends = 0f,
-        ContinousSettings? continous = null)
+        ContinousSettings? continous = null,
+        CastSettings? cast = null)
     {
         this.mesh = mesh;
         this.materials = materials;
-        
+
         this.spacing = spacing;
         this.vertical = vertical;
         this.maxPointCount = maxPointCount;
@@ -46,19 +48,38 @@ public readonly struct SplineProfile
         this.extends = extends;
 
         this.continous = continous;
+
+        this.cast = cast;
     }
 
-    public readonly struct ContinousSettings 
+    public readonly struct ContinousSettings
     {
         public readonly int[] mapping;
         public readonly float stretch;
 
         public ContinousSettings(
-            int[] mapping = null, 
+            int[] mapping = null,
             float stretch = 1f)
         {
             this.mapping = mapping;
             this.stretch = stretch;
+        }
+    }
+    
+    public readonly struct CastSettings 
+    {
+        public readonly Vector3 origin;
+        public readonly Vector3 direction;
+        public readonly float maxOffset;
+
+        public CastSettings(
+            Vector3 origin,
+            Vector3 direction,
+            float maxOffset)
+        {
+            this.origin = origin;
+            this.direction = direction;
+            this.maxOffset = maxOffset;
         }
     }
 }
