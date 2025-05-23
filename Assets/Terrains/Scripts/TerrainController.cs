@@ -33,6 +33,9 @@ public class TerrainController : MonoBehaviour
     public GraphicsBuffer vertexBuffer { get; private set; }
     public GraphicsBuffer triangleBuffer { get; private set; }
     public Bounds worldBound { get; private set; }
+    private int resetBuffersKernel;
+    private int restoreBuffersKernel;
+    private int exportBuffersKernel;
     #endregion
 
     #region Config Section
@@ -41,18 +44,23 @@ public class TerrainController : MonoBehaviour
         if (terrainReady) return;
 
         MeshFilter filter = GetComponent<MeshFilter>();
+
         mesh = TerrainGenerator.GetMesh();
         mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination;
         mesh.indexBufferTarget |= GraphicsBuffer.Target.Raw;
         filter.sharedMesh = mesh;
+
         vertexBuffer = mesh.GetVertexBuffer(0);
         triangleBuffer = mesh.GetIndexBuffer();
-        worldBound = new Bounds {
-            center = Vector3.Scale(mesh.bounds.center, transform.localScale) + transform.position,
+
+        Vector3 position = transform.position;
+        worldBound = new Bounds
+        {
+            center = Vector3.Scale(mesh.bounds.center, transform.localScale) + position,
             extents = Vector3.Scale(mesh.bounds.extents, transform.localScale)
         };
 
-        SetupIO();
+        SetupIO(new Vector2(position.x, position.z));
         SetupVisual();
 
         terrainReady = true;
@@ -62,16 +70,13 @@ public class TerrainController : MonoBehaviour
         OnTerrainChange.Invoke();
     }
 
-    private void Start() => Setup();
-
     public void Reset()
     {
         Setup();
 
         Graphics.CopyBuffer(TerrainGenerator.GetVertexReference(), vertexBuffer);
 
-        int resetBuffersKernalIndex = configShader.FindKernel("ResetBuffers");
-        configShader.Dispatch(resetBuffersKernalIndex, 1, 1, 1);
+        configShader.Dispatch(resetBuffersKernel, 1, 1, 1);
     }
 
     private void OnDestroy()
@@ -86,27 +91,31 @@ public class TerrainController : MonoBehaviour
     #region IO Section
     [SerializeField] private ComputeShader configShader;
 
-    private void SetupIO()
+    private void SetupIO(Vector2 anchor)
     {
         configShader = Instantiate(configShader);
 
-        configShader.SetInt(Shader.PropertyToID("_Size"), meshSize);
-        configShader.SetInt(Shader.PropertyToID("_MeshSection"), Mathf.CeilToInt(((float)(meshSize * 2 + 1)) / 32f));
-        configShader.SetInt(Shader.PropertyToID("_Stride"), VertexBufferStride);
-        configShader.SetInt(Shader.PropertyToID("_PositionOffset"), VertexPositionAttributeOffset);
-        configShader.SetInt(Shader.PropertyToID("_BaseOffset"), VertexBaseAttributeOffset);
-        configShader.SetInt(Shader.PropertyToID("_ModifyOffset"), VertexModifyAttributeOffset);
+        configShader.SetFloat("_Area", area);
+        configShader.SetVector("_Anchor", anchor);
 
-        int resetBuffersKernelIndex = configShader.FindKernel("ResetBuffers");
-        configShader.SetBuffer(resetBuffersKernelIndex, Shader.PropertyToID("_Vertices"), vertexBuffer);
+        configShader.SetInt("_Size",        meshSize);
+        configShader.SetInt("_MeshSection", Mathf.CeilToInt(((float)(meshSize + 1)) / 32f));
 
-        int restoreBuffersKernelIndex = configShader.FindKernel("RestoreBuffers");
-        configShader.SetBuffer(restoreBuffersKernelIndex, Shader.PropertyToID("_Vertices"), vertexBuffer);
+        configShader.SetInt("_Stride",         VertexBufferStride);
+        configShader.SetInt("_PositionOffset", VertexPositionAttributeOffset);
+        configShader.SetInt("_BaseOffset",     VertexBaseAttributeOffset);
+        configShader.SetInt("_ModifyOffset",   VertexModifyAttributeOffset);
 
-        int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
-        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("_Vertices"), vertexBuffer);
+        resetBuffersKernel = configShader.FindKernel("ResetBuffers");
+        configShader.SetBuffer(resetBuffersKernel, "_Vertices", vertexBuffer);
 
-        configShader.Dispatch(resetBuffersKernelIndex, 1, 1, 1);
+        restoreBuffersKernel = configShader.FindKernel("RestoreBuffers");
+        configShader.SetBuffer(restoreBuffersKernel, "_Vertices", vertexBuffer);
+
+        exportBuffersKernel = configShader.FindKernel("ExportBuffers");
+        configShader.SetBuffer(exportBuffersKernel, "_Vertices", vertexBuffer);
+
+        configShader.Dispatch(resetBuffersKernel, 1, 1, 1);
     }
 
     public unsafe AsyncGPUReadbackRequest Save(string path)
@@ -116,10 +125,9 @@ public class TerrainController : MonoBehaviour
         int element = sizeof(float);
         int size = element * count;
 
-        int exportBuffersKernelIndex = configShader.FindKernel("ExportBuffers");
         ComputeBuffer exportBuffer = new ComputeBuffer(count, element, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
-        configShader.SetBuffer(exportBuffersKernelIndex, Shader.PropertyToID("_Exports"), exportBuffer);
-        configShader.Dispatch(exportBuffersKernelIndex, 1, 1, 1);
+        configShader.SetBuffer(exportBuffersKernel, "_Exports", exportBuffer);
+        configShader.Dispatch(exportBuffersKernel, 1, 1, 1);
 
         return AsyncGPUReadback.Request(exportBuffer, (AsyncGPUReadbackRequest request) =>
         {
@@ -153,9 +161,8 @@ public class TerrainController : MonoBehaviour
         ComputeBuffer exportBuffer = new ComputeBuffer(count, element, ComputeBufferType.Structured, ComputeBufferMode.SubUpdates);
         exportBuffer.SetData(input);
 
-        int restoreBuffersKernalIndex = configShader.FindKernel("RestoreBuffers");
-        configShader.SetBuffer(restoreBuffersKernalIndex, Shader.PropertyToID("_Exports"), exportBuffer);
-        configShader.Dispatch(restoreBuffersKernalIndex, 1, 1, 1);
+        configShader.SetBuffer(restoreBuffersKernel, "_Exports", exportBuffer);
+        configShader.Dispatch(restoreBuffersKernel, 1, 1, 1);
 
         exportBuffer.Dispose();
         input.Dispose();

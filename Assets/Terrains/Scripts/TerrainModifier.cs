@@ -87,10 +87,11 @@ public class TerrainModifier : MonoBehaviour
 
     public enum OperationType
     {
+        Refresh = 0,
         Add = 1,
         Subtract = 2,
         Level = 3,
-        Smooth = 4
+        Smooth = 4,
     }
 
     [StructLayout(LayoutKind.Sequential)]

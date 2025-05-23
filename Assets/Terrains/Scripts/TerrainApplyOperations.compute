@@ -21,45 +21,48 @@ void ApplyOperations(uint3 id : SV_DispatchThreadID) {
     for (int o = 0; o < _Count; o++) {
         Operation operation = _Operations[o];
 
-        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < _QuadSize; x++) {
+        if (operation.type != 0)
+        {
+            for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < _QuadSize; x++) {
 
-            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < _QuadSize; y++) {
+                for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < _QuadSize; y++) {
 
-                float3 vertex = LoadVertex(x, y);
-                float2 localPos = vertex.xz;
+                    float3 vertex = LoadVertex(x, y);
+                    float2 localPos = vertex.xz;
 
-                float base = LoadBase(x, y);
+                    float base = LoadBase(x, y);
 
-                float distToCent = distance(operation.position, localPos);
-                
-                if (distToCent <= operation.radius) {
-                    float proportion = 1.0 - distToCent / operation.radius;
+                    float distToCent = distance(operation.position, localPos);
                     
-                    if (operation.type == 1) {
-                        base += operation.parameter * proportion;
-                    }
-                    else if (operation.type == 2) {
-                        base -= operation.parameter * proportion;
-                    }
-                    else if (operation.type == 3) {
-                        base = (1.0 - proportion) * base + proportion * operation.parameter;
-                    }
-                    else if (operation.type == 4) {
-                        float total = 0.0;
-                        for (int dx = -1; dx <= 1; dx++) 
-                            for (int dy = -1; dy <= 1; dy++) 
-                                total += LoadVertex(x + dx, y + dy).y;
+                    if (distToCent <= operation.radius) {
+                        float proportion = 1.0 - distToCent / operation.radius;
+                        
+                        if (operation.type == 1) {
+                            base += operation.parameter * proportion;
+                        }
+                        else if (operation.type == 2) {
+                            base -= operation.parameter * proportion;
+                        }
+                        else if (operation.type == 3) {
+                            base = (1.0 - proportion) * base + proportion * operation.parameter;
+                        }
+                        else if (operation.type == 4) {
+                            float total = 0.0;
+                            for (int dx = -1; dx <= 1; dx++) 
+                                for (int dy = -1; dy <= 1; dy++) 
+                                    total += LoadVertex(x + dx, y + dy).y;
 
-                        base = (1.0 - proportion) * base + proportion * total * DIVIDE9;
+                            base = (1.0 - proportion) * base + proportion * total * DIVIDE9;
+                        }
                     }
+                    
+                    StoreVertexY(x, y, base);
+                    StoreBase(x, y, base);
                 }
-                
-                StoreVertexY(x, y, base);
-                StoreBase(x, y, base);
             }
-        }
 
-        GroupMemoryBarrierWithGroupSync();
+            GroupMemoryBarrierWithGroupSync();
+        }
     }
 
     ApplyConstraints(id);

@@ -115,11 +115,11 @@ void FindIntersect(uint3 id : SV_GroupThreadID, uint3 gid : SV_GroupID) {
     uint localMinT = asuint(0x7fffffff);
 
     for (uint x = gridStart.x + gridPos.x * gridSpan.x; 
-        x < gridStart.x + (gridPos.x + 1) * gridSpan.x && x < _Size - 1; 
+        x < gridStart.x + (gridPos.x + 1) * gridSpan.x && x <= _Size - 1; 
         x++)
     {
         for (uint y = gridStart.y + gridPos.y * gridSpan.y; 
-            y < gridStart.y + (gridPos.y + 1) * gridSpan.y && y < _Size - 1; 
+            y < gridStart.y + (gridPos.y + 1) * gridSpan.y && y <= _Size - 1; 
             y++)
         {
 

@@ -3,10 +3,13 @@
 #pragma kernel ExportBuffers
 
 #include "TerrainCommon.hlsl"
+#include "TerrainProceduralHeight.hlsl"
 
 uint CalculateLogicalIndex(uint x, uint y) {
     return y * (_Size + 1) + x;
 }
+
+float2 _Anchor;
 
 // this oeprate per vertex
 [numthreads(32, 32, 1)]
@@ -14,12 +17,14 @@ void ResetBuffers(uint3 id : SV_DispatchThreadID) {
     
     // Apply Modifiers
     {
-        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x <= _Size; x++) {
     
-            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
-    
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y <= _Size; y++) {
+
                 StoreModify(x, y, 0.0, 0.0, 0.0, 0);
-                StoreBase(x, y, 0.0);
+
+                float sample = ProceduralHeight((_Anchor + float2(x, y) / float(_Size) * _Area));
+                StoreBase(x, y, sample);
             }
         }
     }
@@ -37,9 +42,9 @@ void RestoreBuffers(uint3 id : SV_DispatchThreadID) {
     
     // Apply Modifiers
     {
-        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x <= _Size; x++) {
     
-            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y <= _Size; y++) {
                 
                 uint index = CalculateLogicalIndex(x, y);
                 StoreVertexY(x, y, _Exports[index].height);
@@ -54,9 +59,9 @@ void ExportBuffers(uint3 id : SV_DispatchThreadID) {
     
     // Apply Modifiers
     {
-        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x < (_Size * 2) + 1; x++) {
+        for (uint x = id.x * _MeshSection; x < (id.x + 1) * _MeshSection && x <= _Size; x++) {
     
-            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y < (_Size * 2) + 1; y++) {
+            for (uint y = id.y * _MeshSection; y <  (id.y + 1) * _MeshSection && y <= _Size; y++) {
                 
                 uint index = CalculateLogicalIndex(x, y);
                 _Exports[index].height = LoadBase(x, y);

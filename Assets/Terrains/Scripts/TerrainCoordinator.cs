@@ -49,7 +49,40 @@ public class TerrainCoordinator : MonoBehaviour
         controller.Setup();
         controllers.Add((x, z), controller);
 
+        bool LB = controllers.ContainsKey((x - 1, z - 1));
+        bool LM = controllers.ContainsKey((x - 1, z    ));
+        bool CB = controllers.ContainsKey((x    , z - 1));
+        if (LB && LM && CB)
+        {
+            modifier.QueueModify((x - 1, z - 1), Vector2.zero, 0f, 0f, TerrainModifier.OperationType.Refresh);
+            return controller;
+        }
+
+        bool LT = controllers.ContainsKey((x - 1, z + 1));
+        bool CT = controllers.ContainsKey((x    , z + 1));
+        if (LM && LT && CT)
+        {
+            modifier.QueueModify((x - 1, z), Vector2.zero, 0f, 0f, TerrainModifier.OperationType.Refresh);
+            return controller;
+        }
+
+        bool RM = controllers.ContainsKey((x + 1, z    ));
+        bool RT = controllers.ContainsKey((x + 1, z + 1));
+        if (RM && RT && CT)
+        {
+            modifier.QueueModify((x, z), Vector2.zero, 0f, 0f, TerrainModifier.OperationType.Refresh);
+            return controller;
+        }
+
+        bool RB = controllers.ContainsKey((x + 1, z - 1));
+        if (RM && RB && CB)
+        {
+            modifier.QueueModify((x, z - 1), Vector2.zero, 0f, 0f, TerrainModifier.OperationType.Refresh);
+            return controller;
+        }
+
         return controller;
+
     }
     #endregion
 
