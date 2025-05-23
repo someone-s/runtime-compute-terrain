@@ -87,11 +87,11 @@ void FindIntersect(uint3 id : SV_DispatchThreadID, uint gid : SV_GroupIndex) {
     int localMinT = asint(0x7fffffff);
 
     for (uint x = request.startX + id.x * request.spanX; 
-        x < request.startX + (id.x + 1) * request.spanX && x < _Size - 1; 
+        x < request.startX + (id.x + 1) * request.spanX && x <= _Size - 1; 
         x++)
     {
         for (uint y = request.startZ + id.y * request.spanZ; 
-            y < request.startZ + (id.y + 1) * request.spanZ && y < _Size - 1; 
+            y < request.startZ + (id.y + 1) * request.spanZ && y <= _Size - 1; 
             y++)
         {
 
@@ -108,8 +108,6 @@ void FindIntersect(uint3 id : SV_DispatchThreadID, uint gid : SV_GroupIndex) {
                 vertex3.y  = LoadBase(x + 1,  y + 1);
             }
 
-            // RayTriangleIntersect(vertex0, vertex3, vertex1);
-            // RayTriangleIntersect(vertex0, vertex2, vertex3);
             float4 result = RayQuadIntersect(localOrigin, request.direction, vertex0, vertex1, vertex2, vertex3);
             if (result.w < 0.0)
                 continue;

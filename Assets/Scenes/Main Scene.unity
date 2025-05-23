@@ -1211,6 +1211,10 @@ PrefabInstance:
       propertyPath: cursorObject
       value: 
       objectReference: {fileID: 1200509110}
+    - target: {fileID: 8046755119473681707, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
+      propertyPath: chunkPrefab
+      value: 
+      objectReference: {fileID: 2096383619678947609, guid: b485e11e9ced0b813acf8b201f12aa2d, type: 3}
     - target: {fileID: 9031885650118237956, guid: c8d0c70f09e4f46a7afafd5fc6711bfb, type: 3}
       propertyPath: m_Name
       value: Terrain
