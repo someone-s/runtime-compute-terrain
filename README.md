@@ -18,6 +18,15 @@ Screenshot 1                | Screenshot 2                  | Screenshot 3
 ## Run this demo
 1. Clone/Download this repo
 2. Open with Unity 6
+3. Open ```Scenes/Main Scene```
+3. Press the run button
+
+## Controls
+- Hold shift to rotate camera
+- Use WASD keys to move camera
+- Use cursor and hold left mouse button to perform terrain modification
+  - Change type of modification (Add, Subtract, Level, Smooth) with the TerrainCaster component on the Terrain gameobject
+- Move the splines with the AnchorX gameobjects nested in the Embankment gameobjects
 
 
 
