@@ -24,21 +24,35 @@ public class TerrainCoordinator : MonoBehaviour
     public const float area = 50f;
     public const int meshSize = 126;
 
+    [SerializeField] private Vector2Int xRange = new(0, 4);
+    [SerializeField] private Vector2Int zRange = new(0, 4);
+
     internal TerrainModifier modifier;
     internal TerrainSingleIntersector singleIntersector;
     internal TerrainBatchIntersector batchIntersector;
     internal Dictionary<(int x, int z), TerrainController> controllers = new();
+    internal TerrainController[] discardControllers = new TerrainController[4]; 
 
     private void Start()
     {
         modifier = GetComponent<TerrainModifier>();
         singleIntersector = GetComponent<TerrainSingleIntersector>();
         batchIntersector = GetComponent<TerrainBatchIntersector>();
+
+        for (int i = 0; i < 4; i++)
+        {
+            GameObject discardInstance = Instantiate(discardPrefab, transform);
+            discardControllers[i] = discardInstance.GetComponent<TerrainController>();
+            discardControllers[i].Setup();
+        }
     }
 
     #region Creation Section
     private TerrainController Generate(int x, int z)
     {
+        if (x < xRange.x || x > xRange.y) return null;
+        if (z < zRange.x || z > zRange.y) return null;
+
         GameObject chunkInstance = Instantiate(chunkPrefab);
 
         Transform chunkTransform = chunkInstance.transform;
@@ -100,6 +114,7 @@ public class TerrainCoordinator : MonoBehaviour
 
     #region Culling Section
     [SerializeField] private GameObject chunkPrefab;
+    [SerializeField] private GameObject discardPrefab;
     [SerializeField] private float lod1Distance = 135f;
     [SerializeField] private float lod2Distance = 225f;
 
@@ -121,6 +136,9 @@ public class TerrainCoordinator : MonoBehaviour
             {
                 int xRegion = x + centerX - renderRange;
                 int zRegion = z + centerZ - renderRange;
+
+                if (xRegion < xRange.x || xRegion > xRange.y) continue;
+                if (zRegion < zRange.x || zRegion > zRange.y) continue;
 
                 if (GeometryUtility.TestPlanesAABB(frsutumPlanes,
                 new Bounds(localBounds.center + new Vector3(xRegion * area, 0f, zRegion * area), localBounds.size)))
@@ -293,6 +311,9 @@ public class TerrainCoordinator : MonoBehaviour
         for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x); x++)
             for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z); z++)
             {
+                if (x < xRange.x || x > xRange.y) continue;
+                if (z < zRange.x || z > zRange.y) continue;
+                
                 if (!controllers.TryGetValue((x, z), out TerrainController controller))
                     controller = Generate(x, z);
 
@@ -316,6 +337,9 @@ public class TerrainCoordinator : MonoBehaviour
         for (int x = combinedMinRegion.x; x <= combinedMaxRegion.x; x++)
             for (int z = combinedMinRegion.z; z <= combinedMaxRegion.z; z++)
             {
+                if (x < xRange.x || x > xRange.y) continue;
+                if (z < zRange.x || z > zRange.y) continue;
+
                 bool inOldGrid = x >= oldMinRegion.x && x <= oldMaxRegion.x &&
                                  z >= oldMinRegion.z && z <= oldMaxRegion.z;
 
@@ -348,6 +372,9 @@ public class TerrainCoordinator : MonoBehaviour
         for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x); x++)
             for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z); z++)
             {
+                if (x < xRange.x || x > xRange.y) continue;
+                if (z < zRange.x || z > zRange.y) continue;
+
                 if (!controllers.TryGetValue((x, z), out TerrainController controller))
                     controller = Generate(x, z);
 
@@ -362,6 +389,9 @@ public class TerrainCoordinator : MonoBehaviour
         for (int x = minRegion.x; x <= Mathf.Max(minRegion.x, maxRegion.x - 1); x++)
             for (int z = minRegion.z; z <= Mathf.Max(minRegion.z, maxRegion.z - 1); z++)
             {
+                if (x < xRange.x || x > xRange.y) continue;
+                if (z < zRange.x || z > zRange.y) continue;
+
                 if (!controllers.ContainsKey((x, z)))
                     Generate(x, z);
                 if (!controllers.ContainsKey((x + 1, z)))

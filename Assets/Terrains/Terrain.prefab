@@ -48,7 +48,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 683507b61936a9634a793a6313258bae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  xRange: {x: 0, y: 4}
+  zRange: {x: 0, y: 4}
   chunkPrefab: {fileID: 2096383619678947609, guid: 614aa2bae76ff1fa1b83b9019cc68999, type: 3}
+  discardPrefab: {fileID: 1195706185366398184, guid: 1cefc35a6d05e434fa79e3968a665591, type: 3}
   lod1Distance: 90
   lod2Distance: 135
   renderRange: 3

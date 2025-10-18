@@ -51,20 +51,24 @@ public class TerrainModifier : MonoBehaviour
         shader.SetInt("_ModifyOffset", TerrainController.VertexModifyAttributeOffset);
 
         TerrainController[] controllers = new TerrainController[4];
-        
-        TerrainController controllerBL = coordinator.controllers[region];
+
+        if (!coordinator.controllers.TryGetValue(region, out TerrainController controllerBL))
+            controllerBL = coordinator.discardControllers[0];
         shader.SetBuffer(kernelIndex, "_VerticesBL", controllerBL.vertexBuffer);
         controllers[0] = controllerBL;
 
-        TerrainController controllerBR = coordinator.controllers[(region.x + 1, region.z)];
+        if (!coordinator.controllers.TryGetValue((region.x + 1, region.z), out TerrainController controllerBR))
+            controllerBR = coordinator.discardControllers[1];
         shader.SetBuffer(kernelIndex, "_VerticesBR", controllerBR.vertexBuffer);
         controllers[1] = controllerBR;
 
-        TerrainController controllerTL = coordinator.controllers[(region.x, region.z + 1)];
+        if (!coordinator.controllers.TryGetValue((region.x, region.z + 1), out TerrainController controllerTL))
+            controllerTL = coordinator.discardControllers[2];
         shader.SetBuffer(kernelIndex, "_VerticesTL", controllerTL.vertexBuffer);
         controllers[2] = controllerTL;
 
-        TerrainController controllerTR = coordinator.controllers[(region.x + 1, region.z + 1)];
+        if (!coordinator.controllers.TryGetValue((region.x + 1, region.z + 1), out TerrainController controllerTR))
+            controllerTR = coordinator.discardControllers[3];
         shader.SetBuffer(kernelIndex, "_VerticesTR", controllerTR.vertexBuffer);
         controllers[3] = controllerTR;
 
